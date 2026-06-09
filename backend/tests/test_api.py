@@ -70,6 +70,16 @@ def test_event_related_records() -> None:
     assert body["timeline"]["person_id"] == "P001"
 
 
+def test_event_report() -> None:
+    response = client.get("/events/ALT-001/report")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["report_id"] == "RPT-ALT-001"
+    assert body["severity"] == "high"
+    assert body["evidence"]["timeline_point_count"] >= 5
+    assert body["recommended_actions"]
+
+
 def test_mock_car_dispatch() -> None:
     response = client.post(
         "/car-tasks/mock-dispatch",

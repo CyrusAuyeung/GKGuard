@@ -187,6 +187,17 @@ input[type="file"] {
   margin-top: 16px;
 }
 
+.wide-btn.secondary {
+  margin-top: 10px;
+  color: var(--accent);
+  background: transparent;
+}
+
+.wide-btn.secondary:hover {
+  color: var(--surface);
+  background: var(--accent-strong);
+}
+
 .hint {
   margin: 8px 0 0;
   color: var(--muted);

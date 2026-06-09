@@ -149,6 +149,11 @@ async function dispatchCar() {
   showJson(result);
 }
 
+async function generateReport() {
+  const result = await api("/events/ALT-001/report");
+  showJson(result);
+}
+
 async function checkHealth() {
   try {
     const result = await api("/health");
@@ -163,6 +168,7 @@ document.querySelector("#personSearchBtn").addEventListener("click", () => loadP
 document.querySelector("#imageSearchBtn").addEventListener("click", () => runImageSearch().catch((error) => showJson({ error: error.message })));
 document.querySelector("#parseBtn").addEventListener("click", () => parseQuery().catch((error) => showJson({ error: error.message })));
 document.querySelector("#dispatchBtn").addEventListener("click", () => dispatchCar().catch((error) => showJson({ error: error.message })));
+document.querySelector("#reportBtn").addEventListener("click", () => generateReport().catch((error) => showJson({ error: error.message })));
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showJson({ error: error.message }));

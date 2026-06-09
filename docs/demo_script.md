@@ -76,6 +76,14 @@ Body:
 
 Expected result: task status `arrived_mock` with a mock snapshot URL.
 
+1. Generate a case report.
+
+```text
+GET /events/ALT-001/report
+```
+
+Expected result: a structured report with key findings, recommended actions, evidence IDs, and a disposition template.
+
 ## Handoff Notes
 
 - Frontend can consume the timeline `points` list directly for map markers and route lines.

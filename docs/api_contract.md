@@ -93,6 +93,12 @@ Returns sorted timeline points and a summary with first seen, last seen, last lo
 
 Returns alert detail, related snapshots, optional person timeline, and a text summary.
 
+## Event Report
+
+`GET /events/{event_id}/report`
+
+Returns a structured case report with key findings, recommended actions, evidence IDs, and a disposition template.
+
 ## Mock campusCar Dispatch
 
 `POST /car-tasks/mock-dispatch`
