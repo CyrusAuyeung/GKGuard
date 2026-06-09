@@ -154,6 +154,19 @@ async function generateReport() {
   showJson(result);
 }
 
+async function archiveDisposition() {
+  const result = await api("/events/ALT-001/disposition", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      result: "confirmed_safe",
+      handler: "security_desk_demo",
+      notes: "Demo closure: timeline and mock field review indicate the subject returned to Dorm East Gate.",
+    }),
+  });
+  showJson(result);
+}
+
 async function checkHealth() {
   try {
     const result = await api("/health");
@@ -169,6 +182,7 @@ document.querySelector("#imageSearchBtn").addEventListener("click", () => runIma
 document.querySelector("#parseBtn").addEventListener("click", () => parseQuery().catch((error) => showJson({ error: error.message })));
 document.querySelector("#dispatchBtn").addEventListener("click", () => dispatchCar().catch((error) => showJson({ error: error.message })));
 document.querySelector("#reportBtn").addEventListener("click", () => generateReport().catch((error) => showJson({ error: error.message })));
+document.querySelector("#archiveBtn").addEventListener("click", () => archiveDisposition().catch((error) => showJson({ error: error.message })));
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showJson({ error: error.message }));

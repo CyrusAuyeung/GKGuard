@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from typing import Any
+from datetime import datetime
 
 from app.data_store import load_data
+from app.models import EventDispositionRequest, EventDispositionResponse
 from app.services.search_service import search_snapshots
 from app.services.timeline_service import build_person_timeline, summarize_timeline
 
@@ -78,3 +80,28 @@ def build_event_report(event_id: str) -> dict[str, Any] | None:
             "notes": "Replace this template with the duty officer's final handling result.",
         },
     }
+
+
+def archive_event_disposition(event_id: str, request: EventDispositionRequest) -> EventDispositionResponse | None:
+    report = build_event_report(event_id)
+    if not report:
+        return None
+
+    archived_at = datetime.now().replace(microsecond=0).isoformat()
+    return EventDispositionResponse(
+        disposition_id=f"DSP-{event_id}",
+        event_id=event_id,
+        status_before=report["status"],
+        status_after="closed",
+        result=request.result,
+        handler=request.handler,
+        notes=request.notes,
+        archived_at=archived_at,
+        evidence_summary={
+            "report_id": report["report_id"],
+            "snapshot_count": len(report["evidence"]["snapshot_ids"]),
+            "camera_count": len(report["evidence"]["camera_ids"]),
+            "last_location": report["evidence"]["last_location"],
+            "recommended_action_count": len(report["recommended_actions"]),
+        },
+    )

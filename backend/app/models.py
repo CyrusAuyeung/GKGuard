@@ -54,3 +54,21 @@ class CarDispatchResponse(BaseModel):
     snapshot_url: str | None = None
     exception_code: str | None = None
     message: str = Field(default="mock campusCar task accepted")
+
+
+class EventDispositionRequest(BaseModel):
+    result: str = "confirmed_safe"
+    handler: str = "security_desk_demo"
+    notes: str = "Subject confirmed by timeline and field review."
+
+
+class EventDispositionResponse(BaseModel):
+    disposition_id: str
+    event_id: str
+    status_before: str
+    status_after: str
+    result: str
+    handler: str
+    notes: str
+    archived_at: str
+    evidence_summary: dict

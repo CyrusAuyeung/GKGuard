@@ -84,6 +84,14 @@ GET /events/ALT-001/report
 
 Expected result: a structured report with key findings, recommended actions, evidence IDs, and a disposition template.
 
+1. Archive the disposition.
+
+```text
+POST /events/ALT-001/disposition
+```
+
+Expected result: a mock archive record with `status_after` set to `closed` and evidence summary retained.
+
 ## Handoff Notes
 
 - Frontend can consume the timeline `points` list directly for map markers and route lines.

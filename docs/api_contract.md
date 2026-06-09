@@ -99,6 +99,22 @@ Returns alert detail, related snapshots, optional person timeline, and a text su
 
 Returns a structured case report with key findings, recommended actions, evidence IDs, and a disposition template.
 
+## Event Disposition
+
+`POST /events/{event_id}/disposition`
+
+Body:
+
+```json
+{
+  "result": "confirmed_safe",
+  "handler": "security_desk_demo",
+  "notes": "Subject confirmed by timeline and field review."
+}
+```
+
+Returns a mock archived disposition record with before/after status, handler, notes, archive time, and evidence summary.
+
 ## Mock campusCar Dispatch
 
 `POST /car-tasks/mock-dispatch`

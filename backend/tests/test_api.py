@@ -80,6 +80,19 @@ def test_event_report() -> None:
     assert body["recommended_actions"]
 
 
+def test_event_disposition_archive() -> None:
+    response = client.post(
+        "/events/ALT-001/disposition",
+        json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["disposition_id"] == "DSP-ALT-001"
+    assert body["status_before"] == "open"
+    assert body["status_after"] == "closed"
+    assert body["evidence_summary"]["last_location"] == "Dorm East Gate"
+
+
 def test_mock_car_dispatch() -> None:
     response = client.post(
         "/car-tasks/mock-dispatch",
