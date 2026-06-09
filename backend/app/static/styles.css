@@ -116,6 +116,9 @@ button:hover,
 
 .search-panel {
   grid-row: span 2;
+  position: sticky;
+  top: 18px;
+  align-self: start;
 }
 
 .map-panel {
@@ -182,18 +185,25 @@ input[type="file"] {
   padding: 7px 10px;
 }
 
-.wide-btn {
-  width: 100%;
+.action-group {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
 }
 
-.wide-btn.secondary {
-  margin-top: 10px;
+.action-group button {
+  width: 100%;
+}
+
+.secondary {
   color: var(--accent);
   background: transparent;
 }
 
-.wide-btn.secondary:hover {
+.secondary:hover {
   color: var(--surface);
   background: var(--accent-strong);
 }
@@ -322,6 +332,17 @@ pre {
   line-height: 1.55;
 }
 
+.result-summary {
+  margin-bottom: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fbfcfd;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 @media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr 1fr;
@@ -329,6 +350,7 @@ pre {
 
   .search-panel {
     grid-row: auto;
+    position: static;
   }
 
   .result-panel {
@@ -355,6 +377,10 @@ pre {
   .input-row,
   .file-row,
   .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .action-group {
     grid-template-columns: 1fr;
   }
 

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard C2 Demo</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=ui4" />
   </head>
   <body>
     <header class="topbar">
@@ -47,11 +47,14 @@
         </div>
         <p class="hint">No file selected uses a demo target named p001_target.jpg.</p>
 
-        <button id="dispatchBtn" class="wide-btn" type="button">Create campusCar Review</button>
-        <button id="reportBtn" class="wide-btn secondary" type="button">Generate Case Report</button>
-        <button id="archiveBtn" class="wide-btn secondary" type="button">Archive Disposition</button>
-        <button id="auditBtn" class="wide-btn secondary" type="button">View Audit Logs</button>
-        <button id="packageBtn" class="wide-btn secondary" type="button">Export Case Package</button>
+        <div class="action-group" aria-label="Case actions">
+          <button id="fullFlowBtn" type="button">Run Full Demo Flow</button>
+          <button id="dispatchBtn" type="button">Create campusCar Review</button>
+          <button id="reportBtn" class="secondary" type="button">Generate Case Report</button>
+          <button id="archiveBtn" class="secondary" type="button">Archive Disposition</button>
+          <button id="auditBtn" class="secondary" type="button">View Audit Logs</button>
+          <button id="packageBtn" class="secondary" type="button">Export Case Package</button>
+        </div>
       </section>
 
       <section class="panel profile-panel" aria-labelledby="profile-title">
@@ -92,11 +95,13 @@
             <p class="eyebrow">Output</p>
             <h2 id="result-title">Latest Response</h2>
           </div>
+          <span id="resultStatus" class="status-pill muted">Ready</span>
         </div>
+        <div id="resultSummary" class="result-summary">Profile and timeline are loaded by default.</div>
         <pre id="resultJson">{}</pre>
       </section>
     </main>
 
-    <script src="/static/app.js" defer></script>
+    <script src="/static/app.js?v=ui4" defer></script>
   </body>
 </html>

@@ -5,12 +5,43 @@ const routeMap = document.querySelector("#routeMap");
 const timelineList = document.querySelector("#timelineList");
 const timelineCount = document.querySelector("#timelineCount");
 const resultJson = document.querySelector("#resultJson");
+const resultStatus = document.querySelector("#resultStatus");
+const resultSummary = document.querySelector("#resultSummary");
 
 let activePersonId = "P001";
 let activeTimeline = null;
 
+function summarizePayload(payload) {
+  if (payload.flow_id) return `Full demo flow ${payload.flow_id} completed with ${payload.steps.length} steps.`;
+  if (payload.package_id) return `Case package ${payload.package_id} exported with ${payload.timeline_points.length} timeline points and ${payload.evidence_snapshots.length} evidence snapshots.`;
+  if (payload.disposition_id) return `Disposition ${payload.disposition_id} archived: ${payload.status_before} to ${payload.status_after}.`;
+  if (payload.report_id) return `Report ${payload.report_id} generated with ${payload.key_findings.length} findings and ${payload.recommended_actions.length} recommended actions.`;
+  if (payload.task_id) return `campusCar task ${payload.task_id} is ${payload.status} at ${payload.location}.`;
+  if (payload.query_filename) return `Image query ${payload.query_filename} returned ${payload.matches.length} matches.`;
+  if (payload.items) return `Loaded ${payload.count ?? payload.items.length} audit or list records.`;
+  if (payload.filters) return `Parsed ${Object.keys(payload.filters).length} filters from the natural query.`;
+  if (payload.profile && payload.timeline) return `Loaded ${payload.profile.person.name} with ${payload.timeline.summary.point_count} timeline points.`;
+  if (payload.error) return payload.error;
+  return "Response loaded.";
+}
+
 function showJson(payload) {
+  resultSummary.textContent = summarizePayload(payload);
+  resultStatus.textContent = payload.error ? "Error" : "Updated";
+  resultStatus.classList.toggle("muted", Boolean(payload.error));
   resultJson.textContent = JSON.stringify(payload, null, 2);
+}
+
+async function runAction(label, action) {
+  resultStatus.textContent = "Loading";
+  resultStatus.classList.remove("muted");
+  resultSummary.textContent = `${label} is running.`;
+  try {
+    const payload = await action();
+    showJson(payload);
+  } catch (error) {
+    showJson({ error: error.message });
+  }
 }
 
 async function api(path, options = {}) {
@@ -102,15 +133,18 @@ async function loadProfileByStudentId() {
   const studentId = document.querySelector("#studentId").value.trim();
   const persons = await api(`/search/persons?student_id=${encodeURIComponent(studentId)}`);
   if (!persons.items.length) {
-    showJson({ message: "No person found", student_id: studentId });
-    return;
+    const emptyResult = { message: "No person found", student_id: studentId };
+    showJson(emptyResult);
+    return emptyResult;
   }
   const personId = persons.items[0].person_id;
   const profile = await api(`/search/persons/${personId}/profile`);
   const timeline = await api(`/persons/${personId}/timeline?min_similarity=0.9`);
   renderProfile(profile);
   renderTimeline(timeline);
-  showJson({ profile, timeline });
+  const result = { profile, timeline };
+  showJson(result);
+  return result;
 }
 
 async function runImageSearch() {
@@ -127,6 +161,7 @@ async function runImageSearch() {
     renderTimeline(timeline);
   }
   showJson(result);
+  return result;
 }
 
 async function parseQuery() {
@@ -137,6 +172,7 @@ async function parseQuery() {
     body: JSON.stringify({ query }),
   });
   showJson(result);
+  return result;
 }
 
 async function dispatchCar() {
@@ -147,11 +183,13 @@ async function dispatchCar() {
     body: JSON.stringify({ event_id: "ALT-001", target_location: targetLocation, reason: "field review" }),
   });
   showJson(result);
+  return result;
 }
 
 async function generateReport() {
   const result = await api("/events/ALT-001/report");
   showJson(result);
+  return result;
 }
 
 async function archiveDisposition() {
@@ -165,16 +203,53 @@ async function archiveDisposition() {
     }),
   });
   showJson(result);
+  return result;
 }
 
 async function viewAuditLogs() {
   const result = await api("/audit/logs?limit=10");
   showJson(result);
+  return result;
 }
 
 async function exportCasePackage() {
   const result = await api("/events/ALT-001/case-package");
   showJson(result);
+  return result;
+}
+
+async function runFullDemoFlow() {
+  const profile = await loadProfileByStudentId();
+  const parsedQuery = await parseQuery();
+  const imageSearch = await runImageSearch();
+  const carDispatch = await dispatchCar();
+  const report = await generateReport();
+  const disposition = await archiveDisposition();
+  const casePackage = await exportCasePackage();
+  const auditLogs = await viewAuditLogs();
+  const result = {
+    flow_id: "FLOW-ALT-001",
+    steps: [
+      "profile_loaded",
+      "query_parsed",
+      "image_matched",
+      "campuscar_review_created",
+      "case_report_generated",
+      "disposition_archived",
+      "case_package_exported",
+      "audit_logs_loaded",
+    ],
+    profile,
+    parsed_query: parsedQuery,
+    image_search: imageSearch,
+    car_dispatch: carDispatch,
+    report,
+    disposition,
+    case_package: casePackage,
+    audit_logs: auditLogs,
+  };
+  showJson(result);
+  return result;
 }
 
 async function checkHealth() {
@@ -187,14 +262,15 @@ async function checkHealth() {
   }
 }
 
-document.querySelector("#personSearchBtn").addEventListener("click", () => loadProfileByStudentId().catch((error) => showJson({ error: error.message })));
-document.querySelector("#imageSearchBtn").addEventListener("click", () => runImageSearch().catch((error) => showJson({ error: error.message })));
-document.querySelector("#parseBtn").addEventListener("click", () => parseQuery().catch((error) => showJson({ error: error.message })));
-document.querySelector("#dispatchBtn").addEventListener("click", () => dispatchCar().catch((error) => showJson({ error: error.message })));
-document.querySelector("#reportBtn").addEventListener("click", () => generateReport().catch((error) => showJson({ error: error.message })));
-document.querySelector("#archiveBtn").addEventListener("click", () => archiveDisposition().catch((error) => showJson({ error: error.message })));
-document.querySelector("#auditBtn").addEventListener("click", () => viewAuditLogs().catch((error) => showJson({ error: error.message })));
-document.querySelector("#packageBtn").addEventListener("click", () => exportCasePackage().catch((error) => showJson({ error: error.message })));
+document.querySelector("#personSearchBtn").addEventListener("click", () => runAction("Search", loadProfileByStudentId));
+document.querySelector("#imageSearchBtn").addEventListener("click", () => runAction("Image search", runImageSearch));
+document.querySelector("#parseBtn").addEventListener("click", () => runAction("Query parsing", parseQuery));
+document.querySelector("#fullFlowBtn").addEventListener("click", () => runAction("Full demo flow", runFullDemoFlow));
+document.querySelector("#dispatchBtn").addEventListener("click", () => runAction("campusCar review", dispatchCar));
+document.querySelector("#reportBtn").addEventListener("click", () => runAction("Case report", generateReport));
+document.querySelector("#archiveBtn").addEventListener("click", () => runAction("Disposition archive", archiveDisposition));
+document.querySelector("#auditBtn").addEventListener("click", () => runAction("Audit logs", viewAuditLogs));
+document.querySelector("#packageBtn").addEventListener("click", () => runAction("Case package", exportCasePackage));
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showJson({ error: error.message }));
