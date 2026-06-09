@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import ai, car_tasks, events, search, timeline
+from app.routers import ai, audit, car_tasks, events, search, timeline
 
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -40,4 +40,5 @@ app.include_router(timeline.router)
 app.include_router(events.router)
 app.include_router(car_tasks.router)
 app.include_router(ai.router)
+app.include_router(audit.router)
 

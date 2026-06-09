@@ -167,6 +167,11 @@ async function archiveDisposition() {
   showJson(result);
 }
 
+async function viewAuditLogs() {
+  const result = await api("/audit/logs?limit=10");
+  showJson(result);
+}
+
 async function checkHealth() {
   try {
     const result = await api("/health");
@@ -183,6 +188,7 @@ document.querySelector("#parseBtn").addEventListener("click", () => parseQuery()
 document.querySelector("#dispatchBtn").addEventListener("click", () => dispatchCar().catch((error) => showJson({ error: error.message })));
 document.querySelector("#reportBtn").addEventListener("click", () => generateReport().catch((error) => showJson({ error: error.message })));
 document.querySelector("#archiveBtn").addEventListener("click", () => archiveDisposition().catch((error) => showJson({ error: error.message })));
+document.querySelector("#auditBtn").addEventListener("click", () => viewAuditLogs().catch((error) => showJson({ error: error.message })));
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showJson({ error: error.message }));

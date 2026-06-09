@@ -1,5 +1,6 @@
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
+from app.services.audit_service import record_audit
 from app.services.image_search_service import search_by_image
 from app.services.search_service import get_person_profile, search_persons, search_snapshots, search_vehicles
 
@@ -67,4 +68,10 @@ async def find_by_image(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=400, detail={"code": "EMPTY_IMAGE", "message": "Uploaded file is empty"})
-    return search_by_image(file.filename or "query.jpg", content, top_k, min_similarity)
+    result = search_by_image(file.filename or "query.jpg", content, top_k, min_similarity)
+    record_audit(
+        action="image_search",
+        target={"query_filename": result["query_filename"], "hint_person_id": result["query_hint_person_id"]},
+        metadata={"match_count": len(result["matches"]), "top_k": top_k, "min_similarity": min_similarity},
+    )
+    return result

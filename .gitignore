@@ -9,4 +9,5 @@ dist/
 build/
 .env
 .env.*
+backend/runtime/
 初期材料/

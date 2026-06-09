@@ -1,9 +1,14 @@
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services.audit_service import clear_audit_logs
 
 
 client = TestClient(app)
+
+
+def setup_function() -> None:
+    clear_audit_logs()
 
 
 def test_health() -> None:
@@ -60,6 +65,9 @@ def test_image_search_uses_demo_hint() -> None:
     assert body["query_hint_person_id"] == "P001"
     assert len(body["matches"]) == 3
     assert all(match["person_id"] == "P001" for match in body["matches"])
+    audit_response = client.get("/audit/logs")
+    assert audit_response.status_code == 200
+    assert audit_response.json()["items"][-1]["action"] == "image_search"
 
 
 def test_event_related_records() -> None:
@@ -78,6 +86,8 @@ def test_event_report() -> None:
     assert body["severity"] == "high"
     assert body["evidence"]["timeline_point_count"] >= 5
     assert body["recommended_actions"]
+    audit_response = client.get("/audit/logs")
+    assert audit_response.json()["items"][-1]["action"] == "event_report_generated"
 
 
 def test_event_disposition_archive() -> None:
@@ -91,6 +101,21 @@ def test_event_disposition_archive() -> None:
     assert body["status_before"] == "open"
     assert body["status_after"] == "closed"
     assert body["evidence_summary"]["last_location"] == "Dorm East Gate"
+    audit_response = client.get("/audit/logs")
+    assert audit_response.json()["items"][-1]["action"] == "event_disposition_archived"
+
+
+def test_audit_logs_limit() -> None:
+    client.get("/events/ALT-001/report")
+    client.post(
+        "/events/ALT-001/disposition",
+        json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
+    )
+    response = client.get("/audit/logs", params={"limit": 1})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["count"] == 1
+    assert body["items"][0]["action"] == "event_disposition_archived"
 
 
 def test_mock_car_dispatch() -> None:

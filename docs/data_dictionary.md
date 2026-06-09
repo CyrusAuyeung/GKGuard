@@ -73,3 +73,14 @@ Sensitive in real deployment: person movement history.
 - `description`: demo event text.
 
 Sensitive in real deployment: event subjects, case description, handling status.
+
+## audit logs
+
+- `audit_id`: generated audit entry ID.
+- `time`: ISO timestamp.
+- `actor`: demo operator or handler.
+- `action`: sensitive action name.
+- `target`: event, report, disposition, or query target.
+- `metadata`: non-sensitive action details.
+
+Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git.

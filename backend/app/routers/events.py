@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.models import EventDispositionRequest, EventDispositionResponse
+from app.services.audit_service import record_audit
 from app.services.event_service import archive_event_disposition, build_event_report, get_event_related_records
 
 
@@ -20,6 +21,11 @@ def event_report(event_id: str) -> dict:
     report = build_event_report(event_id)
     if not report:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})
+    record_audit(
+        action="event_report_generated",
+        target={"event_id": event_id, "report_id": report["report_id"]},
+        metadata={"severity": report["severity"], "status": report["status"]},
+    )
     return report
 
 
@@ -28,4 +34,10 @@ def event_disposition(event_id: str, request: EventDispositionRequest) -> EventD
     disposition = archive_event_disposition(event_id, request)
     if not disposition:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})
+    record_audit(
+        action="event_disposition_archived",
+        actor=request.handler,
+        target={"event_id": event_id, "disposition_id": disposition.disposition_id},
+        metadata={"result": request.result, "status_after": disposition.status_after},
+    )
     return disposition
