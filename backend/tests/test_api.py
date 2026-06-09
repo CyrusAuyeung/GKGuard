@@ -118,6 +118,26 @@ def test_audit_logs_limit() -> None:
     assert body["items"][0]["action"] == "event_disposition_archived"
 
 
+def test_case_package_export() -> None:
+    client.get("/events/ALT-001/report")
+    client.post(
+        "/events/ALT-001/disposition",
+        json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
+    )
+    response = client.get("/events/ALT-001/case-package")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["package_id"] == "PKG-ALT-001"
+    assert body["report"]["report_id"] == "RPT-ALT-001"
+    assert body["subject"]["person"]["person_id"] == "P001"
+    assert body["timeline_summary"]["last_location"] == "Dorm East Gate"
+    assert len(body["evidence_snapshots"]) >= 5
+    assert body["handoff_checklist"]
+
+    audit_response = client.get("/audit/logs", params={"limit": 1})
+    assert audit_response.json()["items"][0]["action"] == "case_package_exported"
+
+
 def test_mock_car_dispatch() -> None:
     response = client.post(
         "/car-tasks/mock-dispatch",

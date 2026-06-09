@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.models import EventDispositionRequest, EventDispositionResponse
 from app.services.audit_service import record_audit
-from app.services.event_service import archive_event_disposition, build_event_report, get_event_related_records
+from app.services.event_service import archive_event_disposition, build_case_package, build_event_report, get_event_related_records
 
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -41,3 +41,16 @@ def event_disposition(event_id: str, request: EventDispositionRequest) -> EventD
         metadata={"result": request.result, "status_after": disposition.status_after},
     )
     return disposition
+
+
+@router.get("/{event_id}/case-package")
+def event_case_package(event_id: str) -> dict:
+    package = build_case_package(event_id)
+    if not package:
+        raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})
+    record_audit(
+        action="case_package_exported",
+        target={"event_id": event_id, "package_id": package["package_id"]},
+        metadata={"snapshot_count": len(package["evidence_snapshots"]), "audit_log_count": len(package["audit_logs"])},
+    )
+    return package

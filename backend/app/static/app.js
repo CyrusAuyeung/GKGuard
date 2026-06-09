@@ -172,6 +172,11 @@ async function viewAuditLogs() {
   showJson(result);
 }
 
+async function exportCasePackage() {
+  const result = await api("/events/ALT-001/case-package");
+  showJson(result);
+}
+
 async function checkHealth() {
   try {
     const result = await api("/health");
@@ -189,6 +194,7 @@ document.querySelector("#dispatchBtn").addEventListener("click", () => dispatchC
 document.querySelector("#reportBtn").addEventListener("click", () => generateReport().catch((error) => showJson({ error: error.message })));
 document.querySelector("#archiveBtn").addEventListener("click", () => archiveDisposition().catch((error) => showJson({ error: error.message })));
 document.querySelector("#auditBtn").addEventListener("click", () => viewAuditLogs().catch((error) => showJson({ error: error.message })));
+document.querySelector("#packageBtn").addEventListener("click", () => exportCasePackage().catch((error) => showJson({ error: error.message })));
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showJson({ error: error.message }));

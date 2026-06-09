@@ -92,6 +92,14 @@ POST /events/ALT-001/disposition
 
 Expected result: a mock archive record with `status_after` set to `closed` and evidence summary retained.
 
+1. Export the case package.
+
+```text
+GET /events/ALT-001/case-package
+```
+
+Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and handoff checklist.
+
 ## Handoff Notes
 
 - Frontend can consume the timeline `points` list directly for map markers and route lines.

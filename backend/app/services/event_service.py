@@ -5,6 +5,7 @@ from datetime import datetime
 
 from app.data_store import load_data
 from app.models import EventDispositionRequest, EventDispositionResponse
+from app.services.audit_service import read_audit_logs
 from app.services.search_service import search_snapshots
 from app.services.timeline_service import build_person_timeline, summarize_timeline
 
@@ -105,3 +106,46 @@ def archive_event_disposition(event_id: str, request: EventDispositionRequest) -
             "recommended_action_count": len(report["recommended_actions"]),
         },
     )
+
+
+def build_case_package(event_id: str) -> dict[str, Any] | None:
+    records = get_event_related_records(event_id)
+    report = build_event_report(event_id)
+    if not records or not report:
+        return None
+
+    event = records["event"]
+    data = load_data()
+    person = None
+    vehicle = None
+    if event.get("person_id"):
+        person = next((item for item in data["persons"] if item["person_id"] == event["person_id"]), None)
+    if event.get("vehicle_id"):
+        vehicle = next((item for item in data["vehicles"] if item["vehicle_id"] == event["vehicle_id"]), None)
+
+    related_audit_logs = [
+        log for log in read_audit_logs(limit=100) if log.get("target", {}).get("event_id") == event_id
+    ]
+    timeline = records.get("timeline")
+    return {
+        "package_id": f"PKG-{event_id}",
+        "event_id": event_id,
+        "generated_at": datetime.now().replace(microsecond=0).isoformat(),
+        "executive_summary": report["key_findings"][0],
+        "subject": {
+            "person": person,
+            "vehicle": vehicle,
+        },
+        "event": event,
+        "report": report,
+        "timeline_summary": timeline["summary"] if timeline else None,
+        "timeline_points": timeline["points"] if timeline else [],
+        "evidence_snapshots": records["related_snapshots"],
+        "audit_logs": related_audit_logs,
+        "handoff_checklist": [
+            "Confirm final location with duty staff.",
+            "Attach authorized screenshots or redacted evidence only.",
+            "Record final disposition before closing the case.",
+            "Keep audit logs with the exported case package.",
+        ],
+    }
