@@ -1,0 +1,68 @@
+[
+  {
+    "alert_id": "ALT-001",
+    "person_id": "P001",
+    "vehicle_id": null,
+    "alert_type": "missing_person_review",
+    "time": "2026-06-09T20:55:00",
+    "location": "Dorm East Gate",
+    "status": "open",
+    "severity": "high",
+    "description": "Demo case: student location review requested by security desk."
+  },
+  {
+    "alert_id": "ALT-002",
+    "person_id": null,
+    "vehicle_id": "V004",
+    "alert_type": "night_vehicle_review",
+    "time": "2026-06-09T20:36:00",
+    "location": "Parking Lot East",
+    "status": "open",
+    "severity": "medium",
+    "description": "Red sedan appears in parking area after hours."
+  },
+  {
+    "alert_id": "ALT-003",
+    "person_id": "P009",
+    "vehicle_id": null,
+    "alert_type": "late_return",
+    "time": "2026-06-08T23:03:00",
+    "location": "Dorm East Gate",
+    "status": "closed",
+    "severity": "low",
+    "description": "Late return record was confirmed."
+  },
+  {
+    "alert_id": "ALT-004",
+    "person_id": "P005",
+    "vehicle_id": null,
+    "alert_type": "visitor_pass_expiring",
+    "time": "2026-06-09T16:00:00",
+    "location": "Main Gate North",
+    "status": "closed",
+    "severity": "low",
+    "description": "Visitor pass expiration reminder."
+  },
+  {
+    "alert_id": "ALT-005",
+    "person_id": null,
+    "vehicle_id": "V003",
+    "alert_type": "service_vehicle_route_check",
+    "time": "2026-06-09T10:06:00",
+    "location": "Main Gate North",
+    "status": "closed",
+    "severity": "low",
+    "description": "Service vehicle route was checked."
+  },
+  {
+    "alert_id": "ALT-006",
+    "person_id": "P006",
+    "vehicle_id": null,
+    "alert_type": "clinic_area_review",
+    "time": "2026-06-09T21:50:00",
+    "location": "Clinic Door",
+    "status": "open",
+    "severity": "medium",
+    "description": "Clinic area after-hours appearance needs review."
+  }
+]

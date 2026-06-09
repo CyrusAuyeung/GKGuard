@@ -1,0 +1,66 @@
+[
+  {
+    "camera_id": "CAM-001",
+    "name": "Main Gate North Camera",
+    "location_name": "Main Gate North",
+    "lat": 22.6001,
+    "lng": 113.9901,
+    "type": "fixed_box"
+  },
+  {
+    "camera_id": "CAM-002",
+    "name": "Library West Camera",
+    "location_name": "Library West",
+    "lat": 22.6008,
+    "lng": 113.9914,
+    "type": "fixed_box"
+  },
+  {
+    "camera_id": "CAM-003",
+    "name": "Dorm East Gate Camera",
+    "location_name": "Dorm East Gate",
+    "lat": 22.6017,
+    "lng": 113.9922,
+    "type": "fixed_box"
+  },
+  {
+    "camera_id": "CAM-004",
+    "name": "Canteen Entrance Camera",
+    "location_name": "Canteen Entrance",
+    "lat": 22.6023,
+    "lng": 113.9919,
+    "type": "smart_dome"
+  },
+  {
+    "camera_id": "CAM-005",
+    "name": "Lab Building South Camera",
+    "location_name": "Lab Building South",
+    "lat": 22.6031,
+    "lng": 113.9909,
+    "type": "fixed_box"
+  },
+  {
+    "camera_id": "CAM-006",
+    "name": "Sports Field Camera",
+    "location_name": "Sports Field",
+    "lat": 22.6028,
+    "lng": 113.9895,
+    "type": "smart_dome"
+  },
+  {
+    "camera_id": "CAM-007",
+    "name": "Clinic Door Camera",
+    "location_name": "Clinic Door",
+    "lat": 22.6011,
+    "lng": 113.9888,
+    "type": "dahua_fixed"
+  },
+  {
+    "camera_id": "CAM-008",
+    "name": "Parking Lot East Camera",
+    "location_name": "Parking Lot East",
+    "lat": 22.5997,
+    "lng": 113.9899,
+    "type": "fixed_box"
+  }
+]

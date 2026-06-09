@@ -1,0 +1,14 @@
+[
+  {"record_id": "ACC-001", "person_id": "P001", "location": "Main Gate North", "time": "2026-06-09T08:10:00", "direction": "in"},
+  {"record_id": "ACC-002", "person_id": "P001", "location": "Library West", "time": "2026-06-09T08:30:00", "direction": "in"},
+  {"record_id": "ACC-003", "person_id": "P001", "location": "Dorm East Gate", "time": "2026-06-09T21:20:00", "direction": "in"},
+  {"record_id": "ACC-004", "person_id": "P002", "location": "Main Gate North", "time": "2026-06-09T08:12:00", "direction": "in"},
+  {"record_id": "ACC-005", "person_id": "P003", "location": "Library West", "time": "2026-06-09T09:08:00", "direction": "in"},
+  {"record_id": "ACC-006", "person_id": "P004", "location": "Lab Building South", "time": "2026-06-09T11:25:00", "direction": "in"},
+  {"record_id": "ACC-007", "person_id": "P005", "location": "Main Gate North", "time": "2026-06-09T13:00:00", "direction": "in"},
+  {"record_id": "ACC-008", "person_id": "P006", "location": "Canteen Entrance", "time": "2026-06-09T12:14:00", "direction": "in"},
+  {"record_id": "ACC-009", "person_id": "P007", "location": "Clinic Door", "time": "2026-06-09T07:40:00", "direction": "in"},
+  {"record_id": "ACC-010", "person_id": "P008", "location": "Canteen Entrance", "time": "2026-06-09T18:05:00", "direction": "in"},
+  {"record_id": "ACC-011", "person_id": "P009", "location": "Dorm East Gate", "time": "2026-06-08T23:05:00", "direction": "in"},
+  {"record_id": "ACC-012", "person_id": "P010", "location": "Library West", "time": "2026-06-08T15:10:00", "direction": "in"}
+]

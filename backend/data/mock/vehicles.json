@@ -1,0 +1,47 @@
+[
+  {
+    "vehicle_id": "V001",
+    "plate_number": "DEMO-A001",
+    "vehicle_type": "sedan",
+    "brand": "BYD",
+    "color": "white",
+    "plate_color": "blue",
+    "owner_person_id": "P004"
+  },
+  {
+    "vehicle_id": "V002",
+    "plate_number": "DEMO-B002",
+    "vehicle_type": "suv",
+    "brand": "Tesla",
+    "color": "black",
+    "plate_color": "green",
+    "owner_person_id": "P010"
+  },
+  {
+    "vehicle_id": "V003",
+    "plate_number": "DEMO-C003",
+    "vehicle_type": "van",
+    "brand": "Wuling",
+    "color": "silver",
+    "plate_color": "blue",
+    "owner_person_id": "P007"
+  },
+  {
+    "vehicle_id": "V004",
+    "plate_number": "DEMO-D004",
+    "vehicle_type": "sedan",
+    "brand": "Toyota",
+    "color": "red",
+    "plate_color": "blue",
+    "owner_person_id": "P005"
+  },
+  {
+    "vehicle_id": "V005",
+    "plate_number": "DEMO-E005",
+    "vehicle_type": "campusCar",
+    "brand": "CampusCar",
+    "color": "white",
+    "plate_color": "none",
+    "owner_person_id": null
+  }
+]

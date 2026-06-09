@@ -1,0 +1,112 @@
+[
+  {
+    "person_id": "P001",
+    "name": "Student Alpha",
+    "student_id": "S2026001",
+    "phone": "13800000001",
+    "email": "alpha@example.edu",
+    "identity_type": "student",
+    "department": "Computer Science",
+    "avatar_url": "/mock/faces/p001_target.jpg",
+    "risk_tags": ["demo_missing_person"]
+  },
+  {
+    "person_id": "P002",
+    "name": "Student Beta",
+    "student_id": "S2026002",
+    "phone": "13800000002",
+    "email": "beta@example.edu",
+    "identity_type": "student",
+    "department": "Robotics",
+    "avatar_url": "/mock/faces/p002.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P003",
+    "name": "Student Gamma",
+    "student_id": "S2026003",
+    "phone": "13800000003",
+    "email": "gamma@example.edu",
+    "identity_type": "student",
+    "department": "Data Science",
+    "avatar_url": "/mock/faces/p003.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P004",
+    "name": "Faculty Delta",
+    "student_id": "F2026004",
+    "phone": "13800000004",
+    "email": "delta@example.edu",
+    "identity_type": "faculty",
+    "department": "ROAS Lab",
+    "avatar_url": "/mock/faces/p004.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P005",
+    "name": "Visitor Echo",
+    "student_id": "V2026005",
+    "phone": "13800000005",
+    "email": "echo@example.edu",
+    "identity_type": "visitor",
+    "department": "Guest",
+    "avatar_url": "/mock/faces/p005.jpg",
+    "risk_tags": ["temporary_pass"]
+  },
+  {
+    "person_id": "P006",
+    "name": "Student Foxtrot",
+    "student_id": "S2026006",
+    "phone": "13800000006",
+    "email": "foxtrot@example.edu",
+    "identity_type": "student",
+    "department": "Mechanical Engineering",
+    "avatar_url": "/mock/faces/p006.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P007",
+    "name": "Staff Golf",
+    "student_id": "E2026007",
+    "phone": "13800000007",
+    "email": "golf@example.edu",
+    "identity_type": "staff",
+    "department": "Security Office",
+    "avatar_url": "/mock/faces/p007.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P008",
+    "name": "Student Hotel",
+    "student_id": "S2026008",
+    "phone": "13800000008",
+    "email": "hotel@example.edu",
+    "identity_type": "student",
+    "department": "AI Lab",
+    "avatar_url": "/mock/faces/p008.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P009",
+    "name": "Student India",
+    "student_id": "S2026009",
+    "phone": "13800000009",
+    "email": "india@example.edu",
+    "identity_type": "student",
+    "department": "Business Analytics",
+    "avatar_url": "/mock/faces/p009.jpg",
+    "risk_tags": []
+  },
+  {
+    "person_id": "P010",
+    "name": "Faculty Juliet",
+    "student_id": "F2026010",
+    "phone": "13800000010",
+    "email": "juliet@example.edu",
+    "identity_type": "faculty",
+    "department": "Systems Lab",
+    "avatar_url": "/mock/faces/p010.jpg",
+    "risk_tags": []
+  }
+]
