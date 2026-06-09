@@ -13,7 +13,13 @@ cd backend
 python -m uvicorn app.main:app --reload
 ```
 
-1. Open API docs.
+1. Open the visual demo dashboard.
+
+```text
+http://127.0.0.1:8000/demo
+```
+
+1. Open API docs if direct endpoint testing is needed.
 
 ```text
 http://127.0.0.1:8000/docs

@@ -12,6 +12,18 @@ def test_health() -> None:
     assert response.json()["status"] == "ok"
 
 
+def test_demo_page_available() -> None:
+    response = client.get("/demo")
+    assert response.status_code == 200
+    assert "AI Security Search Console" in response.text
+
+
+def test_root_redirects_to_demo() -> None:
+    response = client.get("/", follow_redirects=False)
+    assert response.status_code in {307, 308}
+    assert response.headers["location"] == "/demo"
+
+
 def test_person_search_by_student_id() -> None:
     response = client.get("/search/persons", params={"student_id": "S2026001"})
     assert response.status_code == 200

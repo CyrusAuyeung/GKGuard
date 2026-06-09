@@ -37,7 +37,9 @@ python -m pip install -r requirements.txt
 python -m uvicorn app.main:app --reload
 ```
 
-Open `http://127.0.0.1:8000/docs` to test the API.
+Open `http://127.0.0.1:8000/demo` for the visual demo dashboard.
+
+Open `http://127.0.0.1:8000/docs` to test the API directly.
 
 ## Run Tests
 
@@ -49,3 +51,5 @@ python -m pytest
 ## Demo Path
 
 Use `p001_target.jpg` or any uploaded file containing the text `p001` in the filename to trigger the main missing-person demo route.
+
+The visual dashboard runs through the same route without requiring a real image file. If no image is selected, it sends a synthetic `p001_target.jpg` request so the core C2 flow can be shown quickly.
