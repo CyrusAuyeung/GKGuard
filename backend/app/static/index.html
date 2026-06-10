@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 轨迹分析控制台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=software2" />
+    <link rel="stylesheet" href="/static/styles.css?v=shell1" />
   </head>
   <body>
     <div class="software-shell">
@@ -42,6 +42,7 @@
           <a href="#image"><span class="nav-icon data"></span>数据管理</a>
           <a href="#overview"><span class="nav-icon settings"></span>系统设置</a>
         </nav>
+        <div class="sidebar-footer"><span aria-hidden="true"></span></div>
       </aside>
 
       <main class="app-main" id="overview">
@@ -64,7 +65,7 @@
           <article class="kpi-card patrol"><span class="kpi-icon"></span><div><small>巡逻任务</small><strong>18</strong><em>巡逻中　6 个</em></div></article>
         </section>
 
-        <section class="analysis-grid" id="trace">
+        <section class="primary-grid" id="trace">
           <article class="panel profile-panel" id="profile">
             <div class="panel-title"><h2>目标信息</h2><button id="parseBtn" class="text-action" type="button">线索解析</button></div>
             <div id="profileContent" class="target-profile loading">正在加载目标信息。</div>
@@ -75,8 +76,10 @@
               <div><h2>轨迹地图（校园视图）</h2><p id="routeSummary">等待轨迹数据加载。</p></div>
               <select aria-label="地图类型"><option>校园地图</option><option>摄像头视图</option></select>
             </div>
-            <div id="routeMap" class="campus-map" aria-label="校园轨迹地图"></div>
-            <div class="map-legend"><span><i class="start"></i>起点</span><span><i class="end"></i>终点</span><span><i class="stay"></i>轨迹点</span><span><i class="path"></i>推荐轨迹</span><span><i class="camera"></i>摄像头</span></div>
+            <div class="map-frame">
+              <div id="routeMap" class="campus-map" aria-label="校园轨迹地图"></div>
+              <div class="map-legend"><span><i class="start"></i>起点</span><span><i class="end"></i>终点</span><span><i class="stay"></i>轨迹点</span><span><i class="path"></i>推荐轨迹</span><span><i class="camera"></i>摄像头</span></div>
+            </div>
           </article>
 
           <article class="panel timeline-panel">
@@ -86,7 +89,7 @@
           </article>
         </section>
 
-        <section class="evidence-grid">
+        <section class="secondary-grid">
           <article class="panel captures-panel" id="image">
             <div class="panel-title"><h2>抓拍记录 <span>（共 <b id="captureCount">0</b> 条）</span></h2></div>
             <div id="captureGrid" class="capture-list"></div>
@@ -111,6 +114,6 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=software2" defer></script>
+    <script src="/static/app.js?v=shell1" defer></script>
   </body>
 </html>
