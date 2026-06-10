@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 轨迹分析控制台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=shell1" />
+    <link rel="stylesheet" href="/static/styles.css?v=shell2" />
   </head>
   <body>
     <div class="software-shell">
@@ -24,23 +24,23 @@
           <input id="imageFile" type="file" accept="image/*" hidden />
         </div>
         <div class="system-actions" aria-label="系统操作">
-          <button class="top-icon notice" type="button" aria-label="通知" title="通知"><span>12</span></button>
-          <button class="top-icon help" type="button" aria-label="帮助" title="帮助"></button>
-          <div class="user-chip"><span class="avatar" aria-hidden="true"></span><span>管理员</span></div>
+          <button id="noticeBtn" class="top-icon notice" type="button" aria-label="通知" title="通知"><span>12</span></button>
+          <button id="helpBtn" class="top-icon help" type="button" aria-label="帮助" title="帮助"></button>
+          <button id="userMenuBtn" class="user-chip" type="button"><span class="avatar" aria-hidden="true"></span><span>管理员</span></button>
         </div>
       </header>
 
       <aside class="app-sidebar" aria-label="主导航">
         <nav>
-          <a href="#overview"><span class="nav-icon overview"></span>总览</a>
-          <a href="#profile"><span class="nav-icon person"></span>人员检索</a>
-          <a href="#events"><span class="nav-icon car"></span>车辆检索</a>
-          <a href="#image"><span class="nav-icon image"></span>以图搜图</a>
-          <a class="active" href="#trace"><span class="nav-icon route"></span>轨迹分析</a>
-          <a href="#events"><span class="nav-icon alert"></span>预警事件</a>
-          <a href="#events"><span class="nav-icon review"></span>CampusCar复核</a>
-          <a href="#image"><span class="nav-icon data"></span>数据管理</a>
-          <a href="#overview"><span class="nav-icon settings"></span>系统设置</a>
+          <a href="#overview" data-module="总览" data-details="关键指标、系统状态和跨模块入口已经预留。|后续可接入 GET /dashboard/summary。"><span class="nav-icon overview"></span>总览</a>
+          <a href="#profile" data-module="人员检索" data-details="人员画像、学工号搜索和目标关注入口已经预留。|后续可接入真实人员库和权限过滤。"><span class="nav-icon person"></span>人员检索</a>
+          <a href="#events" data-module="车辆检索" data-details="车辆线索入口已预留在事件处置区。|后续可接入车牌识别、颜色筛选和车辆轨迹服务。"><span class="nav-icon car"></span>车辆检索</a>
+          <a href="#image" data-module="以图搜图" data-details="图片上传、相似度检索和抓拍结果区已经预留。|后续可接入人脸/车辆 ReID 服务。"><span class="nav-icon image"></span>以图搜图</a>
+          <a class="active" href="#trace" data-module="轨迹分析" data-details="轨迹地图、时间线和抓拍卡片已接入当前核心 API。|后续可替换为真实 GIS 和摄像头底图。"><span class="nav-icon route"></span>轨迹分析</a>
+          <a href="#events" data-module="预警事件" data-details="事件列表、报告生成和处置闭环入口已经预留。|后续可接入预警规则引擎和事件详情页。"><span class="nav-icon alert"></span>预警事件</a>
+          <a href="#events" data-module="CampusCar复核" data-details="巡检车任务创建、现场复核和回传闭环入口已经预留。|后续可接入 CampusCar 调度服务。"><span class="nav-icon review"></span>CampusCar复核</a>
+          <a href="#image" data-module="数据管理" data-details="抓拍记录、证据包和审计日志入口已经预留。|后续可接入数据同步、导入导出和质量校验。"><span class="nav-icon data"></span>数据管理</a>
+          <a href="#overview" data-module="系统设置" data-details="账号、角色、模型阈值和服务配置入口已经预留。|后续可接入权限系统和配置中心。"><span class="nav-icon settings"></span>系统设置</a>
         </nav>
         <div class="sidebar-footer"><span aria-hidden="true"></span></div>
       </aside>
@@ -53,7 +53,7 @@
           </div>
           <div class="date-tools">
             <span>2025-05-14　星期三　16:28:45</span>
-            <button class="calendar-button" type="button" aria-label="选择日期"></button>
+            <button id="calendarBtn" class="calendar-button" type="button" aria-label="选择日期"></button>
             <button id="packageBtn" class="secondary-button" type="button">导出证据包</button>
           </div>
         </section>
@@ -74,7 +74,7 @@
           <article class="panel map-panel">
             <div class="panel-title">
               <div><h2>轨迹地图（校园视图）</h2><p id="routeSummary">等待轨迹数据加载。</p></div>
-              <select aria-label="地图类型"><option>校园地图</option><option>摄像头视图</option></select>
+              <select id="mapMode" aria-label="地图类型"><option>校园地图</option><option>摄像头视图</option></select>
             </div>
             <div class="map-frame">
               <div id="routeMap" class="campus-map" aria-label="校园轨迹地图"></div>
@@ -83,7 +83,7 @@
           </article>
 
           <article class="panel timeline-panel">
-            <div class="panel-title"><h2>出现时间线</h2><button class="text-action" type="button">筛选</button></div>
+            <div class="panel-title"><h2>出现时间线</h2><button id="timelineFilterBtn" class="text-action" type="button">筛选</button></div>
             <ol id="timelineList" class="appearance-list"></ol>
             <div id="timelineCount" class="record-count">共 0 条记录</div>
           </article>
@@ -91,7 +91,7 @@
 
         <section class="secondary-grid">
           <article class="panel captures-panel" id="image">
-            <div class="panel-title"><h2>抓拍记录 <span>（共 <b id="captureCount">0</b> 条）</span></h2></div>
+            <div class="panel-title"><h2>抓拍记录 <span>（共 <b id="captureCount">0</b> 条）</span></h2><button id="refreshBtn" class="text-action" type="button">刷新</button></div>
             <div id="captureGrid" class="capture-list"></div>
           </article>
           <article class="panel events-panel" id="events">
@@ -114,6 +114,6 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=shell1" defer></script>
+    <script src="/static/app.js?v=shell2" defer></script>
   </body>
 </html>

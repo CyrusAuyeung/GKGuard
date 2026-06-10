@@ -12,9 +12,12 @@ const resultSummary = document.querySelector("#resultSummary");
 const globalSearch = document.querySelector("#globalSearch");
 const studentIdInput = document.querySelector("#studentId");
 const naturalQueryInput = document.querySelector("#naturalQuery");
+const imageFileInput = document.querySelector("#imageFile");
 
 let activePersonId = "P001";
 let activeTimeline = null;
+let activeProfile = null;
+let activeReport = null;
 
 const identityLabels = {
   student: "学生",
@@ -209,6 +212,7 @@ async function api(path, options = {}) {
 }
 
 function summarizePayload(payload) {
+  if (payload.shell_notice) return payload.message;
   if (payload.flow_id) return `完整演示流程已完成，共执行 ${payload.steps.length} 个环节。`;
   if (payload.package_id) return `证据包 ${payload.package_id} 已生成，包含 ${payload.timeline_points.length} 个轨迹点和 ${payload.evidence_snapshots.length} 条证据。`;
   if (payload.disposition_id) return `处置结果 ${payload.disposition_id} 已归档，状态从 ${label(payload.status_before)} 更新为 ${label(payload.status_after)}。`;
@@ -420,7 +424,17 @@ function renderGenericResult(payload) {
   return `<section class="result-card"><h3>处理完成</h3><p>结果已更新，但当前类型暂无专用展示模板。</p></section>`;
 }
 
+function renderShellNotice(payload) {
+  return `
+    <section class="result-card">
+      <h3>${escapeHtml(payload.message)}</h3>
+      ${payload.details?.length ? listItems(payload.details, (item) => escapeHtml(item)) : ""}
+    </section>
+  `;
+}
+
 function renderResult(payload) {
+  if (payload.shell_notice) return renderShellNotice(payload);
   if (payload.flow_id) return renderFlowResult(payload);
   if (payload.package_id) return renderPackageResult(payload);
   if (payload.disposition_id) return renderDispositionResult(payload);
@@ -445,6 +459,14 @@ function showResult(payload) {
   resultContent.textContent = plainTextResult(payload) || summarizePayload(payload);
 }
 
+function showShellNotice(title, message, details = []) {
+  showResult({
+    shell_notice: true,
+    message: `${title}：${message}`,
+    details,
+  });
+}
+
 async function runAction(labelText, action) {
   resultStatus.textContent = "处理中";
   resultSummary.textContent = `${labelText}正在执行。`;
@@ -460,6 +482,7 @@ async function runAction(labelText, action) {
 function renderProfile(profile) {
   const person = profile.person;
   activePersonId = person.person_id;
+  activeProfile = profile;
   profileContent.innerHTML = `
     <div class="target-photo" aria-hidden="true"></div>
     <div class="target-fields">
@@ -472,9 +495,16 @@ function renderProfile(profile) {
       <div><span>最近出现</span><strong>${escapeHtml(formatTime(profile.snapshots.at(-1)?.time))}</strong></div>
       <div><span>最后位置</span><strong>${escapeHtml(displayPlace(profile.snapshots.at(-1)?.location))}</strong></div>
     </div>
-    <div class="target-actions"><button type="button">以图搜图</button><button type="button">加入关注</button></div>
+    <div class="target-actions"><button id="profileImageBtn" type="button">以图搜图</button><button id="watchBtn" type="button">加入关注</button></div>
     <div class="similarity-row"><span>相似度阈值</span><div class="similarity-track"><i></i></div><strong>80%</strong></div>
   `;
+  document.querySelector("#profileImageBtn")?.addEventListener("click", () => runAction("目标图片检索", runImageSearch));
+  document.querySelector("#watchBtn")?.addEventListener("click", () => {
+    showShellNotice("关注名单已更新", `${displayPersonName(person.name)} 已加入本地关注队列`, [
+      "后续接入真实账号服务时，可替换为 POST /watchlist 或人员标签接口。",
+      `当前对象：${person.person_id} / ${person.student_id}`,
+    ]);
+  });
 }
 
 function normalizeAxis(points, key, reverse = false) {
@@ -557,7 +587,7 @@ function renderTimeline(timeline) {
 }
 
 function renderCaptures(records) {
-  const items = records.slice(-5).reverse();
+  const items = records.slice().reverse();
   captureCount.textContent = String(records.length);
   captureGrid.innerHTML = items.map((record, index) => `
     <article class="capture-item">
@@ -573,6 +603,7 @@ function renderCaptures(records) {
 }
 
 function renderEvents(report, profile) {
+  activeReport = report;
   const alerts = profile.alerts || [];
   const rows = [
     ...alerts.map((alert) => ({ type: label(alert.alert_type), time: "05-14 16:24", place: displayPlace(alert.location), status: "待复核", className: "wait", action: "处理" })),
@@ -588,10 +619,23 @@ function renderEvents(report, profile) {
         <span>${escapeHtml(row.time)}</span>
         <span>${escapeHtml(row.place)}</span>
         <span class="pill ${escapeHtml(row.className)}">${escapeHtml(row.status)}</span>
-        <a href="#">${escapeHtml(row.action)}</a>
+        <button class="row-action" type="button" data-action="${escapeHtml(row.action)}" data-type="${escapeHtml(row.type)}">${escapeHtml(row.action)}</button>
       </div>
     `).join("")}
   `;
+  eventTable.querySelectorAll(".row-action").forEach((button) => {
+    button.addEventListener("click", () => {
+      const action = button.dataset.action || "查看";
+      if (action === "处理") {
+        runAction("巡检车复核", dispatchCar);
+        return;
+      }
+      showShellNotice("事件详情已就绪", `${button.dataset.type} 的详情面板可接入真实事件服务`, [
+        "预留接口：GET /events/{event_id}、GET /car-tasks/{task_id}",
+        `当前报告：${activeReport?.report_id || "待生成"}`,
+      ]);
+    });
+  });
 }
 
 async function loadProfileByStudentId() {
@@ -618,6 +662,69 @@ async function loadProfileByStudentId() {
   const result = { profile, timeline };
   showResult(result);
   return result;
+}
+
+function selectNavigation(targetId, selectedLink) {
+  document.querySelectorAll(".app-sidebar a").forEach((link) => {
+    link.classList.toggle("active", selectedLink ? link === selectedLink : link.getAttribute("href") === `#${targetId}`);
+  });
+  const target = document.getElementById(targetId);
+  if (target) {
+    target.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  const moduleName = selectedLink?.dataset.module || targetId;
+  const details = selectedLink?.dataset.details?.split("|") || [
+    "左侧导航已完成状态切换。",
+    "后续可将该入口替换为独立页面、路由或权限控制模块。",
+  ];
+  showShellNotice("模块已切换", `当前进入 ${moduleName} 模块`, details);
+}
+
+function bindNavigation() {
+  document.querySelectorAll(".app-sidebar a").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      selectNavigation(link.getAttribute("href").replace("#", "") || "overview", link);
+    });
+  });
+}
+
+function bindShellControls() {
+  document.querySelector("#noticeBtn")?.addEventListener("click", () => {
+    showShellNotice("通知中心", "当前有 12 条待处理提醒", [
+      "失联复核 1 条，巡逻任务 6 条，系统同步提醒 5 条。",
+      "后续接入通知服务时，可替换为 GET /notifications。",
+    ]);
+  });
+  document.querySelector("#helpBtn")?.addEventListener("click", () => {
+    showShellNotice("帮助中心", "已准备好演示说明和接口接入说明入口", [
+      "全局搜索：人员、图片、车辆线索统一入口。",
+      "事件处置：可接 CampusCar、报告、审计和归档服务。",
+    ]);
+  });
+  document.querySelector("#userMenuBtn")?.addEventListener("click", () => {
+    showShellNotice("用户菜单", "管理员工作台占位已启用", [
+      "后续可接入登录、角色权限、操作审计和账号设置。",
+      "当前角色：security_admin / 演示模式。",
+    ]);
+  });
+  document.querySelector("#calendarBtn")?.addEventListener("click", () => {
+    showShellNotice("日期筛选", "已切换到 2025-05-14 的演示数据窗口", [
+      "后续接入真实数据时，可将该控件连接到时间范围查询参数。",
+    ]);
+  });
+  document.querySelector("#timelineFilterBtn")?.addEventListener("click", () => {
+    showShellNotice("时间线筛选", "当前展示相似度不低于 90% 的轨迹点", [
+      "可扩展筛选项：时间范围、摄像头、相似度阈值、校区区域。",
+    ]);
+  });
+  document.querySelector("#refreshBtn")?.addEventListener("click", () => runAction("刷新数据", loadProfileByStudentId));
+  document.querySelector("#mapMode")?.addEventListener("change", (event) => {
+    showShellNotice("地图模式", `已切换为 ${event.target.value}`, [
+      "地图容器、轨迹点和图例已保留，可替换为真实 GIS/摄像头底图组件。",
+    ]);
+  });
+  imageFileInput?.addEventListener("change", () => runAction("图片匹配", runImageSearch));
 }
 
 async function runImageSearch() {
@@ -748,5 +855,7 @@ globalSearch.addEventListener("keydown", (event) => {
   if (event.key === "Enter") runAction("人员检索", loadProfileByStudentId);
 });
 
+bindNavigation();
+bindShellControls();
 checkHealth();
 loadProfileByStudentId().catch((error) => showResult({ error: error.message }));
