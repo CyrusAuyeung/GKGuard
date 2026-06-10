@@ -1,0 +1,49 @@
+{
+  "name": "gkguard-desktop",
+  "version": "0.1.0",
+  "description": "GKGuard campus security AI dashboard desktop shell.",
+  "main": "desktop/main.js",
+  "author": "GKGuard Team",
+  "private": true,
+  "scripts": {
+    "desktop": "electron .",
+    "desktop:dev": "electron . --devtools",
+    "pack": "electron-builder --win --x64 --dir",
+    "dist": "electron-builder --win --x64",
+    "test:backend": "cd backend && python -m pytest"
+  },
+  "devDependencies": {
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.gkguard.desktop",
+    "productName": "GKGuard",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": [
+          "app/**/*",
+          "data/**/*",
+          "requirements.txt",
+          "pytest.ini"
+        ]
+      }
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

@@ -10,4 +10,7 @@ build/
 .env
 .env.*
 backend/runtime/
+node_modules/
+release/
+npm-debug.log*
 初期材料/
