@@ -20,7 +20,7 @@ def test_health() -> None:
 def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
-    assert "AI Security Search Console" in response.text
+    assert "AI 安防检索控制台" in response.text
 
 
 def test_root_redirects_to_demo() -> None:
@@ -151,6 +151,16 @@ def test_mock_car_dispatch() -> None:
 
 def test_natural_query_parser() -> None:
     response = client.post("/ai/parse-query", json={"query": "find red car near parking at night"})
+    assert response.status_code == 200
+    filters = response.json()["filters"]
+    assert filters["object_type"] == "vehicle"
+    assert filters["color"] == "red"
+    assert filters["location"] == "Parking Lot East"
+    assert filters["time_hint"] == "after_hours"
+
+
+def test_natural_query_parser_supports_chinese() -> None:
+    response = client.post("/ai/parse-query", json={"query": "夜间停车场附近的红色车辆"})
     assert response.status_code == 200
     filters = response.json()["filters"]
     assert filters["object_type"] == "vehicle"

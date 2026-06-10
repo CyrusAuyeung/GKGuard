@@ -1,20 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GKGuard C2 Demo</title>
-    <link rel="stylesheet" href="/static/styles.css?v=ui4" />
+    <title>GKGuard C2 安防检索控制台</title>
+    <link rel="stylesheet" href="/static/styles.css?v=ui8" />
   </head>
   <body>
     <header class="topbar">
       <div>
         <p class="eyebrow">GKGuard C2</p>
-        <h1>AI Security Search Console</h1>
+        <h1>AI 安防检索控制台</h1>
       </div>
-      <nav class="top-actions" aria-label="Demo links">
-        <a href="/docs">API Docs</a>
-        <a href="/health">Health</a>
+      <nav class="top-actions" aria-label="演示链接">
+        <a href="/docs">接口文档</a>
+        <a href="/health">健康检查</a>
       </nav>
     </header>
 
@@ -22,68 +22,68 @@
       <section class="panel search-panel" aria-labelledby="search-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Query</p>
-            <h2 id="search-title">Target Search</h2>
+            <p class="eyebrow">检索</p>
+            <h2 id="search-title">目标检索</h2>
           </div>
-          <span id="serviceStatus" class="status-pill">Checking</span>
+          <span id="serviceStatus" class="status-pill">检查中</span>
         </div>
 
-        <label for="studentId">Student or staff ID</label>
+        <label for="studentId">学工号</label>
         <div class="input-row">
           <input id="studentId" value="S2026001" autocomplete="off" />
-          <button id="personSearchBtn" type="button">Search</button>
+          <button id="personSearchBtn" type="button">检索</button>
         </div>
 
-        <label for="naturalQuery">Natural query</label>
+        <label for="naturalQuery">自然语言线索</label>
         <div class="input-row">
-          <input id="naturalQuery" value="find red car near parking at night" autocomplete="off" />
-          <button id="parseBtn" type="button">Parse</button>
+          <input id="naturalQuery" value="夜间停车场附近的红色车辆" autocomplete="off" />
+          <button id="parseBtn" type="button">解析</button>
         </div>
 
-        <label for="imageFile">Image search</label>
+        <label for="imageFile">图片线索</label>
         <div class="file-row">
           <input id="imageFile" type="file" accept="image/*" />
-          <button id="imageSearchBtn" type="button">Match</button>
+          <button id="imageSearchBtn" type="button">匹配</button>
         </div>
-        <p class="hint">No file selected uses a demo target named p001_target.jpg.</p>
+        <p class="hint">未选择图片时，将使用演示目标图 p001_target.jpg。</p>
 
-        <div class="action-group" aria-label="Case actions">
-          <button id="fullFlowBtn" type="button">Run Full Demo Flow</button>
-          <button id="dispatchBtn" type="button">Create campusCar Review</button>
-          <button id="reportBtn" class="secondary" type="button">Generate Case Report</button>
-          <button id="archiveBtn" class="secondary" type="button">Archive Disposition</button>
-          <button id="auditBtn" class="secondary" type="button">View Audit Logs</button>
-          <button id="packageBtn" class="secondary" type="button">Export Case Package</button>
+        <div class="action-group" aria-label="案件操作">
+          <button id="fullFlowBtn" type="button">运行完整演示流程</button>
+          <button id="dispatchBtn" type="button">创建巡检车复核</button>
+          <button id="reportBtn" class="secondary" type="button">生成案件报告</button>
+          <button id="archiveBtn" class="secondary" type="button">归档处置结果</button>
+          <button id="auditBtn" class="secondary" type="button">查看审计日志</button>
+          <button id="packageBtn" class="secondary" type="button">导出证据包</button>
         </div>
       </section>
 
       <section class="panel profile-panel" aria-labelledby="profile-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Subject</p>
-            <h2 id="profile-title">Person Profile</h2>
+            <p class="eyebrow">对象</p>
+            <h2 id="profile-title">人员画像</h2>
           </div>
-          <span id="currentPerson" class="status-pill muted">None</span>
+          <span id="currentPerson" class="status-pill muted">未加载</span>
         </div>
-        <div id="profileContent" class="profile-content empty-state">Run a search to load the demo subject.</div>
+        <div id="profileContent" class="profile-content empty-state">点击检索后加载演示对象。</div>
       </section>
 
       <section class="panel map-panel" aria-labelledby="map-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Timeline</p>
-            <h2 id="map-title">Campus Route</h2>
+            <p class="eyebrow">路线</p>
+            <h2 id="map-title">校园轨迹</h2>
           </div>
-          <span id="timelineCount" class="status-pill muted">0 points</span>
+          <span id="timelineCount" class="status-pill muted">0 个点位</span>
         </div>
-        <div id="routeMap" class="route-map" aria-label="Mock campus route map"></div>
+        <div id="routeMap" class="route-map" aria-label="校园轨迹示意图"></div>
       </section>
 
       <section class="panel timeline-panel" aria-labelledby="timeline-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Evidence</p>
-            <h2 id="timeline-title">Appearance Records</h2>
+            <p class="eyebrow">证据</p>
+            <h2 id="timeline-title">出现记录</h2>
           </div>
         </div>
         <ol id="timelineList" class="timeline-list"></ol>
@@ -92,16 +92,16 @@
       <section class="panel result-panel" aria-labelledby="result-title">
         <div class="panel-heading">
           <div>
-            <p class="eyebrow">Output</p>
-            <h2 id="result-title">Latest Response</h2>
+            <p class="eyebrow">结论</p>
+            <h2 id="result-title">处理结果</h2>
           </div>
-          <span id="resultStatus" class="status-pill muted">Ready</span>
+          <span id="resultStatus" class="status-pill muted">就绪</span>
         </div>
-        <div id="resultSummary" class="result-summary">Profile and timeline are loaded by default.</div>
-        <pre id="resultJson">{}</pre>
+        <div id="resultSummary" class="result-summary">页面加载后会自动展示演示对象的画像和轨迹。</div>
+        <div id="resultContent" class="result-content empty-state">暂无处理结果。</div>
       </section>
     </main>
 
-    <script src="/static/app.js?v=ui4" defer></script>
+    <script src="/static/app.js?v=ui8" defer></script>
   </body>
 </html>
