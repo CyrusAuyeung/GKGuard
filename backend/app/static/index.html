@@ -4,164 +4,113 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 轨迹分析控制台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=dashboard3" />
+    <link rel="stylesheet" href="/static/styles.css?v=software2" />
   </head>
   <body>
-    <div class="app-shell">
-      <aside class="sidebar" aria-label="主导航">
-        <div class="brand">
-          <div class="brand-mark">G</div>
-          <div>
-            <strong>GKGuard</strong>
-            <span>港科广校园安防 AI 智能分析检索平台</span>
-          </div>
+    <div class="software-shell">
+      <header class="app-topbar">
+        <div class="product-lockup">
+          <div class="shield-mark" aria-hidden="true">G</div>
+          <strong>GKGuard</strong>
+          <span>港科广校园安防 AI 智能分析检索平台</span>
         </div>
-        <nav class="side-nav">
-          <a href="#overview">总览</a>
-          <a href="#profile">人员检索</a>
-          <a href="#events">车辆检索</a>
-          <a href="#image">以图搜图</a>
-          <a class="active" href="#trace">轨迹分析</a>
-          <a href="#events">预警事件</a>
-          <a href="#events">CampusCar复核</a>
-          <a href="#image">数据管理</a>
-          <a href="#overview">系统设置</a>
+        <div class="global-search" role="search">
+          <span class="search-icon" aria-hidden="true"></span>
+          <input id="globalSearch" value="S2026001" aria-label="全局搜索" placeholder="输入姓名 / 学工号 / 手机号 / 车牌 / 上传图片检索" />
+          <button id="imageSearchBtn" class="icon-button" type="button" aria-label="图片检索" title="图片检索"></button>
+          <button id="personSearchBtn" type="button">搜索</button>
+          <input id="studentId" value="S2026001" hidden />
+          <input id="naturalQuery" value="夜间停车场附近的红色车辆" hidden />
+          <input id="imageFile" type="file" accept="image/*" hidden />
+        </div>
+        <div class="system-actions" aria-label="系统操作">
+          <button class="top-icon notice" type="button" aria-label="通知" title="通知"><span>12</span></button>
+          <button class="top-icon help" type="button" aria-label="帮助" title="帮助"></button>
+          <div class="user-chip"><span class="avatar" aria-hidden="true"></span><span>管理员</span></div>
+        </div>
+      </header>
+
+      <aside class="app-sidebar" aria-label="主导航">
+        <nav>
+          <a href="#overview"><span class="nav-icon overview"></span>总览</a>
+          <a href="#profile"><span class="nav-icon person"></span>人员检索</a>
+          <a href="#events"><span class="nav-icon car"></span>车辆检索</a>
+          <a href="#image"><span class="nav-icon image"></span>以图搜图</a>
+          <a class="active" href="#trace"><span class="nav-icon route"></span>轨迹分析</a>
+          <a href="#events"><span class="nav-icon alert"></span>预警事件</a>
+          <a href="#events"><span class="nav-icon review"></span>CampusCar复核</a>
+          <a href="#image"><span class="nav-icon data"></span>数据管理</a>
+          <a href="#overview"><span class="nav-icon settings"></span>系统设置</a>
         </nav>
       </aside>
 
-      <div class="workspace">
-        <header class="topbar">
-          <div class="search-bar" role="search">
-            <span class="search-icon">⌕</span>
-            <input id="globalSearch" value="S2026001" aria-label="全局搜索" placeholder="输入姓名 / 学工号 / 手机号 / 车牌 / 上传图片检索" />
-            <input id="studentId" value="S2026001" hidden />
-            <input id="naturalQuery" value="夜间停车场附近的红色车辆" hidden />
-            <input id="imageFile" type="file" accept="image/*" hidden />
-            <button id="personSearchBtn" type="button">搜索</button>
+      <main class="app-main" id="overview">
+        <section class="workspace-header">
+          <div>
+            <h1>智能检索与轨迹分析</h1>
+            <p>通过多源数据检索和轨迹可视化，快速还原目标在校园内的活动轨迹</p>
           </div>
-          <div class="top-actions">
-            <span class="clock">2026-06-10　星期三　16:28:45</span>
-            <a href="/docs">接口文档</a>
-            <button id="packageBtn" class="ghost" type="button">导出报告</button>
+          <div class="date-tools">
+            <span>2025-05-14　星期三　16:28:45</span>
+            <button class="calendar-button" type="button" aria-label="选择日期"></button>
+            <button id="packageBtn" class="secondary-button" type="button">导出证据包</button>
           </div>
-        </header>
+        </section>
 
-        <main class="dashboard" id="overview">
-          <section class="hero-row">
-            <div>
-              <h1>智能检索与轨迹分析</h1>
-              <p>通过多源数据检索和轨迹可视化，快速还原目标在校园内的活动轨迹。</p>
+        <section class="kpi-strip" aria-label="关键指标">
+          <article class="kpi-card search"><span class="kpi-icon"></span><div><small>今日检索</small><strong>1,256</strong><em>较昨日　+18.6%</em></div></article>
+          <article class="kpi-card alert"><span class="kpi-icon"></span><div><small>预警事件</small><strong>32</strong><em class="up">较昨日　+12.5%</em></div></article>
+          <article class="kpi-card camera"><span class="kpi-icon"></span><div><small>在线摄像头</small><strong>368</strong><em>在线率　96.2%</em></div></article>
+          <article class="kpi-card patrol"><span class="kpi-icon"></span><div><small>巡逻任务</small><strong>18</strong><em>巡逻中　6 个</em></div></article>
+        </section>
+
+        <section class="analysis-grid" id="trace">
+          <article class="panel profile-panel" id="profile">
+            <div class="panel-title"><h2>目标信息</h2><button id="parseBtn" class="text-action" type="button">线索解析</button></div>
+            <div id="profileContent" class="target-profile loading">正在加载目标信息。</div>
+          </article>
+
+          <article class="panel map-panel">
+            <div class="panel-title">
+              <div><h2>轨迹地图（校园视图）</h2><p id="routeSummary">等待轨迹数据加载。</p></div>
+              <select aria-label="地图类型"><option>校园地图</option><option>摄像头视图</option></select>
             </div>
-            <div class="quick-actions" aria-label="快捷操作">
-              <button id="parseBtn" class="ghost" type="button">解析线索</button>
-              <button id="imageSearchBtn" class="ghost" type="button">图片匹配</button>
-              <button id="fullFlowBtn" type="button">运行完整流程</button>
+            <div id="routeMap" class="campus-map" aria-label="校园轨迹地图"></div>
+            <div class="map-legend"><span><i class="start"></i>起点</span><span><i class="end"></i>终点</span><span><i class="stay"></i>轨迹点</span><span><i class="path"></i>推荐轨迹</span><span><i class="camera"></i>摄像头</span></div>
+          </article>
+
+          <article class="panel timeline-panel">
+            <div class="panel-title"><h2>出现时间线</h2><button class="text-action" type="button">筛选</button></div>
+            <ol id="timelineList" class="appearance-list"></ol>
+            <div id="timelineCount" class="record-count">共 0 条记录</div>
+          </article>
+        </section>
+
+        <section class="evidence-grid">
+          <article class="panel captures-panel" id="image">
+            <div class="panel-title"><h2>抓拍记录 <span>（共 <b id="captureCount">0</b> 条）</span></h2></div>
+            <div id="captureGrid" class="capture-list"></div>
+          </article>
+          <article class="panel events-panel" id="events">
+            <div class="panel-title"><h2>事件处置 / CampusCar复核</h2><button class="text-action" id="reportBtn" type="button">查看全部</button></div>
+            <div id="eventTable" class="review-table"></div>
+            <div class="workflow-actions">
+              <button id="dispatchBtn" type="button">创建复核</button>
+              <button id="archiveBtn" class="secondary-button" type="button">归档处置</button>
+              <button id="auditBtn" class="secondary-button" type="button">审计日志</button>
+              <button id="fullFlowBtn" class="secondary-button" type="button">完整流程</button>
             </div>
-          </section>
+          </article>
+        </section>
 
-          <section class="metric-grid" aria-label="关键指标">
-            <article class="stat-card blue">
-              <span>今日检索</span>
-              <strong>1,256</strong>
-              <small>较昨日 +18.6%</small>
-            </article>
-            <article class="stat-card orange">
-              <span>预警事件</span>
-              <strong id="alertMetric">32</strong>
-              <small>较昨日 +12.5%</small>
-            </article>
-            <article class="stat-card green">
-              <span>在线摄像头</span>
-              <strong>368</strong>
-              <small>在线率 96.2%</small>
-            </article>
-            <article class="stat-card purple">
-              <span>巡逻任务</span>
-              <strong>18</strong>
-              <small>巡逻中 6 个</small>
-            </article>
-          </section>
-
-          <section class="main-grid" id="trace">
-            <article class="card target-card" id="profile">
-              <div class="card-header">
-                <h2>目标信息</h2>
-                <span id="currentPerson" class="status-chip">未加载</span>
-              </div>
-              <div id="profileContent" class="profile-content empty-state">正在加载演示对象。</div>
-              <div class="threshold-row">
-                <span>相似度阈值</span>
-                <div class="threshold-track"><i></i></div>
-                <strong>80%</strong>
-              </div>
-            </article>
-
-            <article class="card map-card">
-              <div class="card-header">
-                <div>
-                  <h2>轨迹地图（校园视图）</h2>
-                  <p id="routeSummary">等待轨迹数据加载。</p>
-                </div>
-                <select aria-label="地图类型">
-                  <option>校园地图</option>
-                  <option>摄像头视图</option>
-                </select>
-              </div>
-              <div id="routeMap" class="route-map" aria-label="校园轨迹地图"></div>
-              <div class="map-legend">
-                <span><i class="start"></i>起点</span>
-                <span><i class="end"></i>终点</span>
-                <span><i class="path"></i>推荐轨迹</span>
-                <span><i class="camera"></i>摄像头</span>
-              </div>
-            </article>
-
-            <article class="card timeline-card">
-              <div class="card-header">
-                <h2>出现时间线</h2>
-                <span id="timelineCount" class="status-chip muted">0 条记录</span>
-              </div>
-              <ol id="timelineList" class="timeline-list"></ol>
-            </article>
-          </section>
-
-          <section class="bottom-grid">
-            <article class="card capture-card" id="image">
-              <div class="card-header">
-                <h2>抓拍记录</h2>
-                <span>共 <b id="captureCount">0</b> 条</span>
-              </div>
-              <div id="captureGrid" class="capture-grid"></div>
-            </article>
-
-            <article class="card event-card" id="events">
-              <div class="card-header">
-                <h2>事件处置 / CampusCar复核</h2>
-                <button id="dispatchBtn" class="text-button" type="button">创建复核</button>
-              </div>
-              <div id="eventTable" class="event-table"></div>
-              <div class="event-actions">
-                <button id="reportBtn" class="ghost" type="button">生成案件报告</button>
-                <button id="archiveBtn" class="ghost" type="button">归档处置</button>
-                <button id="auditBtn" class="ghost" type="button">查看审计日志</button>
-              </div>
-            </article>
-          </section>
-
-          <section class="card result-panel" aria-labelledby="result-title">
-            <div class="card-header">
-              <div>
-                <h2 id="result-title">处理结果</h2>
-                <p id="resultSummary">页面加载后会自动展示演示对象的画像和轨迹。</p>
-              </div>
-              <span id="resultStatus" class="status-chip muted">就绪</span>
-            </div>
-            <div id="resultContent" class="result-content empty-state">暂无处理结果。</div>
-          </section>
-        </main>
-      </div>
+        <section class="status-footer" aria-label="运行状态">
+          <span id="resultStatus">就绪</span>
+          <span id="resultSummary">页面加载后会自动展示演示对象的画像和轨迹。</span>
+          <div id="resultContent" class="result-drawer">暂无处理结果。</div>
+        </section>
+      </main>
     </div>
 
-    <script src="/static/app.js?v=dashboard3" defer></script>
+    <script src="/static/app.js?v=software2" defer></script>
   </body>
 </html>

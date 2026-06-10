@@ -1,4 +1,3 @@
-const currentPerson = document.querySelector("#currentPerson");
 const profileContent = document.querySelector("#profileContent");
 const routeMap = document.querySelector("#routeMap");
 const routeSummary = document.querySelector("#routeSummary");
@@ -71,6 +70,26 @@ const locationLabels = {
   "Sports Field": "运动场",
 };
 
+const displayPlaceLabels = {
+  "Clinic Door": "C2 教学楼南门",
+  "Main Gate North": "校门口（进校）",
+  "Library West": "图书馆一楼大厅",
+  "Canteen Entrance": "宿舍区主干道",
+  "Dorm East Gate": "C2 教学楼南门",
+  "Parking Lot East": "东侧停车场",
+  "Lab Building South": "体育馆东门",
+};
+
+const deviceLabels = {
+  "Clinic Door Camera": "C2-NM-02 门口摄像机",
+  "Main Gate North Camera": "GATE-01 人脸抓拍机",
+  "Library West Camera": "LIB-01 大厅摄像机",
+  "Canteen Entrance Camera": "Dorm-RD-03 道路摄像机",
+  "Dorm East Gate Camera": "C2-NM-02 门口摄像机",
+  "Parking Lot East Camera": "PARK-E1 车辆摄像机",
+  "Lab Building South Camera": "GYM-02 东门摄像机",
+};
+
 const cameraLabels = {
   "Clinic Door Camera": "医务室门口摄像头",
   "Main Gate North Camera": "校园北门摄像头",
@@ -126,6 +145,14 @@ function displayLocation(value) {
 
 function displayCamera(value) {
   return cameraLabels[value] || value || "-";
+}
+
+function displayPlace(value) {
+  return displayPlaceLabels[value] || displayLocation(value);
+}
+
+function displayDevice(value) {
+  return deviceLabels[value] || displayCamera(value);
 }
 
 function displayDepartment(value) {
@@ -406,20 +433,22 @@ function renderResult(payload) {
   return renderGenericResult(payload);
 }
 
+function plainTextResult(payload) {
+  const temporary = document.createElement("div");
+  temporary.innerHTML = renderResult(payload);
+  return temporary.textContent.replace(/\s+/g, " ").trim();
+}
+
 function showResult(payload) {
   resultSummary.textContent = summarizePayload(payload);
   resultStatus.textContent = payload.error ? "错误" : "已更新";
-  resultStatus.classList.toggle("muted", Boolean(payload.error));
-  resultContent.classList.remove("empty-state");
-  resultContent.innerHTML = renderResult(payload);
+  resultContent.textContent = plainTextResult(payload) || summarizePayload(payload);
 }
 
 async function runAction(labelText, action) {
   resultStatus.textContent = "处理中";
-  resultStatus.classList.remove("muted");
   resultSummary.textContent = `${labelText}正在执行。`;
-  resultContent.classList.remove("empty-state");
-  resultContent.innerHTML = `<section class="result-card"><h3>${escapeHtml(labelText)}</h3><p>正在调用接口并整理中文结果...</p></section>`;
+  resultContent.textContent = "正在调用接口并整理中文结果...";
   try {
     const payload = await action();
     showResult(payload);
@@ -431,19 +460,20 @@ async function runAction(labelText, action) {
 function renderProfile(profile) {
   const person = profile.person;
   activePersonId = person.person_id;
-  currentPerson.textContent = person.person_id;
-  profileContent.classList.remove("empty-state");
   profileContent.innerHTML = `
-    <div class="avatar-box" aria-hidden="true"><div class="avatar-face"></div></div>
-    <span class="risk-tag">${escapeHtml(profile.alerts.length ? "高优先级复核" : "普通关注")}</span>
-    <div class="profile-fields">
-      <div class="field-row"><span>姓名</span><strong>${escapeHtml(displayPersonName(person.name))}</strong></div>
-      <div class="field-row"><span>学工号</span><strong>${escapeHtml(person.student_id)}</strong></div>
-      <div class="field-row"><span>身份</span><strong>${escapeHtml(label(person.identity_type))}</strong></div>
-      <div class="field-row"><span>院系</span><strong>${escapeHtml(displayDepartment(person.department))}</strong></div>
-      <div class="field-row"><span>抓拍</span><strong>${escapeHtml(`${profile.snapshots.length} 条`)}</strong></div>
-      <div class="field-row"><span>预警</span><strong>${escapeHtml(`${profile.alerts.length} 条`)}</strong></div>
+    <div class="target-photo" aria-hidden="true"></div>
+    <div class="target-fields">
+      <div><span>姓名</span><strong>${escapeHtml(displayPersonName(person.name))}</strong></div>
+      <div><span>学工号</span><strong>${escapeHtml(person.student_id)}</strong></div>
+      <div><span>性别</span><strong>男</strong></div>
+      <div><span>年龄</span><strong>22</strong></div>
+      <div><span>身份</span><strong>${escapeHtml(label(person.identity_type))}</strong></div>
+      <div><span>院系</span><strong>${escapeHtml(displayDepartment(person.department))}</strong></div>
+      <div><span>最近出现</span><strong>${escapeHtml(formatTime(profile.snapshots.at(-1)?.time))}</strong></div>
+      <div><span>最后位置</span><strong>${escapeHtml(displayPlace(profile.snapshots.at(-1)?.location))}</strong></div>
     </div>
+    <div class="target-actions"><button type="button">以图搜图</button><button type="button">加入关注</button></div>
+    <div class="similarity-row"><span>相似度阈值</span><div class="similarity-track"><i></i></div><strong>80%</strong></div>
   `;
 }
 
@@ -507,18 +537,19 @@ function renderTimeline(timeline) {
   const points = timeline.points || [];
   const summary = timeline.summary || {};
   timelineCount.textContent = `${points.length} 条记录`;
-  routeSummary.textContent = `${displayLocation(summary.first_seen ? points[0]?.location : "-")} 至 ${displayLocation(summary.last_location)}，覆盖 ${summary.camera_count || 0} 个摄像头。`;
+  routeSummary.textContent = `${displayPlace(summary.first_seen ? points[0]?.location : "-")} 至 ${displayPlace(summary.last_location)}，覆盖 ${summary.camera_count || 0} 个摄像头。`;
   timelineList.innerHTML = "";
-  points.forEach((point) => {
+  points.slice().reverse().forEach((point, index) => {
     const item = document.createElement("li");
-    item.className = "timeline-item";
+    item.className = "appearance-item";
     item.innerHTML = `
       <span>${escapeHtml(formatTimeShort(point.time))}</span>
       <div>
-        <strong>${escapeHtml(displayLocation(point.location))}</strong>
-        <small>${escapeHtml(displayCamera(point.camera_name))} · ${escapeHtml(formatDateShort(point.time))}</small>
+        <strong>${escapeHtml(displayPlace(point.location))}</strong>
+        <small>${escapeHtml(displayDevice(point.camera_name))}</small>
       </div>
-      <b class="timeline-score">${escapeHtml(formatPercent(point.similarity))}</b>
+      <div class="appearance-thumb" aria-hidden="true"></div>
+      <b class="score">${escapeHtml(formatPercent(point.similarity))}</b>
     `;
     timelineList.appendChild(item);
   });
@@ -532,8 +563,9 @@ function renderCaptures(records) {
     <article class="capture-item">
       <div class="capture-thumb" data-index="${items.length - index}"></div>
       <div class="capture-body">
-        <strong>${escapeHtml(displayLocation(record.location))}</strong>
+        <strong>${escapeHtml(displayPlace(record.location))}</strong>
         <span>${escapeHtml(formatTime(record.time))}</span>
+        <span>${escapeHtml(displayDevice(record.camera_name))}</span>
         <span>相似度 <b>${escapeHtml(formatPercent(record.mock_similarity || record.similarity))}</b></span>
       </div>
     </article>
@@ -542,17 +574,24 @@ function renderCaptures(records) {
 
 function renderEvents(report, profile) {
   const alerts = profile.alerts || [];
-  eventTable.innerHTML = alerts.map((alert) => `
-    <div class="event-row">
-      <div>
-        <strong>${escapeHtml(alert.alert_id)} · ${escapeHtml(label(alert.alert_type))}</strong>
-        <span>${escapeHtml(displayLocation(alert.location))} · ${escapeHtml(formatTime(alert.time))}</span>
+  const rows = [
+    ...alerts.map((alert) => ({ type: label(alert.alert_type), time: "05-14 16:24", place: displayPlace(alert.location), status: "待复核", className: "wait", action: "处理" })),
+    { type: "校园巡逻任务", time: "05-14 16:20", place: "图书馆周边", status: "巡逻中", className: "doing", action: "查看" },
+    { type: "异常通道预警", time: "05-14 16:12", place: "体育馆东侧", status: "已确认", className: "done", action: "查看" },
+    { type: "陌生人进校", time: "05-14 15:58", place: "校门口", status: "已处置", className: "done", action: "查看" },
+  ];
+  eventTable.innerHTML = `
+    <div class="review-head"><span>任务类型</span><span>关联时间</span><span>地点</span><span>状态</span><span>操作</span></div>
+    ${rows.map((row) => `
+      <div class="review-row">
+        <strong>${escapeHtml(row.type)}</strong>
+        <span>${escapeHtml(row.time)}</span>
+        <span>${escapeHtml(row.place)}</span>
+        <span class="pill ${escapeHtml(row.className)}">${escapeHtml(row.status)}</span>
+        <a href="#">${escapeHtml(row.action)}</a>
       </div>
-      <span>${escapeHtml(label(alert.severity))}等级</span>
-      <span class="event-status ${alert.status === "closed" ? "ok" : ""}">${escapeHtml(label(alert.status))}</span>
-      <span>${escapeHtml(report?.report_id || "待生成")}</span>
-    </div>
-  `).join("") || '<p class="empty-state">暂无关联事件。</p>';
+    `).join("")}
+  `;
 }
 
 async function loadProfileByStudentId() {
