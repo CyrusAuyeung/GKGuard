@@ -1,20 +1,26 @@
-const serviceStatus = document.querySelector("#serviceStatus");
 const currentPerson = document.querySelector("#currentPerson");
 const profileContent = document.querySelector("#profileContent");
 const routeMap = document.querySelector("#routeMap");
+const routeSummary = document.querySelector("#routeSummary");
 const timelineList = document.querySelector("#timelineList");
 const timelineCount = document.querySelector("#timelineCount");
+const captureGrid = document.querySelector("#captureGrid");
+const captureCount = document.querySelector("#captureCount");
+const eventTable = document.querySelector("#eventTable");
 const resultContent = document.querySelector("#resultContent");
 const resultStatus = document.querySelector("#resultStatus");
 const resultSummary = document.querySelector("#resultSummary");
+const globalSearch = document.querySelector("#globalSearch");
+const studentIdInput = document.querySelector("#studentId");
+const naturalQueryInput = document.querySelector("#naturalQuery");
 
 let activePersonId = "P001";
 let activeTimeline = null;
-let latestPayload = null;
 
 const identityLabels = {
   student: "学生",
   faculty: "教职工",
+  staff: "工作人员",
   visitor: "访客",
 };
 
@@ -26,6 +32,7 @@ const statusLabels = {
   confirmed_safe: "确认安全",
   pending_confirmation: "待确认",
   dispatched: "已派发",
+  arrived_mock: "已到达（模拟）",
   high: "高",
   medium: "中",
   low: "低",
@@ -40,11 +47,15 @@ const statusLabels = {
   blue: "蓝色",
   gray: "灰色",
   Parking: "停车场",
+  missing_person_review: "失联复核",
+  vehicle_after_hours: "车辆夜间异常",
 };
 
 const actionLabels = {
   image_search: "图片检索",
+  event_report_generated: "生成案件报告",
   report_generated: "生成案件报告",
+  event_disposition_archived: "归档处置结果",
   disposition_archived: "归档处置结果",
   case_package_exported: "导出证据包",
 };
@@ -57,6 +68,7 @@ const locationLabels = {
   "Dorm East Gate": "宿舍东门",
   "Parking Lot East": "东侧停车场",
   "Lab Building South": "实验楼南侧",
+  "Sports Field": "运动场",
 };
 
 const cameraLabels = {
@@ -65,10 +77,14 @@ const cameraLabels = {
   "Library West Camera": "图书馆西侧摄像头",
   "Canteen Entrance Camera": "食堂入口摄像头",
   "Dorm East Gate Camera": "宿舍东门摄像头",
+  "Parking Lot East Camera": "东侧停车场摄像头",
+  "Lab Building South Camera": "实验楼南侧摄像头",
 };
 
 const departmentLabels = {
   "Computer Science": "计算机科学系",
+  "Information Systems": "信息系统系",
+  Security: "安保处",
 };
 
 const personNameLabels = {
@@ -81,6 +97,15 @@ const filterLabels = {
   object_type: "对象类型",
   time_hint: "时间范围",
 };
+
+const campusBuildings = [
+  { name: "北门", left: 6, top: 16, width: 18, height: 16 },
+  { name: "图书馆", left: 26, top: 24, width: 18, height: 18 },
+  { name: "食堂", left: 42, top: 54, width: 18, height: 15 },
+  { name: "宿舍区", left: 63, top: 36, width: 20, height: 18 },
+  { name: "医务室", left: 11, top: 63, width: 18, height: 15 },
+  { name: "实验楼", left: 72, top: 66, width: 18, height: 14 },
+];
 
 function escapeHtml(value) {
   return String(value ?? "-")
@@ -121,13 +146,20 @@ function formatTime(value) {
   return String(value).replace("T", " ");
 }
 
+function formatTimeShort(value) {
+  if (!value) return "-";
+  const timePart = String(value).split("T")[1] || String(value);
+  return timePart.slice(0, 5);
+}
+
+function formatDateShort(value) {
+  if (!value) return "-";
+  return String(value).slice(5, 10).replace("-", "/");
+}
+
 function formatPercent(value) {
   if (value === null || value === undefined) return "-";
   return `${Math.round(Number(value) * 100)}%`;
-}
-
-function metric(labelText, value) {
-  return `<div class="metric"><span>${escapeHtml(labelText)}</span><strong>${escapeHtml(value)}</strong></div>`;
 }
 
 function resultField(labelText, value) {
@@ -139,12 +171,22 @@ function listItems(items, renderItem) {
   return `<ul class="result-list">${items.map((item, index) => `<li>${renderItem(item, index)}</li>`).join("")}</ul>`;
 }
 
+async function api(path, options = {}) {
+  const response = await fetch(path, options);
+  const contentType = response.headers.get("content-type") || "";
+  const payload = contentType.includes("application/json") ? await response.json() : await response.text();
+  if (!response.ok) {
+    throw new Error(typeof payload === "string" ? payload : JSON.stringify(payload));
+  }
+  return payload;
+}
+
 function summarizePayload(payload) {
   if (payload.flow_id) return `完整演示流程已完成，共执行 ${payload.steps.length} 个环节。`;
   if (payload.package_id) return `证据包 ${payload.package_id} 已生成，包含 ${payload.timeline_points.length} 个轨迹点和 ${payload.evidence_snapshots.length} 条证据。`;
   if (payload.disposition_id) return `处置结果 ${payload.disposition_id} 已归档，状态从 ${label(payload.status_before)} 更新为 ${label(payload.status_after)}。`;
   if (payload.report_id) return `案件报告 ${payload.report_id} 已生成，包含 ${payload.key_findings.length} 条关键发现。`;
-  if (payload.task_id) return `巡检车复核任务 ${payload.task_id} 已创建，目标地点：${payload.location}。`;
+  if (payload.task_id) return `巡检车复核任务 ${payload.task_id} 已创建，目标地点：${displayLocation(payload.location)}。`;
   if (payload.query_filename) return `图片线索 ${payload.query_filename} 匹配到 ${payload.matches.length} 条相似记录。`;
   if (payload.items) return `已加载 ${payload.count ?? payload.items.length} 条审计或列表记录。`;
   if (payload.filters) return `已从自然语言线索中解析出 ${Object.keys(payload.filters).length} 个筛选条件。`;
@@ -157,11 +199,11 @@ function summarizePayload(payload) {
 function translateFinding(text) {
   const value = String(text || "");
   const summary = value.match(/Found (\d+) appearance records across (\d+) cameras\. Last seen at (.+) at (.+)\./);
-  if (summary) return `共发现 ${summary[1]} 条出现记录，覆盖 ${summary[2]} 个摄像头；最后一次出现地点为 ${summary[3]}，时间为 ${formatTime(summary[4])}。`;
+  if (summary) return `共发现 ${summary[1]} 条出现记录，覆盖 ${summary[2]} 个摄像头；最后一次出现地点为 ${displayLocation(summary[3])}，时间为 ${formatTime(summary[4])}。`;
   const first = value.match(/First related record: (.+)\./);
   if (first) return `首条关联记录时间：${formatTime(first[1])}。`;
   const last = value.match(/Last related record: (.+) at (.+)\./);
-  if (last) return `最后关联记录：${formatTime(last[1])}，地点：${last[2]}。`;
+  if (last) return `最后关联记录：${formatTime(last[1])}，地点：${displayLocation(last[2])}。`;
   const count = value.match(/Related snapshot count: (\d+)\./);
   if (count) return `关联抓拍数量：${count[1]}。`;
   return value;
@@ -171,7 +213,7 @@ function translateRecommendation(text) {
   const value = String(text || "");
   if (value === "Review the timeline points and source camera snapshots.") return "复核轨迹点和来源摄像头抓拍。";
   const fieldReview = value.match(/Prioritize field review around (.+)\./);
-  if (fieldReview) return `优先在 ${fieldReview[1]} 附近进行现场复核。`;
+  if (fieldReview) return `优先在 ${displayLocation(fieldReview[1])} 附近进行现场复核。`;
   if (value === "Create or continue a campusCar field-review task before closing the event.") return "闭环前创建或继续巡检车现场复核任务。";
   if (value === "Escalate to the duty officer if the subject is not confirmed on site.") return "若现场未确认目标对象，应升级给值班负责人。";
   return value;
@@ -215,7 +257,7 @@ function renderParseResult(payload) {
 }
 
 function renderImageResult(payload) {
-  const minSimilarity = payload.matches.length ? Math.min(...payload.matches.map((item) => item.similarity)) : null;
+  const minSimilarity = payload.matches.length ? Math.min(...payload.matches.map((match) => match.similarity)) : null;
   return `
     <section class="result-card">
       <h3>图片匹配结果</h3>
@@ -240,7 +282,7 @@ function renderTaskResult(payload) {
       <div class="result-grid">
         ${resultField("任务编号", payload.task_id)}
         ${resultField("关联事件", payload.event_id)}
-        ${resultField("目标地点", payload.location)}
+        ${resultField("目标地点", displayLocation(payload.location))}
         ${resultField("任务状态", label(payload.status))}
       </div>
       <p>建议由巡检车前往目标地点补充现场复核图片，并回传给安保端闭环。</p>
@@ -290,7 +332,7 @@ function renderAuditResult(payload) {
       <p>最近 ${payload.items.length} 条操作记录，便于演示追溯。</p>
       ${listItems(payload.items, (item) => `
         <strong>${escapeHtml(actionLabels[item.action] || item.action)}</strong><br />
-        时间：${escapeHtml(formatTime(item.timestamp))}；目标：${escapeHtml(item.target_id || "-")}
+        时间：${escapeHtml(formatTime(item.timestamp))}；目标：${escapeHtml(item.target?.event_id || item.target_id || "-")}
       `)}
     </section>
   `;
@@ -365,7 +407,6 @@ function renderResult(payload) {
 }
 
 function showResult(payload) {
-  latestPayload = payload;
   resultSummary.textContent = summarizePayload(payload);
   resultStatus.textContent = payload.error ? "错误" : "已更新";
   resultStatus.classList.toggle("muted", Boolean(payload.error));
@@ -387,73 +428,76 @@ async function runAction(labelText, action) {
   }
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, options);
-  const contentType = response.headers.get("content-type") || "";
-  const payload = contentType.includes("application/json") ? await response.json() : await response.text();
-  if (!response.ok) {
-    throw new Error(typeof payload === "string" ? payload : JSON.stringify(payload));
-  }
-  return payload;
-}
-
 function renderProfile(profile) {
   const person = profile.person;
   activePersonId = person.person_id;
   currentPerson.textContent = person.person_id;
   profileContent.classList.remove("empty-state");
   profileContent.innerHTML = `
-    <div class="profile-grid">
-      ${metric("姓名", displayPersonName(person.name))}
-      ${metric("学工号", person.student_id)}
-      ${metric("身份", label(person.identity_type))}
-      ${metric("院系/部门", displayDepartment(person.department))}
-      ${metric("抓拍记录", `${profile.snapshots.length} 条`)}
-      ${metric("关联预警", `${profile.alerts.length} 条`)}
+    <div class="avatar-box" aria-hidden="true"><div class="avatar-face"></div></div>
+    <span class="risk-tag">${escapeHtml(profile.alerts.length ? "高优先级复核" : "普通关注")}</span>
+    <div class="profile-fields">
+      <div class="field-row"><span>姓名</span><strong>${escapeHtml(displayPersonName(person.name))}</strong></div>
+      <div class="field-row"><span>学工号</span><strong>${escapeHtml(person.student_id)}</strong></div>
+      <div class="field-row"><span>身份</span><strong>${escapeHtml(label(person.identity_type))}</strong></div>
+      <div class="field-row"><span>院系</span><strong>${escapeHtml(displayDepartment(person.department))}</strong></div>
+      <div class="field-row"><span>抓拍</span><strong>${escapeHtml(`${profile.snapshots.length} 条`)}</strong></div>
+      <div class="field-row"><span>预警</span><strong>${escapeHtml(`${profile.alerts.length} 条`)}</strong></div>
     </div>
   `;
 }
 
-function normalize(points, key) {
-  const values = points.map((point) => point[key]);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+function normalizeAxis(points, key, reverse = false) {
+  const values = points.map((point) => Number(point[key]));
+  const minValue = Math.min(...values);
+  const maxValue = Math.max(...values);
   return points.map((point) => {
-    if (max === min) return 50;
-    return 16 + ((point[key] - min) / (max - min)) * 68;
+    const rawValue = maxValue === minValue ? 50 : 12 + ((Number(point[key]) - minValue) / (maxValue - minValue)) * 76;
+    return reverse ? 100 - rawValue : rawValue;
   });
 }
 
 function renderMap(points) {
   routeMap.innerHTML = "";
-  if (!points.length) return;
+  campusBuildings.forEach((building) => {
+    const element = document.createElement("span");
+    element.className = "campus-building";
+    element.textContent = building.name;
+    element.style.left = `${building.left}%`;
+    element.style.top = `${building.top}%`;
+    element.style.width = `${building.width}%`;
+    element.style.height = `${building.height}%`;
+    routeMap.appendChild(element);
+  });
+  const lake = document.createElement("span");
+  lake.className = "lake";
+  routeMap.appendChild(lake);
 
-  const xs = normalize(points, "lng");
-  const ys = normalize(points, "lat").map((value) => 100 - value);
-
-  for (let index = 0; index < points.length - 1; index += 1) {
-    const x1 = xs[index];
-    const y1 = ys[index];
-    const x2 = xs[index + 1];
-    const y2 = ys[index + 1];
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const line = document.createElement("span");
-    line.className = "map-line";
-    line.style.left = `${x1}%`;
-    line.style.top = `${y1}%`;
-    line.style.width = `${Math.hypot(dx, dy)}%`;
-    line.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
-    routeMap.appendChild(line);
+  if (!points.length) {
+    routeSummary.textContent = "当前筛选条件下暂无轨迹点。";
+    return;
   }
+
+  const xPositions = normalizeAxis(points, "lng");
+  const yPositions = normalizeAxis(points, "lat", true);
+  const polylinePoints = points.map((point, index) => `${xPositions[index]},${yPositions[index]}`).join(" ");
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "route-svg");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.innerHTML = `
+    <polyline points="${polylinePoints}" fill="none" stroke="rgba(23,105,245,0.18)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+    <polyline points="${polylinePoints}" fill="none" stroke="#1769f5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" />
+  `;
+  routeMap.appendChild(svg);
 
   points.forEach((point, index) => {
     const marker = document.createElement("span");
-    marker.className = "map-point";
-    marker.dataset.index = String(index + 1);
+    marker.className = `route-marker ${index === 0 ? "start" : ""} ${index === points.length - 1 ? "end" : ""}`;
+    marker.textContent = String(index + 1);
     marker.title = `${displayLocation(point.location)} ${formatTime(point.time)}`;
-    marker.style.left = `${xs[index]}%`;
-    marker.style.top = `${ys[index]}%`;
+    marker.style.left = `${xPositions[index]}%`;
+    marker.style.top = `${yPositions[index]}%`;
     routeMap.appendChild(marker);
   });
 }
@@ -461,39 +505,77 @@ function renderMap(points) {
 function renderTimeline(timeline) {
   activeTimeline = timeline;
   const points = timeline.points || [];
-  timelineCount.textContent = `${points.length} 个点位`;
+  const summary = timeline.summary || {};
+  timelineCount.textContent = `${points.length} 条记录`;
+  routeSummary.textContent = `${displayLocation(summary.first_seen ? points[0]?.location : "-")} 至 ${displayLocation(summary.last_location)}，覆盖 ${summary.camera_count || 0} 个摄像头。`;
   timelineList.innerHTML = "";
   points.forEach((point) => {
     const item = document.createElement("li");
     item.className = "timeline-item";
     item.innerHTML = `
-      <div class="timeline-main">
+      <span>${escapeHtml(formatTimeShort(point.time))}</span>
+      <div>
         <strong>${escapeHtml(displayLocation(point.location))}</strong>
-        <span class="timeline-time">${escapeHtml(formatTime(point.time))}</span>
+        <small>${escapeHtml(displayCamera(point.camera_name))} · ${escapeHtml(formatDateShort(point.time))}</small>
       </div>
-      <div class="timeline-meta">
-        <span>摄像头：${escapeHtml(displayCamera(point.camera_name))}</span>
-        <span>相似度：${escapeHtml(formatPercent(point.similarity))}</span>
-      </div>
+      <b class="timeline-score">${escapeHtml(formatPercent(point.similarity))}</b>
     `;
     timelineList.appendChild(item);
   });
   renderMap(points);
 }
 
+function renderCaptures(records) {
+  const items = records.slice(-5).reverse();
+  captureCount.textContent = String(records.length);
+  captureGrid.innerHTML = items.map((record, index) => `
+    <article class="capture-item">
+      <div class="capture-thumb" data-index="${items.length - index}"></div>
+      <div class="capture-body">
+        <strong>${escapeHtml(displayLocation(record.location))}</strong>
+        <span>${escapeHtml(formatTime(record.time))}</span>
+        <span>相似度 <b>${escapeHtml(formatPercent(record.mock_similarity || record.similarity))}</b></span>
+      </div>
+    </article>
+  `).join("");
+}
+
+function renderEvents(report, profile) {
+  const alerts = profile.alerts || [];
+  eventTable.innerHTML = alerts.map((alert) => `
+    <div class="event-row">
+      <div>
+        <strong>${escapeHtml(alert.alert_id)} · ${escapeHtml(label(alert.alert_type))}</strong>
+        <span>${escapeHtml(displayLocation(alert.location))} · ${escapeHtml(formatTime(alert.time))}</span>
+      </div>
+      <span>${escapeHtml(label(alert.severity))}等级</span>
+      <span class="event-status ${alert.status === "closed" ? "ok" : ""}">${escapeHtml(label(alert.status))}</span>
+      <span>${escapeHtml(report?.report_id || "待生成")}</span>
+    </div>
+  `).join("") || '<p class="empty-state">暂无关联事件。</p>';
+}
+
 async function loadProfileByStudentId() {
-  const studentId = document.querySelector("#studentId").value.trim();
-  const persons = await api(`/search/persons?student_id=${encodeURIComponent(studentId)}`);
+  const keyword = globalSearch.value.trim() || studentIdInput.value.trim() || "S2026001";
+  studentIdInput.value = keyword;
+  const query = keyword.toUpperCase().startsWith("S") ? `student_id=${encodeURIComponent(keyword)}` : `keyword=${encodeURIComponent(keyword)}`;
+  const persons = await api(`/search/persons?${query}`);
   if (!persons.items.length) {
-    const emptyResult = { message: "未找到该学工号对应的人员。", student_id: studentId };
+    const emptyResult = { message: "未找到该检索条件对应的人员。", keyword };
     showResult(emptyResult);
     return emptyResult;
   }
   const personId = persons.items[0].person_id;
-  const profile = await api(`/search/persons/${personId}/profile`);
-  const timeline = await api(`/persons/${personId}/timeline?min_similarity=0.9`);
+  const [profile, timeline, records, report] = await Promise.all([
+    api(`/search/persons/${personId}/profile`),
+    api(`/persons/${personId}/timeline?min_similarity=0.9`),
+    api(`/search/records?person_id=${personId}&min_similarity=0.9`),
+    api("/events/ALT-001/report"),
+  ]);
   renderProfile(profile);
   renderTimeline(timeline);
+  renderCaptures(records.items || []);
+  renderEvents(report, profile);
   const result = { profile, timeline };
   showResult(result);
   return result;
@@ -517,7 +599,7 @@ async function runImageSearch() {
 }
 
 async function parseQuery() {
-  const query = document.querySelector("#naturalQuery").value.trim();
+  const query = naturalQueryInput.value.trim() || "夜间停车场附近的红色车辆";
   const result = await api("/ai/parse-query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -607,10 +689,10 @@ async function runFullDemoFlow() {
 async function checkHealth() {
   try {
     const result = await api("/health");
-    serviceStatus.textContent = result.status === "ok" ? "正常" : result.status;
+    resultStatus.textContent = result.status === "ok" ? "在线" : result.status;
   } catch (error) {
-    serviceStatus.textContent = "离线";
-    serviceStatus.classList.add("muted");
+    resultStatus.textContent = "离线";
+    resultStatus.classList.add("muted");
   }
 }
 
@@ -623,6 +705,9 @@ document.querySelector("#reportBtn").addEventListener("click", () => runAction("
 document.querySelector("#archiveBtn").addEventListener("click", () => runAction("处置归档", archiveDisposition));
 document.querySelector("#auditBtn").addEventListener("click", () => runAction("审计日志", viewAuditLogs));
 document.querySelector("#packageBtn").addEventListener("click", () => runAction("证据包导出", exportCasePackage));
+globalSearch.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") runAction("人员检索", loadProfileByStudentId);
+});
 
 checkHealth();
 loadProfileByStudentId().catch((error) => showResult({ error: error.message }));

@@ -20,7 +20,7 @@ def test_health() -> None:
 def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
-    assert "AI 安防检索控制台" in response.text
+    assert "GKGuard 轨迹分析控制台" in response.text
 
 
 def test_root_redirects_to_demo() -> None:
