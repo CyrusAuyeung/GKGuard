@@ -21,6 +21,10 @@ function getBackendRoot() {
   return path.join(__dirname, "..", "backend");
 }
 
+function getBundledBackendExecutable() {
+  return path.join(process.resourcesPath, "backend-bin", "gkguard-backend.exe");
+}
+
 function getPythonCandidates() {
   return [process.env.GKGUARD_PYTHON, "python", "py", "python3"].filter(Boolean);
 }
@@ -81,7 +85,40 @@ function spawnBackendWith(command) {
   });
 }
 
+function spawnBundledBackend() {
+  return spawn(getBundledBackendExecutable(), [], {
+    cwd: path.dirname(getBundledBackendExecutable()),
+    windowsHide: true,
+    env: {
+      ...process.env,
+      PYTHONUNBUFFERED: "1",
+    },
+  });
+}
+
 async function startBackend() {
+  if (app.isPackaged) {
+    backendProcess = spawnBundledBackend();
+    const startupError = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(null), 900);
+      backendProcess.once("error", (error) => {
+        clearTimeout(timer);
+        resolve(error);
+      });
+      backendProcess.once("exit", (code) => {
+        clearTimeout(timer);
+        resolve(new Error(`内置后端启动失败，退出码 ${code ?? "unknown"}`));
+      });
+    });
+
+    if (startupError) {
+      backendProcess = null;
+      throw startupError;
+    }
+
+    return "bundled-backend";
+  }
+
   const pythonCandidates = getPythonCandidates();
   let lastError = null;
 
@@ -159,7 +196,9 @@ async function boot() {
       type: "error",
       title: "GKGuard 启动失败",
       message: "无法启动本地后端服务",
-      detail: `${error.message}\n\n请先在 backend 目录执行：python -m pip install -r requirements.txt`,
+      detail: app.isPackaged
+        ? `${error.message}\n\n安装包内置后端未能启动，请重新下载最新 Release。`
+        : `${error.message}\n\n请先在 backend 目录执行：python -m pip install -r requirements.txt`,
     });
     app.quit();
   }

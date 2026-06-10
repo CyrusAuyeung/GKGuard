@@ -38,6 +38,9 @@ jobs:
       - name: Run backend tests
         run: npm run test:backend
 
+      - name: Build bundled backend
+        run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static;app/static" --add-data "backend/data;data" backend/desktop_server.py
+
       - name: Build Windows installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

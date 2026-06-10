@@ -76,7 +76,7 @@ npm run pack
 
 The local unpacked app starts from `release/win-unpacked/GKGuard.exe`, and `release/` is intentionally ignored by git.
 
-The packaged app includes the backend source files as Electron resources and uses the local Python runtime to start Uvicorn. If Python is not on PATH, set `GKGUARD_PYTHON` to the absolute path of `python.exe` before launching the app.
+Release builds include a bundled FastAPI backend executable, so users do not need to install Python to run the desktop app. During local development, Electron still uses the local Python runtime; if Python is not on PATH, set `GKGUARD_PYTHON` to the absolute path of `python.exe` before launching `npm run desktop`.
 
 ## Run Tests
 

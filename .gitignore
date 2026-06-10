@@ -10,6 +10,8 @@ build/
 .env
 .env.*
 backend/runtime/
+backend-build/
+backend-dist/
 node_modules/
 release/
 npm-debug.log*
