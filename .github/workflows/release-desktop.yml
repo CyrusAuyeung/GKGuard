@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -42,9 +44,63 @@ jobs:
         run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static;app/static" --add-data "backend/data;data" backend/desktop_server.py
 
       - name: Build Windows installer
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist
+
+      - name: Generate release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $previousTag = git tag --sort=-version:refname | Where-Object { $_ -ne $tag } | Select-Object -First 1
+          if ($previousTag) {
+            $range = "$previousTag..$tag"
+            $compareText = "相较 $previousTag 的变更。"
+          } else {
+            $range = $tag
+            $compareText = "首次发布内容。"
+          }
+
+          @(
+            "# GKGuard $tag",
+            "",
+            "## 概要",
+            "",
+            "- $compareText.",
+            "- Windows 安装包和更新元数据已附在本 Release 下方。",
+            "",
+            "## 提交",
+            ""
+          ) | Set-Content release-notes.md -Encoding UTF8
+
+          $commits = git log --pretty=format:"- %s (%h)" $range
+          if ($commits) {
+            $commits | Add-Content release-notes.md -Encoding UTF8
+          } else {
+            "- 未找到该标签范围内的提交记录。" | Add-Content release-notes.md -Encoding UTF8
+          }
+
+          @(
+            "",
+            "## 文件变更",
+            ""
+          ) | Add-Content release-notes.md -Encoding UTF8
+
+          $files = git diff --name-status $range
+          if ($files) {
+            $files | ForEach-Object {
+              $parts = $_ -split "`t"
+              $status = switch ($parts[0]) {
+                "A" { "新增" }
+                "M" { "修改" }
+                "D" { "删除" }
+                "R" { "重命名" }
+                default { $parts[0] }
+              }
+              "- $status: ``$($parts[-1])``"
+            } | Add-Content release-notes.md -Encoding UTF8
+          } else {
+            "- 未找到该标签范围内的文件变更。" | Add-Content release-notes.md -Encoding UTF8
+          }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -60,6 +116,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
+          name: GKGuard ${{ github.ref_name }}
+          body_path: release-notes.md
           files: |
             release/*.exe
             release/*.blockmap

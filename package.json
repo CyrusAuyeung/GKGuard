@@ -9,7 +9,7 @@
     "desktop": "electron .",
     "desktop:dev": "electron . --devtools",
     "pack": "electron-builder --win --x64 --dir",
-    "dist": "electron-builder --win --x64",
+    "dist": "electron-builder --win --x64 --publish never",
     "test:backend": "cd backend && python -m pytest"
   },
   "devDependencies": {
@@ -22,6 +22,7 @@
     "directories": {
       "output": "release"
     },
+    "artifactName": "GKGuard-Setup-${version}.${ext}",
     "files": [
       "desktop/**/*",
       "package.json"
