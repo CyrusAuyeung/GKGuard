@@ -388,6 +388,20 @@ button, select { cursor: pointer; }
 .pill.done { color: var(--green); background: var(--green-soft); }
 .row-action { width: fit-content; min-height: 26px; padding: 0 8px; border: 0; border-radius: 5px; color: var(--primary); background: transparent; font-weight: 700; }
 .row-action:hover { background: var(--primary-soft); }
+.bridge-status { margin: 8px 16px 0; padding: 10px 12px; border: 1px solid #dbe8ff; border-radius: 6px; background: #f7fbff; }
+.bridge-status,
+.bridge-status > div:first-child,
+.bridge-status dl { display: flex; align-items: center; }
+.bridge-status { gap: 12px; }
+.bridge-status > div:first-child { min-width: 138px; gap: 8px; }
+.bridge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 4px rgba(22, 181, 111, .14); }
+.bridge-status strong { display: block; font-size: 13px; }
+.bridge-status small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+.bridge-status dl { flex: 1; min-width: 0; gap: 8px; margin: 0; }
+.bridge-status dl div { min-width: 0; padding: 4px 8px; border-radius: 5px; background: #fff; }
+.bridge-status dt { color: var(--muted); font-size: 11px; }
+.bridge-status dd { margin: 1px 0 0; color: #2d3748; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bridge-status .text-action { flex: 0 0 auto; padding: 0 6px; }
 .workflow-actions { flex-wrap: wrap; gap: 10px; padding: 10px 16px 12px; }
 .workflow-actions button { min-height: 32px; padding: 0 13px; border: 1px solid var(--primary); color: #fff; background: var(--primary); }
 .workflow-actions .secondary-button { border-color: #b8d3ff; color: var(--primary); background: #fff; }

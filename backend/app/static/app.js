@@ -6,6 +6,8 @@ const timelineCount = document.querySelector("#timelineCount");
 const captureGrid = document.querySelector("#captureGrid");
 const captureCount = document.querySelector("#captureCount");
 const eventTable = document.querySelector("#eventTable");
+const bridgeMode = document.querySelector("#bridgeMode");
+const bridgeTopics = document.querySelector("#bridgeTopics");
 const resultContent = document.querySelector("#resultContent");
 const resultStatus = document.querySelector("#resultStatus");
 const resultSummary = document.querySelector("#resultSummary");
@@ -35,6 +37,7 @@ const statusLabels = {
   pending_confirmation: "待确认",
   dispatched: "已派发",
   arrived_mock: "已到达（模拟）",
+  mock_ready: "模拟就绪",
   high: "高",
   medium: "中",
   low: "低",
@@ -213,6 +216,7 @@ async function api(path, options = {}) {
 
 function summarizePayload(payload) {
   if (payload.shell_notice) return payload.message;
+  if (payload.integration_id === "ue-campuscar") return `UE/CampusCar 联调契约已加载，模式：${payload.mode || "mock"}。`;
   if (payload.flow_id) return `完整演示流程已完成，共执行 ${payload.steps.length} 个环节。`;
   if (payload.package_id) return `证据包 ${payload.package_id} 已生成，包含 ${payload.timeline_points.length} 个轨迹点和 ${payload.evidence_snapshots.length} 条证据。`;
   if (payload.disposition_id) return `处置结果 ${payload.disposition_id} 已归档，状态从 ${label(payload.status_before)} 更新为 ${label(payload.status_after)}。`;
@@ -307,6 +311,7 @@ function renderImageResult(payload) {
 }
 
 function renderTaskResult(payload) {
+  const contract = payload.bridge_contract || {};
   return `
     <section class="result-card">
       <h3>巡检车复核任务</h3>
@@ -315,8 +320,29 @@ function renderTaskResult(payload) {
         ${resultField("关联事件", payload.event_id)}
         ${resultField("目标地点", displayLocation(payload.location))}
         ${resultField("任务状态", label(payload.status))}
+        ${resultField("指令话题", contract.command_topic || "-")}
+        ${resultField("状态话题", contract.status_topic || "-")}
       </div>
-      <p>建议由巡检车前往目标地点补充现场复核图片，并回传给安保端闭环。</p>
+      <p>建议由巡检车前往目标地点补充现场复核图片，并通过 UE/ROS2 适配器回传给安保端闭环。</p>
+    </section>
+  `;
+}
+
+function renderBridgeStatusResult(payload) {
+  return `
+    <section class="result-card">
+      <h3>UE/CampusCar 联调契约</h3>
+      <div class="result-grid">
+        ${resultField("集成编号", payload.integration_id)}
+        ${resultField("状态", label(payload.status))}
+        ${resultField("rosbridge", payload.rosbridge_url)}
+        ${resultField("UE测试程序", payload.external_test_app)}
+        ${resultField("指令话题", payload.command_topic)}
+        ${resultField("位姿话题", payload.position_topic)}
+        ${resultField("状态话题", payload.status_topic)}
+        ${resultField("HLS", payload.video_hls_url)}
+      </div>
+      ${listItems(payload.notes, (item) => escapeHtml(item))}
     </section>
   `;
 }
@@ -405,6 +431,7 @@ function renderFlowResult(payload) {
         "解析自然语言线索",
         "执行图片相似检索",
         "创建巡检车复核任务",
+        "读取 UE/CampusCar 联调契约",
         "生成案件报告",
         "归档处置结果",
         "导出证据包",
@@ -435,6 +462,7 @@ function renderShellNotice(payload) {
 
 function renderResult(payload) {
   if (payload.shell_notice) return renderShellNotice(payload);
+  if (payload.integration_id === "ue-campuscar") return renderBridgeStatusResult(payload);
   if (payload.flow_id) return renderFlowResult(payload);
   if (payload.package_id) return renderPackageResult(payload);
   if (payload.disposition_id) return renderDispositionResult(payload);
@@ -445,6 +473,16 @@ function renderResult(payload) {
   if (payload.filters) return renderParseResult(payload);
   if (payload.profile && payload.timeline) return renderProfileResult(payload);
   return renderGenericResult(payload);
+}
+
+function renderBridgeStatus(payload) {
+  if (!bridgeMode || !bridgeTopics) return;
+  bridgeMode.textContent = `${payload.mode || "mock"} / ${payload.rosbridge_url || "ws://127.0.0.1:9090"}`;
+  bridgeTopics.innerHTML = `
+    <div><dt>指令</dt><dd>${escapeHtml(payload.command_topic)}</dd></div>
+    <div><dt>位姿</dt><dd>${escapeHtml(payload.position_topic)}</dd></div>
+    <div><dt>状态</dt><dd>${escapeHtml(payload.status_topic)}</dd></div>
+  `;
 }
 
 function plainTextResult(payload) {
@@ -760,9 +798,26 @@ async function dispatchCar() {
   const result = await api("/car-tasks/mock-dispatch", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ event_id: "ALT-001", target_location: targetLocation, reason: "field review" }),
+    body: JSON.stringify({
+      event_id: "ALT-001",
+      target_location: targetLocation,
+      reason: "field review",
+      robot_id: "CAR-DEMO-01",
+      robot_type: "campusCar",
+      speed_mps: 0.8,
+      command_topic: "/U2RTopic_Command",
+      position_topic: "/R2UTopic_Pos",
+      status_topic: "/R2UTopic_Text",
+    }),
   });
   showResult(result);
+  return result;
+}
+
+async function loadBridgeStatus({ show = true } = {}) {
+  const result = await api("/car-tasks/ue-bridge-status");
+  renderBridgeStatus(result);
+  if (show) showResult(result);
   return result;
 }
 
@@ -803,6 +858,7 @@ async function runFullDemoFlow() {
   const parsedQuery = await parseQuery();
   const imageSearch = await runImageSearch();
   const carDispatch = await dispatchCar();
+  const bridgeStatus = await loadBridgeStatus({ show: false });
   const report = await generateReport();
   const disposition = await archiveDisposition();
   const casePackage = await exportCasePackage();
@@ -814,6 +870,7 @@ async function runFullDemoFlow() {
       "query_parsed",
       "image_matched",
       "campuscar_review_created",
+      "ue_bridge_contract_loaded",
       "case_report_generated",
       "disposition_archived",
       "case_package_exported",
@@ -823,6 +880,7 @@ async function runFullDemoFlow() {
     parsed_query: parsedQuery,
     image_search: imageSearch,
     car_dispatch: carDispatch,
+    bridge_status: bridgeStatus,
     report,
     disposition,
     case_package: casePackage,
@@ -851,6 +909,7 @@ document.querySelector("#reportBtn").addEventListener("click", () => runAction("
 document.querySelector("#archiveBtn").addEventListener("click", () => runAction("处置归档", archiveDisposition));
 document.querySelector("#auditBtn").addEventListener("click", () => runAction("审计日志", viewAuditLogs));
 document.querySelector("#packageBtn").addEventListener("click", () => runAction("证据包导出", exportCasePackage));
+document.querySelector("#bridgeStatusBtn").addEventListener("click", () => runAction("UE联调契约", loadBridgeStatus));
 globalSearch.addEventListener("keydown", (event) => {
   if (event.key === "Enter") runAction("人员检索", loadProfileByStudentId);
 });
@@ -858,4 +917,7 @@ globalSearch.addEventListener("keydown", (event) => {
 bindNavigation();
 bindShellControls();
 checkHealth();
+loadBridgeStatus({ show: false }).catch(() => {
+  if (bridgeMode) bridgeMode.textContent = "mock / 契约接口待启动";
+});
 loadProfileByStudentId().catch((error) => showResult({ error: error.message }));

@@ -76,6 +76,14 @@ Body:
 
 Expected result: task status `arrived_mock` with a mock snapshot URL.
 
+1. Check the UE/CampusCar bridge placeholder.
+
+```text
+GET /car-tasks/ue-bridge-status
+```
+
+Expected result: mock integration status with `/U2RTopic_Command`, `/R2UTopic_Pos`, `/R2UTopic_Text`, and future stream placeholders.
+
 1. Generate a case report.
 
 ```text
@@ -103,5 +111,6 @@ Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline
 ## Handoff Notes
 
 - Frontend can consume the timeline `points` list directly for map markers and route lines.
-- B group can later replace `/car-tasks/mock-dispatch` with a real campusCar bridge while keeping the same field names.
+- Control/UE group can later replace the CampusCar adapter behind `/car-tasks/mock-dispatch` or a future dispatch endpoint while keeping the same field names.
+- Do not package the UE test app into GKGuard. Use it as an external validation target for the ROS2/UE Bridge loop.
 - The image-search implementation is intentionally replaceable. Keep the endpoint contract stable when adding a real model.

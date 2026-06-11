@@ -141,12 +141,32 @@ def test_case_package_export() -> None:
 def test_mock_car_dispatch() -> None:
     response = client.post(
         "/car-tasks/mock-dispatch",
-        json={"event_id": "ALT-001", "target_location": "Dorm East Gate", "reason": "field review"},
+        json={
+            "event_id": "ALT-001",
+            "target_location": "Dorm East Gate",
+            "reason": "field review",
+            "robot_id": "CAR-DEMO-01",
+        },
     )
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "arrived_mock"
     assert body["event_id"] == "ALT-001"
+    assert body["bridge_contract"]["command_topic"] == "/U2RTopic_Command"
+    assert body["bridge_contract"]["position_topic"] == "/R2UTopic_Pos"
+    assert body["video_hls_url"].endswith("/campuscar/index.m3u8")
+
+
+def test_ue_bridge_status_contract() -> None:
+    response = client.get("/car-tasks/ue-bridge-status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "mock_ready"
+    assert body["rosbridge_url"] == "ws://127.0.0.1:9090"
+    assert body["command_topic"] == "/U2RTopic_Command"
+    assert body["position_topic"] == "/R2UTopic_Pos"
+    assert body["status_topic"] == "/R2UTopic_Text"
+    assert body["external_test_app"] == "GKD_Station_Qiyi.exe"
 
 
 def test_natural_query_parser() -> None:

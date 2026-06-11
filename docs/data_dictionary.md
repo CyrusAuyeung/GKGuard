@@ -84,3 +84,30 @@ Sensitive in real deployment: event subjects, case description, handling status.
 - `metadata`: non-sensitive action details.
 
 Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git.
+
+## campusCar review tasks
+
+- `task_id`: generated field-review task ID.
+- `car_id`: CampusCar vehicle ID used by the mock task.
+- `event_id`: linked alert or case ID.
+- `route_id`: planned patrol route or future navigation plan.
+- `location`: target location label.
+- `status`: current task status, currently `arrived_mock` in demo mode.
+- `start_time`: mock task creation time.
+- `end_time`: mock task completion time.
+- `snapshot_url`: placeholder review image URL.
+- `bridge_contract`: future CampusCar/UE mapping metadata.
+- `video_hls_url`: future browser-playable review stream.
+- `video_rtsp_url`: future raw camera stream.
+
+## UE bridge contract
+
+- `integration_id`: stable integration name, currently `ue-campuscar`.
+- `mode`: `mock`, `external_ue_test_app`, or future `live`.
+- `rosbridge_url`: expected rosbridge WebSocket endpoint.
+- `command_topic`: UE Bridge command topic, `/U2RTopic_Command`.
+- `position_topic`: UE Bridge pose feedback topic, `/R2UTopic_Pos`.
+- `status_topic`: UE Bridge text/status feedback topic, `/R2UTopic_Text`.
+- `video_hls_url`: future HLS stream URL for the C2 UI.
+- `video_rtsp_url`: future RTSP stream URL for adapter or native clients.
+- `notes`: human-readable integration handoff notes.

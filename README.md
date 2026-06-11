@@ -9,6 +9,7 @@ The first runnable milestone focuses on a standalone backend loop:
 3. Upload a query image and return mock image-search matches.
 4. Generate a sorted appearance timeline and map-ready points.
 5. Simulate a campusCar field-review dispatch.
+6. Expose a CampusCar/UE bridge placeholder contract for later ROS2 integration.
 
 ## Project Structure
 
@@ -23,9 +24,27 @@ backend/
   requirements.txt
 docs/
   api_contract.md
+  campuscar_ue_integration.md
   data_dictionary.md
   demo_script.md
 ```
+
+## CampusCar / UE Bridge Placeholder
+
+The current shell includes a mock CampusCar/UE integration contract based on the provided UE test module and control group material. GKGuard does not package or launch the UE runtime; it exposes stable C2-side placeholders so another adapter can later connect to ROS2 and UE Bridge.
+
+Current placeholder endpoints:
+
+- `POST /car-tasks/mock-dispatch`: creates a mock field-review task and returns `bridge_contract` metadata.
+- `GET /car-tasks/ue-bridge-status`: returns the mock rosbridge URL, UE test app name, and expected topics.
+
+Expected external topics:
+
+- `/U2RTopic_Command`: C2 or adapter command intent.
+- `/R2UTopic_Pos`: vehicle or UE pose feedback.
+- `/R2UTopic_Text`: text/status feedback.
+
+See `docs/campuscar_ue_integration.md` for the integration boundary and future replacement plan.
 
 ## Run Locally
 
@@ -62,8 +81,8 @@ npm run desktop:dev
 Desktop installers are built by GitHub Actions, not manually on the local machine. Push a version tag to trigger the release workflow:
 
 ```powershell
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.6
+git push origin v0.1.6
 ```
 
 The workflow also supports manual runs from the GitHub Actions tab. It installs Python and Node.js, runs backend tests, builds the Electron Windows installer, uploads the build artifact, and attaches installer files to the GitHub Release when triggered by a tag.

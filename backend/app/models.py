@@ -40,6 +40,24 @@ class CarDispatchRequest(BaseModel):
     target_location: str
     route_id: str = "ROUTE-DEMO-01"
     reason: str = "field_review"
+    robot_id: str = "CAR-DEMO-01"
+    robot_type: str = "campusCar"
+    speed_mps: float = 0.8
+    command_topic: str = "/U2RTopic_Command"
+    position_topic: str = "/R2UTopic_Pos"
+    status_topic: str = "/R2UTopic_Text"
+
+
+class UeBridgeContract(BaseModel):
+    integration_id: str = "ue-campuscar"
+    mode: str = "mock"
+    rosbridge_url: str = "ws://127.0.0.1:9090"
+    command_topic: str = "/U2RTopic_Command"
+    position_topic: str = "/R2UTopic_Pos"
+    status_topic: str = "/R2UTopic_Text"
+    video_hls_url: str = "http://127.0.0.1:8888/campuscar/index.m3u8"
+    video_rtsp_url: str = "rtsp://127.0.0.1:8554/campuscar"
+    notes: list[str] = Field(default_factory=list)
 
 
 class CarDispatchResponse(BaseModel):
@@ -53,7 +71,24 @@ class CarDispatchResponse(BaseModel):
     end_time: str | None = None
     snapshot_url: str | None = None
     exception_code: str | None = None
+    bridge_contract: UeBridgeContract = Field(default_factory=UeBridgeContract)
+    video_hls_url: str | None = "http://127.0.0.1:8888/campuscar/index.m3u8"
+    video_rtsp_url: str | None = "rtsp://127.0.0.1:8554/campuscar"
     message: str = Field(default="mock campusCar task accepted")
+
+
+class UeBridgeStatusResponse(BaseModel):
+    integration_id: str = "ue-campuscar"
+    status: str = "mock_ready"
+    mode: str = "mock"
+    rosbridge_url: str = "ws://127.0.0.1:9090"
+    command_topic: str = "/U2RTopic_Command"
+    position_topic: str = "/R2UTopic_Pos"
+    status_topic: str = "/R2UTopic_Text"
+    video_hls_url: str = "http://127.0.0.1:8888/campuscar/index.m3u8"
+    video_rtsp_url: str = "rtsp://127.0.0.1:8554/campuscar"
+    external_test_app: str = "GKD_Station_Qiyi.exe"
+    notes: list[str] = Field(default_factory=list)
 
 
 class EventDispositionRequest(BaseModel):

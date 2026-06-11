@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 轨迹分析控制台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=shell2" />
+    <link rel="stylesheet" href="/static/styles.css?v=shell3" />
   </head>
   <body>
     <div class="software-shell">
@@ -38,7 +38,7 @@
           <a href="#image" data-module="以图搜图" data-details="图片上传、相似度检索和抓拍结果区已经预留。|后续可接入人脸/车辆 ReID 服务。"><span class="nav-icon image"></span>以图搜图</a>
           <a class="active" href="#trace" data-module="轨迹分析" data-details="轨迹地图、时间线和抓拍卡片已接入当前核心 API。|后续可替换为真实 GIS 和摄像头底图。"><span class="nav-icon route"></span>轨迹分析</a>
           <a href="#events" data-module="预警事件" data-details="事件列表、报告生成和处置闭环入口已经预留。|后续可接入预警规则引擎和事件详情页。"><span class="nav-icon alert"></span>预警事件</a>
-          <a href="#events" data-module="CampusCar复核" data-details="巡检车任务创建、现场复核和回传闭环入口已经预留。|后续可接入 CampusCar 调度服务。"><span class="nav-icon review"></span>CampusCar复核</a>
+          <a href="#events" data-module="CampusCar复核" data-details="巡检车任务创建、现场复核和回传闭环入口已经预留。|UE Bridge 契约：/U2RTopic_Command、/R2UTopic_Pos、/R2UTopic_Text。|后续可接入独立 CampusCar/ROS2 适配器。"><span class="nav-icon review"></span>CampusCar复核</a>
           <a href="#image" data-module="数据管理" data-details="抓拍记录、证据包和审计日志入口已经预留。|后续可接入数据同步、导入导出和质量校验。"><span class="nav-icon data"></span>数据管理</a>
           <a href="#overview" data-module="系统设置" data-details="账号、角色、模型阈值和服务配置入口已经预留。|后续可接入权限系统和配置中心。"><span class="nav-icon settings"></span>系统设置</a>
         </nav>
@@ -97,6 +97,19 @@
           <article class="panel events-panel" id="events">
             <div class="panel-title"><h2>事件处置 / CampusCar复核</h2><button class="text-action" id="reportBtn" type="button">查看全部</button></div>
             <div id="eventTable" class="review-table"></div>
+            <div class="bridge-status" aria-label="UE 联调状态">
+              <div>
+                <span class="bridge-dot" aria-hidden="true"></span>
+                <strong>UE联调占位</strong>
+                <small id="bridgeMode">mock / rosbridge :9090</small>
+              </div>
+              <dl id="bridgeTopics">
+                <div><dt>指令</dt><dd>/U2RTopic_Command</dd></div>
+                <div><dt>位姿</dt><dd>/R2UTopic_Pos</dd></div>
+                <div><dt>状态</dt><dd>/R2UTopic_Text</dd></div>
+              </dl>
+              <button id="bridgeStatusBtn" class="text-action" type="button">查看契约</button>
+            </div>
             <div class="workflow-actions">
               <button id="dispatchBtn" type="button">创建复核</button>
               <button id="archiveBtn" class="secondary-button" type="button">归档处置</button>
@@ -114,6 +127,6 @@
       </main>
     </div>
 
-    <script src="/static/app.js?v=shell2" defer></script>
+    <script src="/static/app.js?v=shell3" defer></script>
   </body>
 </html>

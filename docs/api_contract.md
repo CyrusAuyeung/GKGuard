@@ -142,11 +142,23 @@ Body:
   "event_id": "ALT-001",
   "target_location": "Dorm East Gate",
   "route_id": "ROUTE-DEMO-01",
-  "reason": "field_review"
+  "reason": "field_review",
+  "robot_id": "CAR-DEMO-01",
+  "robot_type": "campusCar",
+  "speed_mps": 0.8,
+  "command_topic": "/U2RTopic_Command",
+  "position_topic": "/R2UTopic_Pos",
+  "status_topic": "/R2UTopic_Text"
 }
 ```
 
-Returns a mock task with `task_id`, `car_id`, `status`, `start_time`, `end_time`, and `snapshot_url`.
+Returns a mock task with `task_id`, `car_id`, `status`, `start_time`, `end_time`, `snapshot_url`, `bridge_contract`, and video URL placeholders. The bridge fields document where the future CampusCar/UE adapter will map C2 tasks into ROS2/UE Bridge messages.
+
+## UE Bridge Status Placeholder
+
+`GET /car-tasks/ue-bridge-status`
+
+Returns a deterministic mock integration status for the CampusCar/UE bridge. It exposes the expected rosbridge endpoint, command topic, position feedback topic, text/status topic, and future stream URLs. This endpoint is for frontend readiness and handoff demos only; it does not probe a live ROS2 service yet.
 
 ## Lightweight AI Parser
 
