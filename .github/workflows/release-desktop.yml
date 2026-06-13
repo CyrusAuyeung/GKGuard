@@ -96,7 +96,7 @@ jobs:
                 "R" { "重命名" }
                 default { $parts[0] }
               }
-              "- $status: ``$($parts[-1])``"
+              "- ${status}: ``$($parts[-1])``"
             } | Add-Content release-notes.md -Encoding UTF8
           } else {
             "- 未找到该标签范围内的文件变更。" | Add-Content release-notes.md -Encoding UTF8
