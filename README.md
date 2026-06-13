@@ -2,6 +2,8 @@
 
 This repository contains the C2 implementation starter for the GKGuard campus security AI search platform.
 
+The repository can also host adjacent project services. The C1 CampusVision video retrieval service is imported under `services/campusvision-c1/` as a separate service module, while the GKGuard C2 shell remains in `backend/` and `desktop/`.
+
 The first runnable milestone focuses on a standalone backend loop:
 
 1. Load desensitized mock security data.
@@ -24,10 +26,25 @@ backend/
   requirements.txt
 docs/
   api_contract.md
+  c1_c2_integration.md
   campuscar_ue_integration.md
   data_dictionary.md
   demo_script.md
+services/
+  campusvision-c1/
+    app/
+    docs/
+    scripts/
+    README.md
 ```
+
+## C1 / C2 Integration
+
+CampusVision C1 is responsible for video upload, frame sampling, face embedding, image search, person indexing, and trajectory output. GKGuard C2 consumes those outputs for command-and-control investigation workflows.
+
+The imported C1 source is kept in `services/campusvision-c1/`. Runtime data such as `.env`, uploaded videos, extracted frames, SQLite databases, and model caches must not be committed.
+
+See `docs/c1_c2_integration.md` for the service boundary, field mapping, and handoff checklist.
 
 ## CampusCar / UE Bridge Placeholder
 

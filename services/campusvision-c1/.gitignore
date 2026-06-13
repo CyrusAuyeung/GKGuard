@@ -1,0 +1,27 @@
+# Local runtime data
+.env
+.env.*
+!.env.example
+data/
+testdata/
+
+# Python runtime artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Model and media caches
+.insightface/
+*.sqlite3
+*.db
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.jpg
+*.jpeg
+*.png

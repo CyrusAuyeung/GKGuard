@@ -1,0 +1,116 @@
+### 1. 创建摄像头
+POST http://127.0.0.1:8000/api/v1/cameras
+Content-Type: application/json
+
+{
+  "camera_id": "cam02",
+  "name": "测试摄像头02",
+  "location": "实验室",
+  "lat": 0,
+  "lng": 0
+}
+
+
+### 2. 上传视频
+POST http://127.0.0.1:8000/api/v1/videos/upload
+Content-Type: multipart/form-data; boundary=----CampusVisionBoundary
+
+------CampusVisionBoundary
+Content-Disposition: form-data; name="camera_id"
+
+cam02
+------CampusVisionBoundary
+Content-Disposition: form-data; name="file"; filename="demo2.mp4"
+Content-Type: video/mp4
+
+< ./testdata/videos/demo2.mp4
+------CampusVisionBoundary--
+
+
+### 3. 给视频建索引
+### 注意：把下面 URL 里的 VIDEO_ID_HERE 换成上一步返回的 video_id
+POST http://127.0.0.1:8000/api/v1/videos/VIDEO_ID_HERE/index
+
+
+### 4. 上传目标照片搜索
+POST http://127.0.0.1:8000/api/v1/search/by-image
+Content-Type: multipart/form-data; boundary=----CampusVisionBoundary
+
+------CampusVisionBoundary
+Content-Disposition: form-data; name="top_k"
+
+20
+Content-Disposition: form-data; name="max_gap_sec"
+
+3.0
+------CampusVisionBoundary
+Content-Disposition: form-data; name="files"; filename="person.jpeg"
+Content-Type: image/jpeg
+
+< ./testdata/query/person.jpeg
+------CampusVisionBoundary--
+
+
+### 5. 增量更新人物库：只处理还没有归入人物库的新 face_records
+POST http://127.0.0.1:8000/api/v1/persons/update-index
+Content-Type: multipart/form-data; boundary=----CampusVisionBoundary
+
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_faces"
+
+2
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_face_area"
+
+2500
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_detection_score"
+
+0.85
+------CampusVisionBoundary--
+
+
+### 5b. 全量重建人物库：用于调参或校正历史误分，会重新生成 person_id
+POST http://127.0.0.1:8000/api/v1/persons/rebuild-index
+Content-Type: multipart/form-data; boundary=----CampusVisionBoundary
+
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_faces"
+
+2
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_face_area"
+
+2500
+------CampusVisionBoundary
+Content-Disposition: form-data; name="min_detection_score"
+
+0.85
+------CampusVisionBoundary--
+
+
+### 6. 查看人物库
+GET http://127.0.0.1:8000/api/v1/persons
+
+
+### 7. 可视化查看人物库
+GET http://127.0.0.1:8000/api/v1/persons/gallery
+
+
+### 8. 基于人物库以图搜人
+POST http://127.0.0.1:8000/api/v1/search/person-by-image
+Content-Type: multipart/form-data; boundary=----CampusVisionBoundary
+
+------CampusVisionBoundary
+Content-Disposition: form-data; name="top_k"
+
+5
+Content-Disposition: form-data; name="max_gap_sec"
+
+3.0
+------CampusVisionBoundary
+Content-Disposition: form-data; name="files"; filename="person.jpeg"
+Content-Type: image/jpeg
+
+< ./testdata/query/person.jpeg
+------CampusVisionBoundary--
