@@ -3,130 +3,174 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>GKGuard 轨迹分析控制台</title>
-    <link rel="stylesheet" href="/static/styles.css?v=shell3" />
+    <title>GKGuard 人脸检索</title>
+    <link rel="stylesheet" href="/static/styles.css?v=faceflow1" />
   </head>
   <body>
-    <div class="software-shell">
-      <header class="app-topbar">
-        <div class="product-lockup">
-          <div class="shield-mark" aria-hidden="true">G</div>
-          <strong>GKGuard</strong>
-          <span>港科广校园安防 AI 智能分析检索平台</span>
-        </div>
-        <div class="global-search" role="search">
-          <span class="search-icon" aria-hidden="true"></span>
-          <input id="globalSearch" value="S2026001" aria-label="全局搜索" placeholder="输入姓名 / 学工号 / 手机号 / 车牌 / 上传图片检索" />
-          <button id="imageSearchBtn" class="icon-button" type="button" aria-label="图片检索" title="图片检索"></button>
-          <button id="personSearchBtn" type="button">搜索</button>
-          <input id="studentId" value="S2026001" hidden />
-          <input id="naturalQuery" value="夜间停车场附近的红色车辆" hidden />
-          <input id="imageFile" type="file" accept="image/*" hidden />
-        </div>
-        <div class="system-actions" aria-label="系统操作">
-          <button id="noticeBtn" class="top-icon notice" type="button" aria-label="通知" title="通知"><span>12</span></button>
-          <button id="helpBtn" class="top-icon help" type="button" aria-label="帮助" title="帮助"></button>
-          <button id="userMenuBtn" class="user-chip" type="button"><span class="avatar" aria-hidden="true"></span><span>管理员</span></button>
-        </div>
-      </header>
-
-      <aside class="app-sidebar" aria-label="主导航">
-        <nav>
-          <a href="#overview" data-module="总览" data-details="关键指标、系统状态和跨模块入口已经预留。|后续可接入 GET /dashboard/summary。"><span class="nav-icon overview"></span>总览</a>
-          <a href="#profile" data-module="人员检索" data-details="人员画像、学工号搜索和目标关注入口已经预留。|后续可接入真实人员库和权限过滤。"><span class="nav-icon person"></span>人员检索</a>
-          <a href="#events" data-module="车辆检索" data-details="车辆线索入口已预留在事件处置区。|后续可接入车牌识别、颜色筛选和车辆轨迹服务。"><span class="nav-icon car"></span>车辆检索</a>
-          <a href="#image" data-module="以图搜图" data-details="图片上传、相似度检索和抓拍结果区已经预留。|后续可接入人脸/车辆 ReID 服务。"><span class="nav-icon image"></span>以图搜图</a>
-          <a class="active" href="#trace" data-module="轨迹分析" data-details="轨迹地图、时间线和抓拍卡片已接入当前核心 API。|后续可替换为真实 GIS 和摄像头底图。"><span class="nav-icon route"></span>轨迹分析</a>
-          <a href="#events" data-module="预警事件" data-details="事件列表、报告生成和处置闭环入口已经预留。|后续可接入预警规则引擎和事件详情页。"><span class="nav-icon alert"></span>预警事件</a>
-          <a href="#events" data-module="CampusCar复核" data-details="巡检车任务创建、现场复核和回传闭环入口已经预留。|UE Bridge 契约：/U2RTopic_Command、/R2UTopic_Pos、/R2UTopic_Text。|后续可接入独立 CampusCar/ROS2 适配器。"><span class="nav-icon review"></span>CampusCar复核</a>
-          <a href="#image" data-module="数据管理" data-details="抓拍记录、证据包和审计日志入口已经预留。|后续可接入数据同步、导入导出和质量校验。"><span class="nav-icon data"></span>数据管理</a>
-          <a href="#overview" data-module="系统设置" data-details="账号、角色、模型阈值和服务配置入口已经预留。|后续可接入权限系统和配置中心。"><span class="nav-icon settings"></span>系统设置</a>
-        </nav>
-        <div class="sidebar-footer"><span aria-hidden="true"></span></div>
-      </aside>
-
-      <main class="app-main" id="overview">
-        <section class="workspace-header">
-          <div>
-            <h1>智能检索与轨迹分析</h1>
-            <p>通过多源数据检索和轨迹可视化，快速还原目标在校园内的活动轨迹</p>
-          </div>
-          <div class="date-tools">
-            <span>2025-05-14　星期三　16:28:45</span>
-            <button id="calendarBtn" class="calendar-button" type="button" aria-label="选择日期"></button>
-            <button id="packageBtn" class="secondary-button" type="button">导出证据包</button>
-          </div>
-        </section>
-
-        <section class="kpi-strip" aria-label="关键指标">
-          <article class="kpi-card search"><span class="kpi-icon"></span><div><small>今日检索</small><strong>1,256</strong><em>较昨日　+18.6%</em></div></article>
-          <article class="kpi-card alert"><span class="kpi-icon"></span><div><small>预警事件</small><strong>32</strong><em class="up">较昨日　+12.5%</em></div></article>
-          <article class="kpi-card camera"><span class="kpi-icon"></span><div><small>在线摄像头</small><strong>368</strong><em>在线率　96.2%</em></div></article>
-          <article class="kpi-card patrol"><span class="kpi-icon"></span><div><small>巡逻任务</small><strong>18</strong><em>巡逻中　6 个</em></div></article>
-        </section>
-
-        <section class="primary-grid" id="trace">
-          <article class="panel profile-panel" id="profile">
-            <div class="panel-title"><h2>目标信息</h2><button id="parseBtn" class="text-action" type="button">线索解析</button></div>
-            <div id="profileContent" class="target-profile loading">正在加载目标信息。</div>
-          </article>
-
-          <article class="panel map-panel">
-            <div class="panel-title">
-              <div><h2>轨迹地图（校园视图）</h2><p id="routeSummary">等待轨迹数据加载。</p></div>
-              <select id="mapMode" aria-label="地图类型"><option>校园地图</option><option>摄像头视图</option></select>
+    <main class="app-shell" aria-live="polite">
+      <section id="searchView" class="screen search-screen is-active" data-screen="search">
+        <article class="search-card">
+          <header class="screen-heading compact-heading">
+            <span class="face-icon" aria-hidden="true"></span>
+            <div>
+              <h1>人脸检索</h1>
+              <p>上传目标人脸图片，在指定时间范围内检索相关关键帧</p>
             </div>
-            <div class="map-frame">
-              <div id="routeMap" class="campus-map" aria-label="校园轨迹地图"></div>
-              <div class="map-legend"><span><i class="start"></i>起点</span><span><i class="end"></i>终点</span><span><i class="stay"></i>轨迹点</span><span><i class="path"></i>推荐轨迹</span><span><i class="camera"></i>摄像头</span></div>
-            </div>
-          </article>
+          </header>
 
-          <article class="panel timeline-panel">
-            <div class="panel-title"><h2>出现时间线</h2><button id="timelineFilterBtn" class="text-action" type="button">筛选</button></div>
-            <ol id="timelineList" class="appearance-list"></ol>
-            <div id="timelineCount" class="record-count">共 0 条记录</div>
-          </article>
-        </section>
+          <div class="search-layout">
+            <section class="upload-panel" aria-label="上传图片">
+              <h2>上传图片</h2>
+              <button id="uploadDrop" class="upload-drop" type="button">
+                <span id="uploadPreview" class="portrait-frame large-placeholder" aria-hidden="true"><span class="portrait-art"></span></span>
+                <span class="upload-action"><i aria-hidden="true"></i>点击上传或拖拽图片到此处</span>
+                <small id="uploadHint">支持 JPG / PNG，建议上传清晰正脸照片</small>
+              </button>
+              <input id="faceFile" type="file" accept="image/png,image/jpeg" hidden />
+            </section>
 
-        <section class="secondary-grid">
-          <article class="panel captures-panel" id="image">
-            <div class="panel-title"><h2>抓拍记录 <span>（共 <b id="captureCount">0</b> 条）</span></h2><button id="refreshBtn" class="text-action" type="button">刷新</button></div>
-            <div id="captureGrid" class="capture-list"></div>
-          </article>
-          <article class="panel events-panel" id="events">
-            <div class="panel-title"><h2>事件处置 / CampusCar复核</h2><button class="text-action" id="reportBtn" type="button">查看全部</button></div>
-            <div id="eventTable" class="review-table"></div>
-            <div class="bridge-status" aria-label="UE 联调状态">
-              <div>
-                <span class="bridge-dot" aria-hidden="true"></span>
-                <strong>UE联调占位</strong>
-                <small id="bridgeMode">mock / rosbridge :9090</small>
+            <section class="query-panel" aria-label="检索条件">
+              <div class="time-row">
+                <label>
+                  <span>查询起始时间</span>
+                  <input id="startTime" type="datetime-local" value="2025-05-24T00:00" />
+                </label>
+                <span class="range-dash" aria-hidden="true"></span>
+                <label>
+                  <span>结束时间</span>
+                  <input id="endTime" type="datetime-local" value="2025-05-24T23:59" />
+                </label>
               </div>
-              <dl id="bridgeTopics">
-                <div><dt>指令</dt><dd>/U2RTopic_Command</dd></div>
-                <div><dt>位姿</dt><dd>/R2UTopic_Pos</dd></div>
-                <div><dt>状态</dt><dd>/R2UTopic_Text</dd></div>
-              </dl>
-              <button id="bridgeStatusBtn" class="text-action" type="button">查看契约</button>
-            </div>
-            <div class="workflow-actions">
-              <button id="dispatchBtn" type="button">创建复核</button>
-              <button id="archiveBtn" class="secondary-button" type="button">归档处置</button>
-              <button id="auditBtn" class="secondary-button" type="button">审计日志</button>
-              <button id="fullFlowBtn" class="secondary-button" type="button">完整流程</button>
-            </div>
-          </article>
-        </section>
 
-        <section class="status-footer" aria-label="运行状态">
-          <span id="resultStatus">就绪</span>
-          <span id="resultSummary">页面加载后会自动展示演示对象的画像和轨迹。</span>
-          <div id="resultContent" class="result-drawer">暂无处理结果。</div>
-        </section>
-      </main>
-    </div>
+              <label class="scope-field">
+                <span>检索范围</span>
+                <select id="cameraScope">
+                  <option>全部摄像头</option>
+                  <option>C2 教学楼</option>
+                  <option>图书馆区域</option>
+                  <option>校门口区域</option>
+                </select>
+              </label>
+            </section>
 
-    <script src="/static/app.js?v=shell3" defer></script>
+            <button id="startSearchBtn" class="primary-action search-action" type="button">
+              <span class="search-action-icon" aria-hidden="true"></span>
+              开始检索
+            </button>
+          </div>
+
+          <footer class="info-banner"><span aria-hidden="true">i</span>检索源：历史监控关键帧，人脸结果将进入记录详情与路线图。</footer>
+        </article>
+      </section>
+
+      <section id="resultView" class="screen result-screen" data-screen="result">
+        <header class="screen-heading">
+          <span class="face-icon" aria-hidden="true"></span>
+          <div>
+            <h1>人脸检索结果</h1>
+            <p>基于上传目标人脸，在历史监控关键帧中检索到相关记录</p>
+          </div>
+        </header>
+
+        <div class="workbench result-workbench">
+          <aside class="side-panel">
+            <h2>人物照片</h2>
+            <div id="resultPortrait" class="portrait-frame target-frame"><span class="portrait-art"></span></div>
+            <hr />
+            <h2>检索记录</h2>
+            <div id="resultRecordList" class="record-list"></div>
+          </aside>
+
+          <section class="detail-panel">
+            <div class="detail-toolbar">
+              <h2 id="recordTitle">记录1</h2>
+              <div class="button-cluster">
+                <button id="openRouteBtn" class="outline-action" type="button"><span class="route-small-icon" aria-hidden="true"></span>查看人物路线图</button>
+                <button id="exportFrameBtn" class="outline-action" type="button"><span class="download-icon" aria-hidden="true"></span>导出截图</button>
+                <button id="showAllBtn" class="primary-action" type="button">查看全部结果</button>
+              </div>
+            </div>
+
+            <div id="recordScene" class="camera-scene scene-1">
+              <span class="scene-time">2025-05-24&nbsp;&nbsp;16:24:18</span>
+              <span class="building-door"></span>
+              <span class="scene-tree tree-left"></span>
+              <span class="scene-tree tree-right"></span>
+              <span class="walking-person"></span>
+              <span class="camera-sign">C2<br />南侧</span>
+            </div>
+
+            <div class="clip-timeline">
+              <button id="playBtn" class="play-button" type="button" aria-label="播放"></button>
+              <div class="time-track"><span id="trackProgress"></span><b id="timeBubble">16:24:18</b></div>
+              <span class="track-label">时间线</span>
+            </div>
+
+            <section class="info-section">
+              <h3>相关信息</h3>
+              <div id="recordInfo" class="info-grid"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+
+      <section id="routeView" class="screen route-screen" data-screen="route">
+        <header class="screen-heading">
+          <span class="face-icon" aria-hidden="true"></span>
+          <div>
+            <h1>人物路线图</h1>
+            <p>基于历史监控关键帧，自动还原目标人物在校园内的移动路径</p>
+          </div>
+        </header>
+
+        <div class="workbench route-workbench">
+          <aside class="side-panel route-side">
+            <h2>人物照片</h2>
+            <div id="routePortrait" class="portrait-frame target-frame"><span class="portrait-art"></span></div>
+            <hr />
+            <h2>关联记录</h2>
+            <div id="routeRecordList" class="record-list compact-list"></div>
+            <dl class="route-stats">
+              <div><dt>轨迹点数：</dt><dd>6</dd></div>
+              <div><dt>起点：</dt><dd>校门口</dd></div>
+              <div><dt>终点：</dt><dd>C2 教学楼南门</dd></div>
+            </dl>
+          </aside>
+
+          <section class="map-panel">
+            <div class="detail-toolbar">
+              <h2>目标人物路线图</h2>
+              <div class="button-cluster">
+                <button id="backToResultBtn" class="outline-action" type="button"><span class="back-icon" aria-hidden="true"></span>返回检索结果</button>
+                <button id="exportRouteBtn" class="outline-action" type="button"><span class="download-icon" aria-hidden="true"></span>导出路线图</button>
+                <button id="fullRouteBtn" class="primary-action" type="button"><span class="route-small-icon" aria-hidden="true"></span>查看完整轨迹</button>
+              </div>
+            </div>
+
+            <div id="campusRouteMap" class="campus-illustration" aria-label="目标人物路线图"></div>
+
+            <div class="route-bottom">
+              <section class="timeline-table">
+                <h3>轨迹时间线</h3>
+                <div id="routeTimelineRows"></div>
+              </section>
+              <section class="summary-table">
+                <h3>轨迹摘要</h3>
+                <div class="summary-rows">
+                  <div><span>总时长：</span><strong>6小时35分</strong></div>
+                  <div><span>覆盖摄像头：</span><strong>4路</strong></div>
+                  <div><span>关键帧数量：</span><strong>5</strong></div>
+                  <div><span>最终相似度：</span><strong>98%</strong></div>
+                  <div class="summary-note"><span aria-hidden="true">i</span><strong>系统根据检索结果自动生成目标人物校园活动路径。</strong></div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status"></div>
+    <script src="/static/app.js?v=faceflow1" defer></script>
   </body>
 </html>

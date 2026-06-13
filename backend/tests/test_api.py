@@ -20,7 +20,9 @@ def test_health() -> None:
 def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
-    assert "GKGuard 轨迹分析控制台" in response.text
+    assert "GKGuard 人脸检索" in response.text
+    assert "人脸检索结果" in response.text
+    assert "人物路线图" in response.text
 
 
 def test_root_redirects_to_demo() -> None:
