@@ -1,0 +1,67 @@
+name: Bug report / 缺陷反馈
+description: Report a reproducible GKGuard problem / 反馈可复现问题
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先移除密码、token、真实人脸、真实视频和个人信息。Do not include passwords, tokens, real faces, real videos, or personal data.
+  - type: input
+    id: version
+    attributes:
+      label: Version / 版本
+      description: Release tag or commit, for example v0.1.9.
+      placeholder: v0.1.9
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - Desktop installer / 桌面安装包
+        - C2 backend / C2 后端
+        - C2 frontend / C2 前端
+        - C1 connection / C1 连接
+        - CampusCar or UE placeholder / CampusCar 或 UE 占位
+        - Documentation / 文档
+        - Release workflow / 发布流程
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 复现步骤
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior / 期望行为
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior / 实际行为
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment / 环境
+      description: Windows version, campus network/VPN/SSH tunnel status, C1 URL if relevant.
+      placeholder: |
+        Windows:
+        Network: campus / VPN / offline / SSH tunnel
+        C1: direct 10.4.167.122:8000 / tunnel 127.0.0.1:18000 / custom
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs or screenshots / 脱敏日志或截图
+      description: Attach only redacted content.

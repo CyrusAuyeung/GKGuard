@@ -1,0 +1,30 @@
+name: Documentation update / 文档更新
+description: Report outdated or unclear documentation / 反馈过时或不清楚的文档
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: input
+    id: doc
+    attributes:
+      label: Document / 文档
+      placeholder: README.md, docs/api_contract.md, docs/c1_auto_connection.md
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: What is outdated or unclear? / 哪里过时或不清楚？
+    validations:
+      required: true
+  - type: textarea
+    id: suggested
+    attributes:
+      label: Suggested wording / 建议写法
+  - type: checkboxes
+    id: language
+    attributes:
+      label: Language check / 语言检查
+      options:
+        - label: Chinese section should be updated. / 需要更新中文部分。
+        - label: English section should be updated. / 需要更新 English 部分。
+        - label: This affects current-state docs, not historical Release notes. / 影响当前状态文档，不是历史 Release notes。

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security or privacy report
+    url: https://github.com/CyrusAuyeung/GKGuard/security
+    about: Do not disclose credentials, real media, or personal data in public issues. See SECURITY.md first.
+  - name: Release downloads
+    url: https://github.com/CyrusAuyeung/GKGuard/releases
+    about: Download the latest Windows installer and release assets.

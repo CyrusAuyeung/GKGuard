@@ -1,0 +1,43 @@
+name: Feature request / 功能建议
+description: Suggest a scoped improvement for GKGuard / 提出清晰范围的功能建议
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area / 模块
+      options:
+        - C2 search workflow / C2 检索流程
+        - C1 integration / C1 接入
+        - Desktop startup or installer / 桌面启动或安装包
+        - CampusCar or UE integration / CampusCar 或 UE 集成
+        - Documentation or handoff / 文档或交接
+        - Release process / 发布流程
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / 问题背景
+      description: What user or handoff problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution / 建议方案
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives / 替代方案
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Boundary check / 边界检查
+      options:
+        - label: This does not require committing real media or private data. / 不需要提交真实媒体或隐私数据。
+        - label: If it touches C1/CampusCar/UE, the external service boundary is described. / 如涉及 C1/CampusCar/UE，已说明外部服务边界。
+        - label: If it affects releases, docs and release notes will be updated. / 如影响发布，会同步文档和 Release notes。

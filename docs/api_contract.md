@@ -13,11 +13,13 @@ C2 本地开发常用地址：
 http://127.0.0.1:8002
 ```
 
-C1 适配器默认连接：
+C1 适配器默认本机隧道地址：
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
 ```
+
+安装版 `v0.1.9` 还内置候选地址 `http://10.4.167.122:8000` 和 `http://127.0.0.1:18000`。C2 会自动探测候选 C1；若都不可达，桌面端会提示打开 PowerShell SSH 窗口并由用户输入服务器密码。
 
 C2 前端只访问 C2 API。真实 C1 检索通过 C2 的 `/c1/...` 代理完成；旧 mock API 继续保留用于离线演示和非 C1 流程。
 
@@ -35,9 +37,12 @@ C2 前端只访问 C2 API。真实 C1 检索通过 C2 的 `/c1/...` 代理完成
 
 关键字段：
 
-- `baseUrl`：C2 当前使用的 C1 地址。
-- `reachable`：是否能读取 C1 OpenAPI。
-- `healthOk`：C1 `/health` 是否成功。
+- `baseUrl`：当前用于展示或请求的 C1 地址。
+- `selectedBaseUrl`：自动探测后选中的健康 C1 地址；未选中时为 `null`。
+- `candidateUrls`：本次探测的候选 C1 地址列表。
+- `candidates[]`：每个候选地址的 OpenAPI 与 `/health` 探测结果。
+- `reachable`：当前 `baseUrl` 是否能读取 C1 OpenAPI。
+- `healthOk`：当前 `baseUrl` 的 C1 `/health` 是否成功。
 - `health`：C1 health payload。
 - `error` / `healthError`：连接或 HTTP 错误。
 
@@ -276,11 +281,13 @@ Common local C2 development URL:
 http://127.0.0.1:8002
 ```
 
-Default C1 adapter URL:
+Default local C1 tunnel URL:
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
 ```
+
+The packaged `v0.1.9` app also has built-in candidates `http://10.4.167.122:8000` and `http://127.0.0.1:18000`. C2 probes candidate C1 URLs automatically; if none are reachable, the desktop app prompts to open a PowerShell SSH window where the user enters the server password.
 
 The C2 frontend calls C2 APIs only. Real C1 search is exposed through C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-C1 workflows.
 
@@ -298,9 +305,12 @@ Returns C1 reachability and health information.
 
 Important fields:
 
-- `baseUrl`: effective C1 URL used by C2.
-- `reachable`: whether C2 can read C1 OpenAPI metadata.
-- `healthOk`: whether C1 `/health` succeeds.
+- `baseUrl`: C1 URL currently used for display or requests.
+- `selectedBaseUrl`: healthy C1 URL selected by auto-probing, or `null` if none is selected.
+- `candidateUrls`: candidate C1 URLs checked during this probe.
+- `candidates[]`: OpenAPI and `/health` probe result for each candidate.
+- `reachable`: whether the current `baseUrl` can read C1 OpenAPI metadata.
+- `healthOk`: whether the current `baseUrl` succeeds on C1 `/health`.
 - `health`: C1 health payload.
 - `error` / `healthError`: connection or HTTP failures.
 

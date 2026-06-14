@@ -1,0 +1,38 @@
+title: "Architecture and handoff discussion"
+labels: ["architecture", "handoff"]
+body:
+  - type: textarea
+    id: topic
+    attributes:
+      label: Topic / 讨论主题
+      description: What architecture, handoff, or integration topic should be discussed?
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope / 相关范围
+      options:
+        - label: C2 backend / C2 后端
+        - label: C2 frontend / C2 前端
+        - label: Electron desktop app / Electron 桌面端
+        - label: C1 CampusVision
+        - label: CampusCar / UE / control team
+        - label: Docs / Release / handoff
+  - type: textarea
+    id: background
+    attributes:
+      label: Background and constraints / 背景与约束
+    validations:
+      required: true
+  - type: textarea
+    id: decisions
+    attributes:
+      label: Decisions needed / 需要决定的问题
+  - type: checkboxes
+    id: data_boundary
+    attributes:
+      label: Security and data boundary / 安全与数据边界
+      options:
+        - label: This does not expose real media, personal data, server passwords, tokens, or private keys. / 不暴露真实媒体、个人信息、服务器密码、token 或私钥。
+        - label: If this changes behavior, related docs and Release notes will be updated. / 如改变行为，会同步相关文档和 Release notes。

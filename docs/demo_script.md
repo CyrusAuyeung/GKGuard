@@ -13,6 +13,19 @@
 
 ## 主视觉流程：C1 真实检索
 
+安装版 `v0.1.9` 推荐流程：
+
+1. 下载并安装 `GKGuard-Setup-0.1.9.exe`。
+2. 打开 GKGuard。
+3. 如果 C1 可直连，软件会自动使用服务器 C1。
+4. 如果未检测到 C1，选择“输入密码连接 C1”。
+5. 在打开的 PowerShell SSH 窗口中输入服务器密码。
+6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
+
+GKGuard 不保存、不读取、不记录 SSH 密码。
+
+本地开发流程：
+
 1. 启动 C1，或连接团队 C1 服务器隧道。
 
 ```powershell
@@ -179,6 +192,19 @@ GET /events/ALT-001/case-package
 Demonstrate the current GKGuard C2 loop: upload a face image, prefer CampusVision C1 for real keyframes and trajectory, fall back to local mock records if C1 is unavailable, and keep C2 mock workflows for case review, audit, and CampusCar/UE placeholders.
 
 ## Primary Visual Flow: Real C1 Search
+
+Recommended packaged-app flow for `v0.1.9`:
+
+1. Download and install `GKGuard-Setup-0.1.9.exe`.
+2. Open GKGuard.
+3. If C1 is directly reachable, the app uses the server-side C1 automatically.
+4. If C1 is not detected, choose “输入密码连接 C1”.
+5. Enter the server password in the PowerShell SSH window that opens.
+6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
+
+GKGuard does not store, read, or log the SSH password.
+
+Local development flow:
 
 1. Start C1 or connect to the team C1 server through a tunnel.
 

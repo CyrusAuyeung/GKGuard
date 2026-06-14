@@ -1,0 +1,39 @@
+name: Release or installer issue / 发布或安装包问题
+description: Report a GitHub Release, installer, or packaging problem / 反馈 Release、安装包或打包问题
+title: "[Release]: "
+labels: ["release"]
+body:
+  - type: input
+    id: release
+    attributes:
+      label: Release / 版本
+      placeholder: v0.1.9
+    validations:
+      required: true
+  - type: dropdown
+    id: problem_type
+    attributes:
+      label: Problem type / 问题类型
+      options:
+        - Missing asset / 缺少资产
+        - Installer does not start / 安装包无法启动
+        - Release notes issue / 发布说明问题
+        - GitHub Actions build failure / Actions 构建失败
+        - Version mismatch / 版本不一致
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details / 详情
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: What did you check? / 已检查内容
+      placeholder: |
+        Assets:
+        Windows version:
+        Error message:
+        Actions run link:

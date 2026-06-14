@@ -65,7 +65,9 @@ GKGuard C2 当前使用两类数据：
 ## c1_search_result
 
 - `source`：当前为 `c1`。
-- `baseUrl`：适配器使用的 C1 地址，隧道开发时通常为 `http://127.0.0.1:18000`。
+- `baseUrl`：适配器当前使用或展示的 C1 地址。
+- `selectedBaseUrl`：自动探测后选中的健康 C1 地址，可能为内置服务器地址 `http://10.4.167.122:8000`、本机隧道地址 `http://127.0.0.1:18000` 或自定义地址。
+- `candidateUrls`：本次探测的 C1 候选地址列表。
 - `searchId`：C1 search ID。
 - `engine`：C1 引擎名，预期为 `insightface`。
 - `warning`：低置信或歧义提示。
@@ -232,7 +234,9 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 ## c1_search_result
 
 - `source`: currently `c1`.
-- `baseUrl`: C1 base URL used by the adapter, usually `http://127.0.0.1:18000` during tunnel-based development.
+- `baseUrl`: C1 URL currently used or displayed by the adapter.
+- `selectedBaseUrl`: healthy C1 URL selected by auto-probing. It may be the built-in server URL `http://10.4.167.122:8000`, the local tunnel URL `http://127.0.0.1:18000`, or a custom URL.
+- `candidateUrls`: C1 candidate URL list checked during the probe.
 - `searchId`: C1 search ID.
 - `engine`: C1 engine name, expected to be `insightface`.
 - `warning`: low-confidence or ambiguity warning.
