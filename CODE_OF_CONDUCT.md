@@ -7,11 +7,12 @@
 
 # 行为准则
 
-GKGuard 项目协作应保持专业、尊重和以问题解决为导向。无论是代码、文档、Issue、PR、演示或线下交接，都应遵守本准则。
+GKGuard 项目协作应保持专业、尊重和以问题解决为导向。无论是代码、文档、Issue、PR、演示或线下维护沟通，都应遵守本准则。
 
 ## 我们鼓励
 
-- 尊重不同小组的职责边界，包括 C1、C2、CampusCar、UE 和控制组。
+- 尊重初期材料中的技术分组与职责边界：A 组机械结构、B 组嵌入式控制、C 组算法感知。
+- 明确本仓库主要承载 C 组算法感知中的 GKGuard 平台、检索、数据、接口、桌面端和系统闭环说明；涉及 campusCar 底盘、机械上装、UE 或控制链路时，应按对应小组接口协作。
 - 用事实、日志、截图、复现步骤和接口响应说明问题。
 - 对安全、隐私和敏感数据保持谨慎。
 - 在评论中聚焦代码、需求、风险和验证结果。
@@ -37,11 +38,12 @@ GKGuard 项目协作应保持专业、尊重和以问题解决为导向。无论
 
 # Code Of Conduct
 
-GKGuard collaboration should remain professional, respectful, and focused on solving project problems. This applies to code, documentation, issues, pull requests, demos, and handoff discussions.
+GKGuard collaboration should remain professional, respectful, and focused on solving project problems. This applies to code, documentation, issues, pull requests, demos, and maintenance discussions.
 
 ## Expected Behavior
 
-- Respect responsibility boundaries across C1, C2, CampusCar, UE, and control teams.
+- Respect the technical tracks defined in the initial GKGuard materials: Group A Mechanical, Group B Embedded Control, and Group C Algorithm/Perception.
+- Treat this repository as the main home for the Group C GKGuard platform, search, data, API, desktop app, and system-loop documentation. Coordinate through the relevant group interfaces when work touches the campusCar chassis, mechanical add-ons, UE, or control links.
 - Use facts, logs, screenshots, reproduction steps, and API responses when reporting issues.
 - Treat security, privacy, and sensitive data carefully.
 - Keep comments focused on code, requirements, risks, and validation results.

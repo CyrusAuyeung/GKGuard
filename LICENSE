@@ -2,9 +2,9 @@
 
 Copyright (c) 2026 GKGuard Team. All rights reserved.
 
-This repository is published for project collaboration, coursework review, demonstration, and handoff purposes. Unless a separate written license is granted by the repository owner, no open-source license is granted for this repository.
+This repository is visible for GKGuard project collaboration, source viewing, demonstration runs, and maintenance reference. Unless a separate written license is granted by the repository owner, no open-source license is granted for this repository.
 
-You may view the source code in this repository for evaluation and collaboration within the GKGuard project context. You may not copy, redistribute, sublicense, sell, host as a competing service, or use this code in another product without prior written permission from the repository owner.
+You may view and run the source code in this repository within the GKGuard project context. You may not copy, redistribute, sublicense, sell, host as a competing service, or use this code in another product without prior written permission from the repository owner.
 
 Third-party dependencies, frameworks, tools, and models keep their own licenses. Review their license terms before redistribution, production deployment, or packaging.
 

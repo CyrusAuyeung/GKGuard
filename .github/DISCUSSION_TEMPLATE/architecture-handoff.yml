@@ -1,11 +1,11 @@
-title: "Architecture and handoff discussion"
-labels: ["architecture", "handoff"]
+title: "Architecture and integration discussion"
+labels: ["architecture", "integration"]
 body:
   - type: textarea
     id: topic
     attributes:
       label: Topic / 讨论主题
-      description: What architecture, handoff, or integration topic should be discussed?
+      description: What architecture, maintenance, or integration topic should be discussed?
     validations:
       required: true
   - type: checkboxes
@@ -18,7 +18,7 @@ body:
         - label: Electron desktop app / Electron 桌面端
         - label: C1 CampusVision
         - label: CampusCar / UE / control team
-        - label: Docs / Release / handoff
+        - label: Docs / Release / maintenance
   - type: textarea
     id: background
     attributes:

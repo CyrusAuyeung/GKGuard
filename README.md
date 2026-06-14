@@ -98,7 +98,7 @@ services/
 
 ## 文档索引
 
-- [docs/README.md](docs/README.md)：文档地图和交接阅读顺序。
+- [docs/README.md](docs/README.md)：文档地图和维护阅读顺序。
 - [docs/api_contract.md](docs/api_contract.md)：C2 API、C1 代理接口和字段说明。
 - [docs/c1_c2_integration.md](docs/c1_c2_integration.md)：C1/C2 职责边界、字段映射和联调清单。
 - [docs/c1_auto_connection.md](docs/c1_auto_connection.md)：C1 候选地址、SSH 隧道和内嵌密码窗口策略。
@@ -146,7 +146,7 @@ ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 
 C1 真实检索需要 `FACE_ENGINE=insightface`。如果 `/api/v1/persons` 正常但 `/health` 或以图搜人返回 500，优先检查运行中 uvicorn worker 的环境变量，并用当前 `.env` 重启 C1 服务。
 
-更多字段映射和交接检查见 [docs/c1_c2_integration.md](docs/c1_c2_integration.md)。
+更多字段映射和联调检查见 [docs/c1_c2_integration.md](docs/c1_c2_integration.md)。
 自动连接、候选 C1 地址和 SSH 隧道配置见 [docs/c1_auto_connection.md](docs/c1_auto_connection.md)。
 
 ## CampusCar / UE 占位
@@ -378,7 +378,7 @@ services/
 
 ## Documentation Index
 
-- [docs/README.md](docs/README.md): documentation map and handoff reading order.
+- [docs/README.md](docs/README.md): documentation map and maintenance reading order.
 - [docs/api_contract.md](docs/api_contract.md): C2 APIs, C1 proxy endpoints, and fields.
 - [docs/c1_c2_integration.md](docs/c1_c2_integration.md): C1/C2 boundary, field mapping, and integration checklist.
 - [docs/c1_auto_connection.md](docs/c1_auto_connection.md): C1 candidate URLs, SSH tunnel, and embedded password prompt strategy.
@@ -426,7 +426,7 @@ ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 
 Real C1 search requires `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, inspect the environment of the running uvicorn worker and restart C1 with the current `.env`.
 
-See [docs/c1_c2_integration.md](docs/c1_c2_integration.md) for the service boundary, field mapping, and handoff checklist.
+See [docs/c1_c2_integration.md](docs/c1_c2_integration.md) for the service boundary, field mapping, and integration checklist.
 See [docs/c1_auto_connection.md](docs/c1_auto_connection.md) for automatic connection, candidate C1 URLs, and SSH tunnel setup.
 
 ## CampusCar / UE Placeholder
