@@ -14,7 +14,7 @@
 1. 阅读 [README.md](README.md)、[OPEN_SOURCE.md](OPEN_SOURCE.md) 和 [SECURITY.md](SECURITY.md)。
 2. 确认改动属于当前 C2 边界，或在文档中明确说明与 C1、CampusCar、UE、控制组的接口边界。
 3. 不要提交真实视频、真实图片、`.env`、数据库、模型缓存、密码、token 或私钥。
-4. 如果改动会影响 Release，请同步更新 `docs/releases/` 中对应版本说明。
+4. 如果改动会影响 Release，请同步更新 README、相关当前状态文档，以及 `docs/releases/` 中对应版本说明。
 
 ## 本地开发
 
@@ -54,6 +54,7 @@ http://10.4.167.122:8000
 - 面向仓库用户的 Markdown 默认使用中文在前、English 在后。
 - 顶部保留中文/English 跳转按钮。
 - 当前状态文档应写最新版本和当前行为；历史 Release notes 保持历史语境。
+- 每次发布新版本后，必须核对 README、`docs/README.md`、API 合同、C1/C2 集成说明、演示脚本、安全/支持/治理文档和 Release notes 是否仍一致。
 - 涉及真实 C1、SSH、校园网或服务器访问时，明确说明网络前提和密码不进入 GKGuard。
 
 ## Pull Request 要求
@@ -90,7 +91,7 @@ Thank you for contributing to GKGuard. This repository currently focuses on the 
 1. Read [README.md](README.md), [OPEN_SOURCE.md](OPEN_SOURCE.md), and [SECURITY.md](SECURITY.md).
 2. Confirm the change belongs to the current C2 boundary, or document its boundary with C1, CampusCar, UE, and control teams.
 3. Do not commit real videos, real images, `.env` files, databases, model caches, passwords, tokens, or private keys.
-4. If the change affects a Release, update the matching note under `docs/releases/`.
+4. If the change affects a Release, update README, relevant current-state docs, and the matching note under `docs/releases/`.
 
 ## Local Development
 
@@ -130,6 +131,7 @@ http://10.4.167.122:8000
 - User-facing Markdown should be Chinese first and English second.
 - Keep the Chinese/English jump buttons at the top.
 - Current-state documents should describe the latest version and behavior; historical Release notes should keep their historical context.
+- After every new release, verify that README, `docs/README.md`, API contract, C1/C2 integration notes, demo script, security/support/governance docs, and Release notes remain consistent.
 - When documenting real C1, SSH, campus network, or server access, state the network prerequisite and that passwords do not enter GKGuard.
 
 ## Pull Request Requirements

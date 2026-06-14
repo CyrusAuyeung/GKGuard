@@ -1,18 +1,28 @@
 # GKGuard Icon Prompts
 
-> 目标：请生成一组统一风格的图标资产，用来替换当前软件内由 CSS 简单图形堆叠出的临时图标。  
-> Style target: Generate a consistent icon set to replace the current CSS-drawn placeholder icons.
+> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.1.17` 前端功能小图标以页面内 SVG sprite 为准，品牌/启动/安装包图标使用仓库中的 PNG/ICO 资产。
+>
+> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.1.17`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/installer icons use repository PNG/ICO assets.
 
 ## 通用风格 / Shared Style
 
-请所有图标保持同一套视觉语言，不限定输出格式：
+请所有图标保持同一套视觉语言，不限定输出格式。若生成的是功能小图标，后续接入前应优先提炼为单色或双色矢量符号，避免按钮中出现白底贴图感。
 
 - 画布：正方形图标，透明背景，适合后续导出为常见图片或图标格式。
 - 风格：现代安防系统、AI 人脸检索、校园监控控制台，专业、克制、清晰。
 - 形态：简洁、扁平、线性或轻微填充均可，但不要做成复杂插画。
 - 颜色：优先单色或双色；可使用深蓝、科技蓝、低饱和灰蓝作为主色，不要花哨渐变。
 - 构图：居中，留出安全边距，小尺寸按钮内仍然清楚。
-- 约束：不要文字、不要背景场景、不要 3D 拟物、不要过多阴影。
+- 约束：不要文字、不要背景场景、不要 3D 拟物、不要过多阴影，不要输出带实色背景的按钮贴片。
+
+Shared style requirements:
+
+- Canvas: square icon, transparent background, suitable for export to common image or icon formats.
+- Style: modern campus security AI dashboard, professional, restrained, and clear.
+- Shape: simple, flat, line-based, or lightly filled; avoid complex illustration.
+- Color: prefer monochrome or two-color designs using deep blue, technology blue, or muted blue-gray.
+- Composition: centered, with safe padding and legible at small button sizes.
+- Constraints: no text, no full background scene, no 3D realism, no excessive shadow, and no solid-background sticker look.
 
 Shared prompt prefix:
 

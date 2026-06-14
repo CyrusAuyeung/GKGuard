@@ -52,7 +52,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 如果确认 C1 服务已经安全开放给校园网，可以把直连地址放在候选列表第一位。默认安装版仍优先本机 SSH 隧道，避免“直连健康但搜索返回 503”时静默回退。
 
-## 推荐方案 B：自动识别 SSH 隧道
+## 推荐方案 B：自动识别已有 SSH 隧道
 
 如果 C1 仍绑定在服务器本机 `127.0.0.1:8000`，客户端需要先建立隧道：
 
@@ -66,7 +66,7 @@ ssh -L 18000:127.0.0.1:8000 speng@10.4.167.122
 http://127.0.0.1:18000
 ```
 
-这种方案安全，但不算完全自动，因为 SSH 密码或密钥仍需要用户处理。不要把服务器密码写进软件。
+这种方案安全，但不是打开软件后自动建隧道；SSH 密码或密钥由用户在系统 SSH 中处理。不要把服务器密码写进软件或配置文件。
 
 ## 默认方案 C：打开应用后输入 SSH 密码
 
@@ -240,7 +240,7 @@ http://127.0.0.1:18000
 
 This is secure but not fully automatic, because the SSH password or key still belongs to the user. Do not store the server password in the app.
 
-## Optional Option C: Enter SSH Password After Opening The App
+## Default Option C: Enter SSH Password After Opening The App
 
 The desktop app supports this mode by default: at startup it checks the local SSH tunnel first. If the tunnel is not connected, the app shows an embedded “Connect C1 server” password window with progress. After you type the server password, GKGuard uses it for the current SSH tunnel only; it does not store, log, or write the password. If real search returns C1 503 after the page opens, the UI triggers the same embedded connection window and retries once.
 

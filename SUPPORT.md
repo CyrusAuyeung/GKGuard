@@ -9,6 +9,8 @@
 
 本仓库主要用于 GKGuard C2 演示端开发、发布和交接。请根据问题类型选择合适入口。
 
+当前建议版本：`v0.1.17`。报告问题时请优先注明使用的 Release tag、安装包来源和 C1 连接方式。
+
 ## 常见问题入口
 
 - 安装包无法打开、Release 下载、桌面端启动问题：提交 Bug Report。
@@ -40,6 +42,8 @@
 # Support
 
 This repository is primarily for GKGuard C2 demo development, releases, and handoff. Choose the right path based on issue type.
+
+Recommended current version: `v0.1.17`. When filing an issue, include the Release tag, installer source, and C1 connection path.
 
 ## Where To Ask
 
