@@ -19,7 +19,7 @@ C1 适配器默认本机隧道地址：
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版 `v0.1.11` 还内置候选地址 `http://10.4.167.122:8000` 和 `http://127.0.0.1:18000`。C2 会自动探测候选 C1；若都不可达，桌面端会提示打开 PowerShell SSH 窗口并由用户输入服务器密码。
+安装版 `v0.1.12` 还内置候选地址 `http://10.4.167.122:8000` 和 `http://127.0.0.1:18000`。C2 会自动探测候选 C1；若都不可达，桌面端会提示打开 PowerShell SSH 窗口并由用户输入服务器密码。
 
 C2 前端只访问 C2 API。真实 C1 检索通过 C2 的 `/c1/...` 代理完成；旧 mock API 继续保留用于离线演示和非 C1 流程。
 
@@ -287,7 +287,7 @@ Default local C1 tunnel URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged `v0.1.11` app also has built-in candidates `http://10.4.167.122:8000` and `http://127.0.0.1:18000`. C2 probes candidate C1 URLs automatically; if none are reachable, the desktop app prompts to open a PowerShell SSH window where the user enters the server password.
+The packaged `v0.1.12` app also has built-in candidates `http://10.4.167.122:8000` and `http://127.0.0.1:18000`. C2 probes candidate C1 URLs automatically; if none are reachable, the desktop app prompts to open a PowerShell SSH window where the user enters the server password.
 
 The C2 frontend calls C2 APIs only. Real C1 search is exposed through C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-C1 workflows.
 

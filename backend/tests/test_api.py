@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -5,6 +7,7 @@ from app.services.audit_service import clear_audit_logs
 
 
 client = TestClient(app)
+ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def setup_function() -> None:
@@ -23,6 +26,7 @@ def test_demo_page_available() -> None:
     assert "GKGuard 人脸检索" in response.text
     assert "人脸检索结果" in response.text
     assert "人物路线图" in response.text
+    assert "desktopUpdatePanel" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -31,14 +35,35 @@ def test_static_assets_render_real_thumbnails() -> None:
     script = script_response.text
     assert "function recordThumbMarkup" in script
     assert "mini-face has-thumb" in script
+    assert "record.thumbnailUrl || record.frameUrl || record.faceUrl" in script
     assert "record.frameUrl" in script
+    assert "matchedPersonImageUrl" in script
+    assert "uploadedImageUrl || matchedPersonImageUrl" in script
+    assert "uploadedImageUrl = result.person.representativeFaceUrl" not in script
+    assert "initDesktopUpdateEntry" in script
+    assert "checkForUpdates" in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
     style = style_response.text
     assert ".portrait-frame img" in style
     assert "object-fit: contain" in style
+    assert "object-position: center center" in style
     assert ".mini-face img" in style
+    assert ".desktop-update" in style
+
+
+def test_desktop_update_bridge_wired() -> None:
+    main_script = (ROOT_DIR / "desktop" / "main.js").read_text(encoding="utf-8")
+    preload_script = (ROOT_DIR / "desktop" / "preload.js").read_text(encoding="utf-8")
+
+    assert "preload.js" in main_script
+    assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
+    assert "LATEST_RELEASE_API" in main_script
+    assert "downloadURL" in main_script
+    assert "contextBridge.exposeInMainWorld(\"gkguardDesktop\"" in preload_script
+    assert "checkForUpdates" in preload_script
+    assert "downloadUpdate" in preload_script
 
 
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:

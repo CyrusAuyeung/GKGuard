@@ -41,6 +41,25 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .screen { display: none; width: min(1250px, calc(100vw - 56px)); }
 .screen.is-active { display: block; }
 
+.desktop-update {
+  position: fixed;
+  right: 28px;
+  top: 22px;
+  z-index: 30;
+}
+
+.update-action {
+  min-height: 34px;
+  padding: 0 13px;
+  border-color: #cfe0ff;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 9px 20px rgba(44, 70, 110, 0.1);
+}
+
+.update-icon { position: relative; width: 16px; height: 16px; }
+.update-icon::before { content: ""; position: absolute; inset: 2px; border: 2px solid currentColor; border-left-color: transparent; border-radius: 50%; }
+.update-icon::after { content: ""; position: absolute; right: 0; top: 1px; width: 6px; height: 6px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(20deg); }
+
 .search-card,
 .workbench {
   border: 1px solid var(--line);
@@ -206,9 +225,9 @@ input, select {
   overflow: hidden;
   background: linear-gradient(180deg, #f9fbff, #eef4ff);
 }
-.large-placeholder { width: 180px; height: 148px; }
-.target-frame { width: 160px; height: 136px; margin: 16px auto 2px; border-radius: 9px; }
-.portrait-frame img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #eef4ff; }
+.large-placeholder { width: 176px; height: 176px; }
+.target-frame { width: 168px; height: 168px; margin: 16px auto 2px; border-radius: 9px; }
+.portrait-frame img { width: 100%; height: 100%; padding: 8px; object-fit: contain; object-position: center center; border-radius: inherit; background: #eef4ff; }
 .portrait-frame::after {
   content: "";
   position: absolute;

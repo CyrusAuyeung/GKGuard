@@ -1,6 +1,7 @@
-const { app, BrowserWindow, dialog, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
+const https = require("https");
 const http = require("http");
 const path = require("path");
 
@@ -13,6 +14,8 @@ const DEMO_URL = `${BASE_URL}/demo?desktop=1`;
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 45000);
+const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/releases/latest";
+const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
 const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
 const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
 const DEFAULT_C1_SSH_TUNNEL = {
@@ -26,6 +29,75 @@ const DEFAULT_C1_SSH_TUNNEL = {
 
 let backendProcess = null;
 let mainWindow = null;
+
+function compareVersions(left, right) {
+  const leftParts = String(left || "").replace(/^v/i, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const rightParts = String(right || "").replace(/^v/i, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
+  const length = Math.max(leftParts.length, rightParts.length, 3);
+  for (let index = 0; index < length; index += 1) {
+    const diff = (leftParts[index] || 0) - (rightParts[index] || 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function getHttpsJson(url, timeoutMs = 8000) {
+  return new Promise((resolve, reject) => {
+    const request = https.get(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": `GKGuard/${app.getVersion()}`,
+      },
+    }, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`GitHub Release API returned HTTP ${response.statusCode}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    request.on("error", reject);
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error("Update check timed out"));
+    });
+  });
+}
+
+function isTrustedReleaseUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "github.com" && parsed.pathname.startsWith("/CyrusAuyeung/GKGuard/releases/");
+  } catch {
+    return false;
+  }
+}
+
+async function checkForUpdates() {
+  const release = await getHttpsJson(LATEST_RELEASE_API);
+  const currentVersion = app.getVersion();
+  const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
+  const installer = (release.assets || []).find((asset) => /^GKGuard-Setup-.*\.exe$/i.test(asset.name));
+  return {
+    currentVersion,
+    latestVersion,
+    updateAvailable: compareVersions(latestVersion, currentVersion) > 0,
+    releaseUrl: release.html_url || RELEASES_URL,
+    downloadUrl: installer?.browser_download_url || release.html_url || RELEASES_URL,
+    assetName: installer?.name || "",
+    publishedAt: release.published_at || "",
+  };
+}
 
 function getBackendRoot() {
   if (app.isPackaged) {
@@ -349,8 +421,39 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: path.join(__dirname, "preload.js"),
       sandbox: true,
     },
+  });
+
+  mainWindow.webContents.session.on("will-download", (_event, item) => {
+    if (!/^GKGuard-Setup-.*\.exe$/i.test(item.getFilename())) {
+      return;
+    }
+    item.once("done", async (_doneEvent, state) => {
+      if (state !== "completed") {
+        await dialog.showMessageBox(mainWindow, {
+          type: "warning",
+          title: "下载未完成",
+          message: "新版安装包未完成下载",
+          detail: "请检查网络后在 GKGuard 中重新点击检查更新。",
+        });
+        return;
+      }
+      const filePath = item.getSavePath();
+      const result = await dialog.showMessageBox(mainWindow, {
+        type: "info",
+        title: "新版已下载",
+        message: "GKGuard 新版安装包已下载完成",
+        detail: filePath,
+        buttons: ["打开所在文件夹", "稍后安装"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (result.response === 0) {
+        shell.showItemInFolder(filePath);
+      }
+    });
   });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -360,6 +463,24 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, "loading.html"));
 }
+
+ipcMain.handle("gkguard:get-app-info", () => ({
+  version: app.getVersion(),
+  isPackaged: app.isPackaged,
+  platform: process.platform,
+}));
+
+ipcMain.handle("gkguard:check-for-updates", () => checkForUpdates());
+
+ipcMain.handle("gkguard:download-update", (_event, url) => {
+  const targetUrl = isTrustedReleaseUrl(url) ? url : RELEASES_URL;
+  if (!mainWindow) {
+    shell.openExternal(targetUrl);
+    return { started: false, fallbackUrl: targetUrl };
+  }
+  mainWindow.webContents.downloadURL(targetUrl);
+  return { started: true };
+});
 
 async function boot() {
   createWindow();

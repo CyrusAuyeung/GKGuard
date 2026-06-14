@@ -4,9 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=faceflow3" />
+    <link rel="stylesheet" href="/static/styles.css?v=faceflow4" />
   </head>
   <body>
+    <div id="desktopUpdatePanel" class="desktop-update" hidden>
+      <button id="checkUpdateBtn" class="outline-action update-action" type="button">
+        <span class="update-icon" aria-hidden="true"></span>
+        <span id="updateStatus">检查更新</span>
+      </button>
+    </div>
     <main class="app-shell" aria-live="polite">
       <section id="searchView" class="screen search-screen is-active" data-screen="search">
         <article class="search-card">
@@ -171,6 +177,6 @@
     </main>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="/static/app.js?v=faceflow3" defer></script>
+    <script src="/static/app.js?v=faceflow4" defer></script>
   </body>
 </html>

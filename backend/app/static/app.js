@@ -28,6 +28,9 @@ const elements = {
   summaryCameraCount: document.querySelector("#summaryCameraCount"),
   summaryFrameCount: document.querySelector("#summaryFrameCount"),
   summaryFinalSimilarity: document.querySelector("#summaryFinalSimilarity"),
+  desktopUpdatePanel: document.querySelector("#desktopUpdatePanel"),
+  checkUpdateBtn: document.querySelector("#checkUpdateBtn"),
+  updateStatus: document.querySelector("#updateStatus"),
   toast: document.querySelector("#toast"),
 };
 
@@ -63,6 +66,7 @@ const buildings = [
 
 let selectedRecordIndex = 0;
 let uploadedImageUrl = "";
+let matchedPersonImageUrl = "";
 let uploadedFile = null;
 let activeSource = "mock";
 let toastTimer = null;
@@ -113,15 +117,27 @@ function showToast(message) {
 }
 
 function portraitMarkup() {
-  if (uploadedImageUrl) return `<img src="${uploadedImageUrl}" alt="上传的人脸图片" />`;
+  const portraitUrl = uploadedImageUrl || matchedPersonImageUrl;
+  if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
 
 function recordThumbMarkup(record) {
-  if (record.frameUrl) {
-    return `<span class="mini-face has-thumb"><img src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
+  const thumbUrl = record.thumbnailUrl || record.frameUrl || record.faceUrl;
+  if (thumbUrl) {
+    return `<span class="mini-face has-thumb"><img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
   }
   return '<span class="mini-face" aria-hidden="true"></span>';
+}
+
+function bindRecordThumbnailFallbacks() {
+  document.querySelectorAll(".mini-face.has-thumb img").forEach((image) => {
+    image.addEventListener("error", () => {
+      const wrapper = image.closest(".mini-face");
+      wrapper?.classList.remove("has-thumb");
+      image.remove();
+    });
+  });
 }
 
 function syncPortraits() {
@@ -141,6 +157,7 @@ function loadImage(file) {
   reader.addEventListener("load", () => {
     uploadedFile = file;
     uploadedImageUrl = String(reader.result || "");
+    matchedPersonImageUrl = "";
     elements.uploadHint.textContent = `${file.name} 已就绪`;
     syncPortraits();
     showToast("目标照片已加载。");
@@ -181,7 +198,7 @@ function applyC1Result(result) {
   })));
 
   if (result.person?.representativeFaceUrl) {
-    uploadedImageUrl = result.person.representativeFaceUrl;
+    matchedPersonImageUrl = result.person.representativeFaceUrl;
     syncPortraits();
   }
 
@@ -216,6 +233,7 @@ function renderRecordLists() {
   `).join("");
   elements.resultRecordList.innerHTML = html;
   elements.routeRecordList.innerHTML = html;
+  bindRecordThumbnailFallbacks();
 
   document.querySelectorAll(".record-card").forEach((button) => {
     button.addEventListener("click", () => {
@@ -223,6 +241,57 @@ function renderRecordLists() {
       renderRecordLists();
       renderSelectedRecord();
     });
+  });
+}
+
+function setUpdateStatus(label, disabled = false) {
+  if (!elements.checkUpdateBtn || !elements.updateStatus) return;
+  elements.updateStatus.textContent = label;
+  elements.checkUpdateBtn.disabled = disabled;
+}
+
+async function initDesktopUpdateEntry() {
+  const desktopBridge = window.gkguardDesktop;
+  const isDesktop = new URLSearchParams(window.location.search).get("desktop") === "1";
+  if (!desktopBridge || !isDesktop || !elements.desktopUpdatePanel || !elements.checkUpdateBtn) {
+    return;
+  }
+
+  elements.desktopUpdatePanel.hidden = false;
+  const appInfo = await desktopBridge.getAppInfo().catch(() => null);
+  if (appInfo?.version) {
+    setUpdateStatus(`检查更新 v${appInfo.version}`);
+  }
+
+  let latestUpdate = null;
+  elements.checkUpdateBtn.addEventListener("click", async () => {
+    if (latestUpdate?.updateAvailable && latestUpdate.downloadUrl) {
+      setUpdateStatus("开始下载...", true);
+      await desktopBridge.downloadUpdate(latestUpdate.downloadUrl);
+      setUpdateStatus(`下载 ${latestUpdate.latestVersion}`);
+      showToast("新版安装包已开始下载，完成后会弹出提示。");
+      return;
+    }
+
+    setUpdateStatus("检查中...", true);
+    try {
+      latestUpdate = await desktopBridge.checkForUpdates();
+      if (latestUpdate.updateAvailable) {
+        setUpdateStatus(`下载 ${latestUpdate.latestVersion}`);
+        showToast(`发现新版 ${latestUpdate.latestVersion}，再次点击即可下载。`);
+      } else {
+        setUpdateStatus("已是最新版", true);
+        showToast(`当前已是最新版本 ${latestUpdate.currentVersion}。`);
+        window.setTimeout(() => setUpdateStatus(`检查更新 v${latestUpdate.currentVersion}`), 2400);
+      }
+    } catch (error) {
+      setUpdateStatus("检查更新");
+      showToast(`检查更新失败：${error.message}`);
+    } finally {
+      if (!latestUpdate || latestUpdate.updateAvailable) {
+        elements.checkUpdateBtn.disabled = false;
+      }
+    }
   });
 }
 
@@ -371,3 +440,4 @@ renderSelectedRecord();
 renderRouteMap();
 renderRouteTimeline();
 bindEvents();
+initDesktopUpdateEntry();

@@ -7,13 +7,13 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.11` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/SSH 密码提示，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
+GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.12` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/SSH 密码提示、软件内更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
 
 ## 当前状态
 
 - C2 后端位于 `backend/`，提供 FastAPI API、静态演示页、C1 代理、mock fallback、审计和 CampusCar/UE 占位接口。
-- C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；结果页会完整显示目标人物照片，并在记录列表展示 C1 关键帧缩略图。
-- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会自动探测 C1，并在需要时提示输入服务器 SSH 密码。
+- C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；上传页和结果页会优先完整显示用户上传的目标照片，并在记录列表展示 C1 关键帧缩略图。
+- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会自动探测 C1，并在需要时提示输入服务器 SSH 密码；桌面模式右上角提供 `检查更新` 入口，可直接下载最新安装包。
 - C1 源码位于 `services/campusvision-c1/`，负责视频上传、抽帧、人脸 embedding、人物库、以图搜人和轨迹输出。
 - C2 已实现 `/c1/...` 代理，可以通过 SSH 隧道连接服务器上的真实 C1 服务。
 - 当 C1 不可用、未上传图片或接口报错时，C2 前端会自动回退到本地模拟记录，方便离线演示。
@@ -130,6 +130,8 @@ http://127.0.0.1:8002/docs
 
 从 GitHub Release 下载的最新 Windows 安装包用于 C2 桌面端演示。安装后直接打开即可启动内置本地 C2 后端并进入 `/demo`，不需要另外安装 Python、Node.js 或手动启动 C2 服务。
 
+桌面软件右上角提供 `检查更新` 入口：点击后会查询 GitHub 最新 Release；发现新版时再次点击即可直接下载最新 `GKGuard-Setup-*.exe`，下载完成后软件会提示打开所在文件夹。
+
 本地开发或打包桌面端时建议使用 Node.js `22.12.0` 或更高版本；当前 Electron 42 依赖链要求 Node 22+。
 
 网络边界：
@@ -203,13 +205,13 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.11`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an SSH password prompt, and the imported C1 CampusVision video retrieval service as a separate module.
+GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.12`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an SSH password prompt, an in-app update entry, and the imported C1 CampusVision video retrieval service as a separate module.
 
 ## Current Status
 
 - The C2 backend lives in `backend/` and provides FastAPI APIs, the static demo UI, the C1 proxy, mock fallback, audit APIs, and CampusCar/UE placeholder APIs.
-- The C2 frontend lives in `backend/app/static/` and currently focuses on three screens: face search, face-search results, and person route map; the result screen shows the target portrait without cropping and renders C1 keyframe thumbnails in the record list.
-- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app probes C1 automatically after opening and prompts for the server SSH password when needed.
+- The C2 frontend lives in `backend/app/static/` and currently focuses on three screens: face search, face-search results, and person route map; the upload and result screens prefer the full uploaded target image and render C1 keyframe thumbnails in the record list.
+- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app probes C1 automatically after opening, prompts for the server SSH password when needed, and exposes a top-right `检查更新` entry in desktop mode to download the latest installer directly.
 - The C1 source lives in `services/campusvision-c1/` and owns video upload, frame sampling, face embeddings, person indexing, image search, and trajectory output.
 - C2 now exposes `/c1/...` proxy endpoints and can connect to the real C1 service through an SSH tunnel.
 - If C1 is unavailable, no image is uploaded, or the C1 request fails, the frontend falls back to local mock records for offline demonstrations.
@@ -325,6 +327,8 @@ If C1 is not connected, the demo UI still works through the local mock fallback.
 ## Run The Desktop App
 
 The latest Windows installer from GitHub Releases is for the C2 desktop demo. After installation, opening the app starts the bundled local C2 backend and loads `/demo`; Python, Node.js, and manual C2 startup are not required for the packaged app.
+
+The desktop app includes a top-right `检查更新` entry. It checks the latest GitHub Release, and when a newer version is available, clicking again downloads the newest `GKGuard-Setup-*.exe` directly and prompts you to open the download folder when complete.
 
 For local desktop development or packaging, use Node.js `22.12.0` or later. The current Electron 42 dependency chain requires Node 22+.
 
