@@ -26,7 +26,7 @@
 
 ## 运行连接
 
-C2 适配器支持候选地址自动探测，读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`，最后回退到默认本机隧道地址：
+C2 适配器支持候选地址自动探测，读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`、内置服务器地址 `http://10.4.167.122:8000`，最后回退到默认本机隧道地址：
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -115,7 +115,7 @@ The repository should track only source code, documentation, scripts, examples, 
 
 ## Runtime Connection
 
-The C2 adapter supports candidate URL auto-detection in this order: `C1_BASE_URL`, `C1_CANDIDATE_URLS`, packaged-app config file `%APPDATA%\GKGuard\c1-connection.json`, and finally the default local tunnel URL:
+The C2 adapter supports candidate URL auto-detection in this order: `C1_BASE_URL`, `C1_CANDIDATE_URLS`, packaged-app config file `%APPDATA%\GKGuard\c1-connection.json`, built-in server URL `http://10.4.167.122:8000`, and finally the default local tunnel URL:
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000

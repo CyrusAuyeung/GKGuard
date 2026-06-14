@@ -36,7 +36,7 @@ def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["baseUrl"] == "http://127.0.0.1:9"
+    assert body["baseUrl"] == "http://10.4.167.122:8000"
     assert body["reachable"] is False
     assert body["selectedBaseUrl"] is None
 
@@ -72,6 +72,18 @@ def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:
     monkeypatch.delenv("C1_BASE_URL", raising=False)
     monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
     monkeypatch.setenv("C1_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+
+    urls = c1_service._candidate_urls()
+    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+
+
+def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
 
     urls = c1_service._candidate_urls()

@@ -16,7 +16,8 @@ C2 会按顺序读取候选地址并自动探测：
 1. 环境变量 `C1_BASE_URL`。
 2. 环境变量 `C1_CANDIDATE_URLS`，多个地址用逗号或分号分隔。
 3. 桌面端传入的配置文件：`%APPDATA%\GKGuard\c1-connection.json`。
-4. 默认本机隧道地址：`http://127.0.0.1:18000`。
+4. 内置服务器地址：`http://10.4.167.122:8000`。
+5. 默认本机隧道地址：`http://127.0.0.1:18000`。
 
 探测时会访问每个候选 C1 的 `/openapi.json` 和 `/health`。第一个健康检查通过的地址会被选中，后续上传照片时会直接转发到这个 C1。
 
@@ -67,9 +68,21 @@ http://127.0.0.1:18000
 
 这种方案安全，但不算完全自动，因为 SSH 密码或密钥仍需要用户处理。不要把服务器密码写进软件。
 
-## 可选方案 C：打开应用后输入 SSH 密码
+## 默认方案 C：打开应用后输入 SSH 密码
 
-当前桌面端支持这个模式：如果 C1 不可达，并且配置文件启用了 `sshTunnel`，应用启动时会弹出提示，选择后会打开一个 PowerShell SSH 窗口。你在该窗口输入服务器密码，GKGuard 不会保存或记录密码。
+当前桌面端默认支持这个模式：如果直连 C1 和本机隧道都不可达，应用启动时会弹出提示，选择后会打开一个 PowerShell SSH 窗口。你在该窗口输入服务器密码，GKGuard 不会保存或记录密码。
+
+默认内置参数：
+
+```text
+host = 10.4.167.122
+user = speng
+localPort = 18000
+remoteHost = 127.0.0.1
+remotePort = 8000
+```
+
+因此通常不需要手动创建配置文件。下面的配置文件只用于服务器地址、账号或端口变化时覆盖默认值。
 
 配置文件示例：
 
@@ -90,7 +103,7 @@ http://127.0.0.1:18000
 }
 ```
 
-保存路径：
+可选覆盖路径：
 
 ```text
 %APPDATA%\GKGuard\c1-connection.json
@@ -227,7 +240,19 @@ This is secure but not fully automatic, because the SSH password or key still be
 
 ## Optional Option C: Enter SSH Password After Opening The App
 
-The desktop app now supports this mode: if C1 is unavailable and `sshTunnel` is enabled in the config file, the app shows a prompt at startup. If confirmed, it opens a PowerShell SSH window. You type the server password in that window; GKGuard does not store or log the password.
+The desktop app supports this mode by default: if direct C1 access and the local tunnel are both unavailable, the app shows a prompt at startup. If confirmed, it opens a PowerShell SSH window. You type the server password in that window; GKGuard does not store or log the password.
+
+Built-in defaults:
+
+```text
+host = 10.4.167.122
+user = speng
+localPort = 18000
+remoteHost = 127.0.0.1
+remotePort = 8000
+```
+
+So normally you do not need to create a config file manually. The config below is only for overriding defaults when the server address, account, or ports change.
 
 Example config:
 
@@ -248,7 +273,7 @@ Example config:
 }
 ```
 
-Save it at:
+Optional override path:
 
 ```text
 %APPDATA%\GKGuard\c1-connection.json

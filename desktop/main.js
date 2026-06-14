@@ -13,6 +13,16 @@ const DEMO_URL = `${BASE_URL}/demo?desktop=1`;
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 45000);
+const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
+const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
+const DEFAULT_C1_SSH_TUNNEL = {
+  enabled: true,
+  host: "10.4.167.122",
+  user: "speng",
+  localPort: 18000,
+  remoteHost: "127.0.0.1",
+  remotePort: 8000,
+};
 
 let backendProcess = null;
 let mainWindow = null;
@@ -41,6 +51,7 @@ function getBackendEnv() {
     ...process.env,
     PYTHONUNBUFFERED: "1",
     C1_CONFIG_PATH: getC1ConfigPath(),
+    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_DIRECT_URL},${DEFAULT_C1_TUNNEL_URL}`,
   };
 }
 
@@ -70,7 +81,7 @@ function isSafeSshToken(value) {
 
 function getSshTunnelConfig() {
   const config = readC1ConnectionConfig();
-  const tunnel = config.sshTunnel || {};
+  const tunnel = { ...DEFAULT_C1_SSH_TUNNEL, ...(config.sshTunnel || {}) };
   const enabledValue = process.env.C1_SSH_TUNNEL || tunnel.enabled;
   const enabled = enabledValue === true || String(enabledValue).toLowerCase() === "true" || String(enabledValue) === "1";
   if (!enabled) {

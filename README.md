@@ -63,8 +63,9 @@ services/
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版会自动读取候选 C1 地址配置 `%APPDATA%\GKGuard\c1-connection.json`，并优先使用健康检查通过的地址。
-若该配置启用 `sshTunnel`，且启动时未检测到 C1，桌面端会提示是否打开 SSH 登录窗口；你在 PowerShell 中输入服务器密码，GKGuard 不保存密码。示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
+安装版内置默认 C1 候选地址 `http://10.4.167.122:8000` 和 `http://127.0.0.1:18000`。打开应用后会先自动探测；若未检测到 C1，会提示是否打开 SSH 登录窗口。你只需要在 PowerShell 中输入服务器密码，GKGuard 不保存密码。
+
+通常不需要额外配置。若服务器地址或账号变化，可用 `%APPDATA%\GKGuard\c1-connection.json` 覆盖默认值，示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
 
 如果 C1 在远程服务器上并绑定到服务器本机 `127.0.0.1:8000`，先在 C2 机器上建立 SSH 隧道：
 
@@ -245,8 +246,9 @@ Default local adapter URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged app also reads candidate C1 URL config from `%APPDATA%\GKGuard\c1-connection.json` and selects the first candidate that passes health checks.
-If that config enables `sshTunnel` and C1 is not detected at startup, the desktop app prompts to open an SSH login window; you type the server password in PowerShell, and GKGuard does not store it. See [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
+The packaged app has built-in C1 candidates: `http://10.4.167.122:8000` and `http://127.0.0.1:18000`. After opening the app, it probes them automatically. If C1 is not detected, it prompts to open an SSH login window. You only type the server password in PowerShell, and GKGuard does not store it.
+
+Extra configuration is usually not required. If the server address or account changes, override defaults with `%APPDATA%\GKGuard\c1-connection.json`; see [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
 
 If C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, create an SSH tunnel first:
 
