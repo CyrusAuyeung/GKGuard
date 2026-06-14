@@ -51,22 +51,45 @@ jobs:
         shell: pwsh
         run: |
           $tag = $env:GITHUB_REF_NAME
+          $curatedNotes = "docs/releases/$tag.md"
+          if (Test-Path $curatedNotes) {
+            Copy-Item $curatedNotes release-notes.md
+            exit 0
+          }
+
           $previousTag = git tag --sort=-version:refname | Where-Object { $_ -ne $tag } | Select-Object -First 1
           if ($previousTag) {
             $range = "$previousTag..$tag"
-            $compareText = "相较 $previousTag 的变更。"
+            $compareTextZh = "相较 $previousTag 的变更"
+            $compareTextEn = "Changes since $previousTag"
           } else {
             $range = $tag
-            $compareText = "首次发布内容。"
+            $compareTextZh = "首次发布内容"
+            $compareTextEn = "Initial release contents"
           }
 
           @(
+            '<p align="right">',
+            '  <a href="#中文"><kbd>中文</kbd></a>',
+            '  <a href="#english"><kbd>English</kbd></a>',
+            '</p>',
+            '',
+            '<a id="中文"></a>',
+            '',
             "# GKGuard $tag",
+            "",
+            "## 中文",
             "",
             "## 概要",
             "",
-            "- $compareText.",
-            "- Windows 安装包和更新元数据已附在本 Release 下方。",
+            "- $compareTextZh。",
+            "- 已完成后端测试、桌面后端打包和 Windows 安装包构建。",
+            "- Windows 安装包、blockmap 和 latest.yml 更新元数据已附在本 Release 下方。",
+            "",
+            "## 使用说明",
+            "",
+            "- 下载 `GKGuard-Setup-*.exe` 安装桌面版。",
+            "- `.blockmap` 和 `latest.yml` 用于 Electron 更新机制，通常不需要手动打开。",
             "",
             "## 提交",
             ""
@@ -101,6 +124,32 @@ jobs:
           } else {
             "- 未找到该标签范围内的文件变更。" | Add-Content release-notes.md -Encoding UTF8
           }
+
+          @(
+            "",
+            '<p align="right"><a href="#中文">返回中文顶部</a></p>',
+            "",
+            "---",
+            "",
+            '<a id="english"></a>',
+            "",
+            "# GKGuard $tag",
+            "",
+            "## English",
+            "",
+            "## Summary",
+            "",
+            "- $compareTextEn.",
+            "- Backend tests, desktop backend bundling, and Windows installer build were completed.",
+            "- The Windows installer, blockmap, and latest.yml update metadata are attached below this Release.",
+            "",
+            "## Usage",
+            "",
+            "- Download `GKGuard-Setup-*.exe` to install the desktop app.",
+            "- `.blockmap` and `latest.yml` are for the Electron update flow and usually do not need to be opened manually.",
+            "",
+            '<p align="right"><a href="#english">Back to English top</a></p>'
+          ) | Add-Content release-notes.md -Encoding UTF8
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
