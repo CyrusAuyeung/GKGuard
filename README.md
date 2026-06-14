@@ -7,11 +7,11 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、mock fallback、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.17` 状态下，仓库包含 GKGuard C2 后端、三界面人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、经过细节修正的线性功能图标、品牌图标资产、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
+GKGuard 是校园安防 AI 检索项目中的 C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、mock fallback、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.18` 状态下，仓库包含 GKGuard C2 后端、三界面人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、经过细节修正的线性功能图标、品牌图标资产、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
 
 ## 仓库版本
 
-- 当前最新版本：`v0.1.17`。
+- 当前最新版本：`v0.1.18`。
 - 桌面安装包：GitHub Release 中包含 Windows 安装包、`.blockmap` 和 `latest.yml`。
 - 代码形态：仓库同时保留可本地运行的 FastAPI 后端、静态前端、Electron 桌面壳和导入的 CampusVision C1 源码。
 - 文档形态：仓库内维护中英双语 README、API 合同、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和治理文档。
@@ -249,7 +249,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.1.17` 的基线结果：后端测试 `24 passed`，Electron 主进程和 preload 语法检查通过，`npm audit --audit-level=low` 为 0 vulnerabilities，本地 `npm run dist` 可生成 Windows 安装包。
+当前 `v0.1.18` 的基线结果：后端测试 `24 passed`，Electron 主进程和 preload 语法检查通过，`npm audit --audit-level=low` 为 0 vulnerabilities，GitHub Actions 已生成 Windows 安装包和 Electron 自动更新元数据。
 
 只修改文档时，可至少执行：
 
@@ -287,11 +287,11 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the C2 workbench for the campus security AI search project: it owns the desktop UI, local backend, result presentation, route visualization, mock fallback, audit features, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output. As of `v0.1.17`, this repository contains the GKGuard C2 backend, the three-screen face-search frontend, the Electron desktop shell, CampusVision C1 auto-connection with an embedded SSH password prompt and connection progress, polished linear UI icons, brand icon assets, an in-app update flow that downloads and restarts to install updates, and the imported CampusVision C1 service source as a separate module.
+GKGuard is the C2 workbench for the campus security AI search project: it owns the desktop UI, local backend, result presentation, route visualization, mock fallback, audit features, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output. As of `v0.1.18`, this repository contains the GKGuard C2 backend, the three-screen face-search frontend, the Electron desktop shell, CampusVision C1 auto-connection with an embedded SSH password prompt and connection progress, polished linear UI icons, brand icon assets, an in-app update flow that downloads and restarts to install updates, and the imported CampusVision C1 service source as a separate module.
 
 ## Repository Version
 
-- Latest version: `v0.1.17`.
+- Latest version: `v0.1.18`.
 - Desktop installer: GitHub Releases contain the Windows installer, `.blockmap`, and `latest.yml`.
 - Code shape: the repository keeps the locally runnable FastAPI backend, static frontend, Electron desktop shell, and imported CampusVision C1 source.
 - Documentation shape: the repository maintains bilingual README, API contract, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and governance documents.
@@ -531,7 +531,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.1.17` baseline: backend tests pass with `24 passed`, Electron main/preload syntax checks pass, `npm audit --audit-level=low` reports 0 vulnerabilities, and local `npm run dist` produces the Windows installer.
+Current `v0.1.18` baseline: backend tests pass with `24 passed`, Electron main/preload syntax checks pass, `npm audit --audit-level=low` reports 0 vulnerabilities, and GitHub Actions has produced the Windows installer plus Electron auto-update metadata.
 
 For documentation-only changes, run at least:
 

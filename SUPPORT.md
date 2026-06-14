@@ -9,7 +9,7 @@
 
 本仓库主要用于 GKGuard C2 桌面工作台开发、发布和维护。请根据问题类型选择合适入口。
 
-当前建议版本：`v0.1.17`。报告问题时请优先注明使用的 Release tag、安装包来源和 CampusVision C1 服务连接方式。
+当前建议版本：`v0.1.18`。报告问题时请优先注明使用的 Release tag、安装包来源和 CampusVision C1 服务连接方式。
 
 ## 常见问题入口
 
@@ -43,7 +43,7 @@
 
 This repository is primarily for GKGuard C2 desktop workbench development, releases, and maintenance. Choose the right path based on issue type.
 
-Recommended current version: `v0.1.17`. When filing an issue, include the Release tag, installer source, and CampusVision C1 service connection path.
+Recommended current version: `v0.1.18`. When filing an issue, include the Release tag, installer source, and CampusVision C1 service connection path.
 
 ## Where To Ask
 
