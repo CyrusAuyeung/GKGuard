@@ -1,0 +1,14 @@
+{
+  "candidateUrls": [
+    "http://10.4.167.122:8000",
+    "http://127.0.0.1:18000"
+  ],
+  "sshTunnel": {
+    "enabled": true,
+    "host": "10.4.167.122",
+    "user": "speng",
+    "localPort": 18000,
+    "remoteHost": "127.0.0.1",
+    "remotePort": 8000
+  }
+}

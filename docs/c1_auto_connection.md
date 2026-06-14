@@ -67,7 +67,46 @@ http://127.0.0.1:18000
 
 这种方案安全，但不算完全自动，因为 SSH 密码或密钥仍需要用户处理。不要把服务器密码写进软件。
 
-## 可选方案 C：软件自动拉起 SSH 隧道
+## 可选方案 C：打开应用后输入 SSH 密码
+
+当前桌面端支持这个模式：如果 C1 不可达，并且配置文件启用了 `sshTunnel`，应用启动时会弹出提示，选择后会打开一个 PowerShell SSH 窗口。你在该窗口输入服务器密码，GKGuard 不会保存或记录密码。
+
+配置文件示例：
+
+```json
+{
+  "candidateUrls": [
+    "http://10.4.167.122:8000",
+    "http://127.0.0.1:18000"
+  ],
+  "sshTunnel": {
+    "enabled": true,
+    "host": "10.4.167.122",
+    "user": "speng",
+    "localPort": 18000,
+    "remoteHost": "127.0.0.1",
+    "remotePort": 8000
+  }
+}
+```
+
+保存路径：
+
+```text
+%APPDATA%\GKGuard\c1-connection.json
+```
+
+启动后的行为：
+
+1. GKGuard 先探测 `candidateUrls`。
+2. 如果都不可达，弹出“连接 C1 服务器”提示。
+3. 选择“输入密码连接 C1”后，打开 PowerShell 并执行 SSH 隧道命令。
+4. 你在 PowerShell 中输入服务器密码。
+5. 隧道建立后，C2 自动检测 `http://127.0.0.1:18000` 并用于真实检索。
+
+这个方案接近“打开应用后输入服务器密码”，同时避免 GKGuard 直接接触密码。
+
+## 可选方案 D：软件自动拉起免密 SSH 隧道
 
 可以继续扩展 Electron，在启动时执行：
 
@@ -75,9 +114,8 @@ http://127.0.0.1:18000
 ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 ```
 
-但只建议在配置好免密 SSH key 后使用。原因：
+这种完全无感方案只建议在配置好免密 SSH key 后使用。原因：
 
-- Electron 后台启动 `ssh` 时不适合交互式输入密码。
 - 不应把服务器密码打包进客户端。
 - 需要处理端口占用、隧道断线重连、退出清理和错误提示。
 
@@ -187,7 +225,46 @@ http://127.0.0.1:18000
 
 This is secure but not fully automatic, because the SSH password or key still belongs to the user. Do not store the server password in the app.
 
-## Optional Option C: App-Started SSH Tunnel
+## Optional Option C: Enter SSH Password After Opening The App
+
+The desktop app now supports this mode: if C1 is unavailable and `sshTunnel` is enabled in the config file, the app shows a prompt at startup. If confirmed, it opens a PowerShell SSH window. You type the server password in that window; GKGuard does not store or log the password.
+
+Example config:
+
+```json
+{
+  "candidateUrls": [
+    "http://10.4.167.122:8000",
+    "http://127.0.0.1:18000"
+  ],
+  "sshTunnel": {
+    "enabled": true,
+    "host": "10.4.167.122",
+    "user": "speng",
+    "localPort": 18000,
+    "remoteHost": "127.0.0.1",
+    "remotePort": 8000
+  }
+}
+```
+
+Save it at:
+
+```text
+%APPDATA%\GKGuard\c1-connection.json
+```
+
+Startup behavior:
+
+1. GKGuard probes `candidateUrls` first.
+2. If all candidates are unavailable, it shows a “Connect C1 server” prompt.
+3. Choosing the connection option opens PowerShell and runs the SSH tunnel command.
+4. You type the server password in PowerShell.
+5. Once the tunnel is up, C2 detects `http://127.0.0.1:18000` and uses it for real search.
+
+This gives an “enter server password after opening the app” flow without letting GKGuard handle the password directly.
+
+## Optional Option D: App-Started Passwordless SSH Tunnel
 
 Electron can be extended to run this at startup:
 
@@ -197,7 +274,6 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 
 Only use this after passwordless SSH keys are configured. Reasons:
 
-- Background `ssh` launched by Electron is not a good place for password prompts.
 - Server passwords should not be bundled into the client.
 - The app must handle port conflicts, tunnel reconnects, shutdown cleanup, and clear error messages.
 
