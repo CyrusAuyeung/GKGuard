@@ -34,6 +34,7 @@ desktop/
 docs/
   api_contract.md
   c1_c2_integration.md
+  c1_auto_connection.md
   campuscar_ue_integration.md
   data_dictionary.md
   demo_script.md
@@ -62,6 +63,8 @@ services/
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
+安装版会自动读取候选 C1 地址配置 `%APPDATA%\GKGuard\c1-connection.json`，并优先使用健康检查通过的地址。
+
 如果 C1 在远程服务器上并绑定到服务器本机 `127.0.0.1:8000`，先在 C2 机器上建立 SSH 隧道：
 
 ```powershell
@@ -71,6 +74,7 @@ ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 C1 真实检索需要 `FACE_ENGINE=insightface`。如果 `/api/v1/persons` 正常但 `/health` 或以图搜人返回 500，优先检查运行中 uvicorn worker 的环境变量，并用当前 `.env` 重启 C1 服务。
 
 更多字段映射和交接检查见 [docs/c1_c2_integration.md](docs/c1_c2_integration.md)。
+自动连接、候选 C1 地址和 SSH 隧道配置见 [docs/c1_auto_connection.md](docs/c1_auto_connection.md)。
 
 ## CampusCar / UE 占位
 
@@ -211,6 +215,7 @@ desktop/
 docs/
   api_contract.md
   c1_c2_integration.md
+  c1_auto_connection.md
   campuscar_ue_integration.md
   data_dictionary.md
   demo_script.md
@@ -239,6 +244,8 @@ Default local adapter URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
+The packaged app also reads candidate C1 URL config from `%APPDATA%\GKGuard\c1-connection.json` and selects the first candidate that passes health checks.
+
 If C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, create an SSH tunnel first:
 
 ```powershell
@@ -248,6 +255,7 @@ ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 Real C1 search requires `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, inspect the environment of the running uvicorn worker and restart C1 with the current `.env`.
 
 See [docs/c1_c2_integration.md](docs/c1_c2_integration.md) for the service boundary, field mapping, and handoff checklist.
+See [docs/c1_auto_connection.md](docs/c1_auto_connection.md) for automatic connection, candidate C1 URLs, and SSH tunnel setup.
 
 ## CampusCar / UE Placeholder
 

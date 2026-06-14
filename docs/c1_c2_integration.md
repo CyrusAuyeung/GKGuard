@@ -26,7 +26,7 @@
 
 ## 运行连接
 
-C2 适配器默认连接：
+C2 适配器支持候选地址自动探测，读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`，最后回退到默认本机隧道地址：
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -38,7 +38,7 @@ C1_BASE_URL=http://127.0.0.1:18000
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-这样 C2 可以访问 `http://127.0.0.1:18000`，同时不把 C1 直接暴露到网络。若部署环境不同，用 `C1_BASE_URL` 覆盖。
+这样 C2 可以访问 `http://127.0.0.1:18000`，同时不把 C1 直接暴露到网络。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
 
 C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/persons` 正常，但 `/health` 或以图搜人返回 500，通常是运行中的 uvicorn worker 仍继承了旧环境变量，需要检查 `/proc/<pid>/environ` 并重启实际监听端口的 worker。
 
@@ -115,7 +115,7 @@ The repository should track only source code, documentation, scripts, examples, 
 
 ## Runtime Connection
 
-The C2 adapter defaults to:
+The C2 adapter supports candidate URL auto-detection in this order: `C1_BASE_URL`, `C1_CANDIDATE_URLS`, packaged-app config file `%APPDATA%\GKGuard\c1-connection.json`, and finally the default local tunnel URL:
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -127,7 +127,7 @@ If C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, cr
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-C2 can then call `http://127.0.0.1:18000` without exposing C1 directly on the network. Use `C1_BASE_URL` to override this for other deployments.
+C2 can then call `http://127.0.0.1:18000` without exposing C1 directly on the network. Use `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json` to override this for other deployments. See [c1_auto_connection.md](c1_auto_connection.md) for automatic connection setup.
 
 C1 must run with `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, the active uvicorn worker may still have stale environment variables. Inspect `/proc/<pid>/environ` and restart the actual worker that owns the listening port.
 

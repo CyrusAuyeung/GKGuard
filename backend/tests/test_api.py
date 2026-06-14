@@ -29,11 +29,53 @@ def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
     from app.services import c1_service
 
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:9")
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
     assert body["baseUrl"] == "http://127.0.0.1:9"
     assert body["reachable"] is False
+    assert body["selectedBaseUrl"] is None
+
+
+def test_c1_status_selects_first_healthy_candidate(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_status_for_url(base_url: str):
+        return {
+            "baseUrl": base_url,
+            "reachable": base_url.endswith(":8000"),
+            "healthOk": base_url.endswith(":8000"),
+        }
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,http://10.4.167.122:8000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+
+    response = client.get("/c1/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selectedBaseUrl"] == "http://10.4.167.122:8000"
+    assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "http://10.4.167.122:8000"]
+
+
+def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:
+    from app.services import c1_service
+
+    config_path = tmp_path / "c1-connection.json"
+    config_path.write_text('{"candidateUrls":["http://10.4.167.122:8000","http://127.0.0.1:18000"]}', encoding="utf-8")
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.setenv("C1_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+
+    urls = c1_service._candidate_urls()
+    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
 
 
 def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:

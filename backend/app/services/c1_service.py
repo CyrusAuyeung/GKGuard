@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 import os
+import json
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
 
 
-C1_BASE_URL = os.getenv("C1_BASE_URL", "http://127.0.0.1:18000").rstrip("/")
+DEFAULT_C1_BASE_URL = "http://127.0.0.1:18000"
+C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
+C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
+_selected_base_url: str | None = None
 
 
 class C1ServiceError(RuntimeError):
@@ -17,13 +22,133 @@ class C1ServiceError(RuntimeError):
         self.status_code = status_code
 
 
+def _normalize_base_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.strip().rstrip("/")
+    if not normalized or not normalized.startswith(("http://", "https://")):
+        return None
+    return normalized
+
+
+def _split_urls(value: str | None) -> list[str]:
+    if not value:
+        return []
+    urls: list[str] = []
+    for raw_url in value.replace(";", ",").split(","):
+        normalized = _normalize_base_url(raw_url)
+        if normalized:
+            urls.append(normalized)
+    return urls
+
+
+def _config_paths() -> list[Path]:
+    explicit_path = os.getenv("C1_CONFIG_PATH")
+    if explicit_path:
+        return [Path(explicit_path)]
+
+    appdata = os.getenv("APPDATA")
+    if appdata:
+        return [Path(appdata) / "GKGuard" / "c1-connection.json"]
+    return []
+
+
+def _load_config_candidate_urls() -> list[str]:
+    urls: list[str] = []
+    for config_path in _config_paths():
+        try:
+            if not config_path.exists():
+                continue
+            config = json.loads(config_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if isinstance(config, dict):
+            for key in ("baseUrl", "base_url"):
+                urls.extend(_split_urls(config.get(key)))
+            for key in ("candidateUrls", "candidate_urls", "candidates"):
+                candidate_value = config.get(key)
+                if isinstance(candidate_value, list):
+                    for item in candidate_value:
+                        urls.extend(_split_urls(str(item)))
+                elif isinstance(candidate_value, str):
+                    urls.extend(_split_urls(candidate_value))
+        elif isinstance(config, list):
+            for item in config:
+                urls.extend(_split_urls(str(item)))
+    return urls
+
+
+def _candidate_urls() -> list[str]:
+    urls: list[str] = []
+    urls.extend(_split_urls(os.getenv("C1_BASE_URL")))
+    urls.extend(_split_urls(os.getenv("C1_CANDIDATE_URLS")))
+    urls.extend(_load_config_candidate_urls())
+    urls.extend(_split_urls(C1_BASE_URL))
+
+    deduped: list[str] = []
+    for url in urls:
+        if url not in deduped:
+            deduped.append(url)
+    return deduped or [DEFAULT_C1_BASE_URL]
+
+
+def _current_base_url() -> str:
+    return _selected_base_url or _candidate_urls()[0]
+
+
+def _status_for_url(base_url: str) -> dict[str, Any]:
+    status: dict[str, Any] = {"baseUrl": base_url, "reachable": False}
+    try:
+        with httpx.Client(timeout=C1_PROBE_TIMEOUT) as client:
+            openapi = client.get(f"{base_url}/openapi.json")
+            openapi.raise_for_status()
+            openapi_body = openapi.json()
+            status.update({
+                "reachable": True,
+                "title": openapi_body.get("info", {}).get("title"),
+                "version": openapi_body.get("info", {}).get("version"),
+            })
+    except httpx.HTTPError as exc:
+        status["error"] = str(exc)
+
+    try:
+        with httpx.Client(timeout=C1_PROBE_TIMEOUT) as client:
+            health = client.get(f"{base_url}/health")
+            health.raise_for_status()
+            status["reachable"] = True
+            status["health"] = health.json()
+            status["healthOk"] = True
+    except httpx.HTTPError as exc:
+        status["healthOk"] = False
+        status["healthError"] = str(exc)
+    return status
+
+
+def _resolve_base_url() -> str:
+    global _selected_base_url
+
+    candidates = _candidate_urls()
+    if _selected_base_url in candidates:
+        return _selected_base_url
+
+    for base_url in candidates:
+        status = _status_for_url(base_url)
+        if status.get("reachable") and status.get("healthOk"):
+            _selected_base_url = base_url
+            return base_url
+
+    _selected_base_url = None
+    return candidates[0]
+
+
 def _absolute_media_url(path: str | None) -> str | None:
     if not path:
         return None
     if path.startswith("http://") or path.startswith("https://"):
         return path
     if not path.startswith("/api/v1/media/"):
-        return f"{C1_BASE_URL}{path if path.startswith('/') else '/' + path}"
+        return f"{_current_base_url()}{path if path.startswith('/') else '/' + path}"
     return "/c1/media/" + path.removeprefix("/api/v1/media/")
 
 
@@ -129,34 +254,50 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _request_once(base_url: str, method: str, path: str, **kwargs: Any) -> httpx.Response:
+    url = f"{base_url}{path}"
+    with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
+        response = client.request(method, url, **kwargs)
+        response.raise_for_status()
+        return response
+
+
 def _request(method: str, path: str, **kwargs: Any) -> httpx.Response:
-    url = f"{C1_BASE_URL}{path}"
+    global _selected_base_url
+
+    base_url = _resolve_base_url()
     try:
-        with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
-            response = client.request(method, url, **kwargs)
-            response.raise_for_status()
-            return response
+        return _request_once(base_url, method, path, **kwargs)
     except httpx.HTTPStatusError as exc:
         raise C1ServiceError(f"C1 returned HTTP {exc.response.status_code}", exc.response.status_code) from exc
     except httpx.HTTPError as exc:
+        _selected_base_url = None
+        fallback_base_url = _resolve_base_url()
+        if fallback_base_url != base_url:
+            try:
+                return _request_once(fallback_base_url, method, path, **kwargs)
+            except httpx.HTTPStatusError as fallback_exc:
+                raise C1ServiceError(f"C1 returned HTTP {fallback_exc.response.status_code}", fallback_exc.response.status_code) from fallback_exc
+            except httpx.HTTPError as fallback_exc:
+                raise C1ServiceError(f"C1 unavailable: {fallback_exc}") from fallback_exc
         raise C1ServiceError(f"C1 unavailable: {exc}") from exc
 
 
 def get_status() -> dict[str, Any]:
-    status: dict[str, Any] = {"baseUrl": C1_BASE_URL, "reachable": False}
-    try:
-        openapi = _request("GET", "/openapi.json").json()
-        status.update({"reachable": True, "title": openapi.get("info", {}).get("title"), "version": openapi.get("info", {}).get("version")})
-    except C1ServiceError as exc:
-        status["error"] = str(exc)
+    global _selected_base_url
 
-    try:
-        health = _request("GET", "/health").json()
-        status["health"] = health
-        status["healthOk"] = True
-    except C1ServiceError as exc:
-        status["healthOk"] = False
-        status["healthError"] = str(exc)
+    candidates = _candidate_urls()
+    candidate_statuses = [_status_for_url(base_url) for base_url in candidates]
+    selected = next(
+        (item for item in candidate_statuses if item.get("reachable") and item.get("healthOk")),
+        candidate_statuses[0],
+    )
+    _selected_base_url = selected["baseUrl"] if selected.get("reachable") and selected.get("healthOk") else None
+    status = dict(selected)
+    status["baseUrl"] = selected["baseUrl"]
+    status["selectedBaseUrl"] = selected["baseUrl"] if selected.get("reachable") and selected.get("healthOk") else None
+    status["candidateUrls"] = candidates
+    status["candidates"] = candidate_statuses
     return status
 
 

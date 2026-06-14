@@ -29,6 +29,14 @@ function getPythonCandidates() {
   return [process.env.GKGUARD_PYTHON, "python", "py", "python3"].filter(Boolean);
 }
 
+function getBackendEnv() {
+  return {
+    ...process.env,
+    PYTHONUNBUFFERED: "1",
+    C1_CONFIG_PATH: process.env.C1_CONFIG_PATH || path.join(app.getPath("userData"), "c1-connection.json"),
+  };
+}
+
 function waitForHealthCheck(timeoutMs = START_TIMEOUT_MS) {
   const startedAt = Date.now();
   return new Promise((resolve, reject) => {
@@ -78,10 +86,7 @@ function spawnBackendWith(command) {
   return spawn(command, args, {
     cwd: backendRoot,
     windowsHide: true,
-    env: {
-      ...process.env,
-      PYTHONUNBUFFERED: "1",
-    },
+    env: getBackendEnv(),
   });
 }
 
@@ -89,10 +94,7 @@ function spawnBundledBackend() {
   return spawn(getBundledBackendExecutable(), [], {
     cwd: path.dirname(getBundledBackendExecutable()),
     windowsHide: true,
-    env: {
-      ...process.env,
-      PYTHONUNBUFFERED: "1",
-    },
+    env: getBackendEnv(),
   });
 }
 
