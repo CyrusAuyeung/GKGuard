@@ -187,7 +187,8 @@ C2 reads and probes candidate URLs in this order:
 1. Environment variable `C1_BASE_URL`.
 2. Environment variable `C1_CANDIDATE_URLS`, separated by commas or semicolons.
 3. Desktop-provided config file: `%APPDATA%\GKGuard\c1-connection.json`.
-4. Default local tunnel URL: `http://127.0.0.1:18000`.
+4. Built-in server URL: `http://10.4.167.122:8000`.
+5. Default local tunnel URL: `http://127.0.0.1:18000`.
 
 During probing, C2 calls `/openapi.json` and `/health` on each candidate. The first candidate with a healthy response is selected, and image uploads are forwarded to that C1 instance.
 
