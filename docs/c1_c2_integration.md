@@ -7,7 +7,7 @@
 
 # C1 / C2 集成说明
 
-本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和交接检查。当前 `v0.1.14` 已完成 C2 到 C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、C1 503 后连接重试、内嵌 SSH 密码窗口、应用内更新安装和重新上传入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
+本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和交接检查。当前 `v0.1.15` 已完成 C2 到 C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、应用内更新安装和重新上传入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
 
 ## 职责边界
 
@@ -96,7 +96,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 
 # C1 / C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and handoff checklist between GKGuard C2 and CampusVision C1. As of `v0.1.14`, the real C2-to-C1 search path is implemented, and the desktop app adds SSH-tunnel priority, connection retry after C1 503, an embedded SSH password prompt, in-app update installation, and a return-to-upload action: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and handoff checklist between GKGuard C2 and CampusVision C1. As of `v0.1.15`, the real C2-to-C1 search path is implemented, and the desktop app adds SSH-tunnel priority, connection retry after C1 503, an embedded SSH password prompt, connection progress, in-app update installation, and a return-to-upload action: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 

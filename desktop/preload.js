@@ -11,6 +11,11 @@ contextBridge.exposeInMainWorld("gkguardDesktop", {
     return () => ipcRenderer.off("gkguard:update-event", listener);
   },
   connectC1: (reason) => ipcRenderer.invoke("gkguard:connect-c1", reason),
+  onSshConnectProgress: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("gkguard:ssh-connect-progress", listener);
+    return () => ipcRenderer.off("gkguard:ssh-connect-progress", listener);
+  },
   submitSshPassword: (password) => ipcRenderer.send("gkguard:ssh-password-submit", password),
   cancelSshPassword: () => ipcRenderer.send("gkguard:ssh-password-cancel"),
 });

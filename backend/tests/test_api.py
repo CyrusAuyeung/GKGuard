@@ -70,7 +70,9 @@ def test_desktop_update_bridge_wired() -> None:
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
     assert "`${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`" in main_script
     assert "isC1TunnelConnected" in main_script
-    assert "requireTunnel: true" in main_script
+    assert "waitForC1TunnelReady" in main_script
+    assert "probeC1Endpoint" in main_script
+    assert "gkguard:ssh-connect-progress" in main_script
     assert "autoUpdater.checkForUpdates" in main_script
     assert "autoUpdater.downloadUpdate" in main_script
     assert "autoUpdater.quitAndInstall" in main_script
@@ -85,6 +87,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "installUpdate" in preload_script
     assert "onUpdateEvent" in preload_script
     assert "connectC1" in preload_script
+    assert "onSshConnectProgress" in preload_script
     assert "submitSshPassword" in preload_script
     assert "cancelSshPassword" in preload_script
 
@@ -92,6 +95,8 @@ def test_desktop_update_bridge_wired() -> None:
     assert "服务器密码" in password_page
     assert "submitSshPassword" in password_page
     assert "cancelSshPassword" in password_page
+    assert "progressBar" in password_page
+    assert "onSshConnectProgress" in password_page
 
 
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:

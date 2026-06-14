@@ -16,7 +16,7 @@ const C1_STATUS_URL = `${BASE_URL}/c1/status`;
 const DEMO_URL = `${BASE_URL}/demo?desktop=1`;
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
-const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 45000);
+const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
 const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/releases/latest";
 const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
 const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
@@ -299,6 +299,43 @@ async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS, options = 
   return false;
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function probeC1Endpoint(baseUrl, timeoutMs = 1200) {
+  const [openapi, health] = await Promise.allSettled([
+    getJson(`${baseUrl}/openapi.json`, timeoutMs),
+    getJson(`${baseUrl}/health`, timeoutMs),
+  ]);
+  return {
+    reachable: openapi.status === "fulfilled" || health.status === "fulfilled",
+    openapiOk: openapi.status === "fulfilled",
+    healthOk: health.status === "fulfilled",
+    openapiError: openapi.status === "rejected" ? openapi.reason?.message : "",
+    healthError: health.status === "rejected" ? health.reason?.message : "",
+  };
+}
+
+async function waitForC1TunnelReady(tunnel, onProgress, timeoutMs = C1_CONNECT_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  const tunnelBaseUrl = getTunnelBaseUrl(tunnel);
+  while (Date.now() - startedAt < timeoutMs) {
+    const elapsed = Date.now() - startedAt;
+    const percent = Math.min(92, 58 + Math.round((elapsed / timeoutMs) * 34));
+    onProgress?.({ percent, message: "正在确认 C1 服务响应..." });
+
+    const endpointStatus = await probeC1Endpoint(tunnelBaseUrl, 1200);
+    if (endpointStatus.reachable) {
+      return { connected: true, verified: endpointStatus.healthOk, status: endpointStatus };
+    }
+
+    await delay(450);
+  }
+
+  return { connected: false, verified: false };
+}
+
 function stopSshTunnel() {
   if (sshForwardServer) {
     sshForwardServer.close();
@@ -310,12 +347,13 @@ function stopSshTunnel() {
   }
 }
 
-function startEmbeddedSshTunnel(tunnel, password) {
+function startEmbeddedSshTunnel(tunnel, password, onProgress) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
 
   return new Promise((resolve, reject) => {
     stopSshTunnel();
+    onProgress?.({ percent: 18, message: "正在连接 SSH 服务器..." });
     const client = new SshClient();
     let server = null;
     let settled = false;
@@ -332,6 +370,7 @@ function startEmbeddedSshTunnel(tunnel, password) {
     };
 
     client.on("ready", () => {
+      onProgress?.({ percent: 42, message: "SSH 已认证，正在建立本机隧道..." });
       server = net.createServer((socket) => {
         client.forwardOut("127.0.0.1", 0, tunnel.remoteHost, tunnel.remotePort, (error, stream) => {
           if (error) {
@@ -348,6 +387,7 @@ function startEmbeddedSshTunnel(tunnel, password) {
         settled = true;
         sshClient = client;
         sshForwardServer = server;
+        onProgress?.({ percent: 56, message: "本机隧道已建立，正在检测 C1..." });
         resolve({ target, forward });
       });
     });
@@ -375,7 +415,7 @@ function startEmbeddedSshTunnel(tunnel, password) {
   });
 }
 
-function promptForSshPassword(tunnel, reason) {
+function promptForSshPassword(tunnel, reason, connectWithPassword) {
   return new Promise((resolve) => {
     const modal = new BrowserWindow({
       width: 480,
@@ -397,6 +437,12 @@ function promptForSshPassword(tunnel, reason) {
     });
 
     let resolved = false;
+    const sendProgress = (payload) => {
+      if (!modal.isDestroyed()) {
+        modal.webContents.send("gkguard:ssh-connect-progress", payload);
+      }
+    };
+
     const done = (value) => {
       if (resolved) return;
       resolved = true;
@@ -406,18 +452,29 @@ function promptForSshPassword(tunnel, reason) {
       }
     };
 
-    const submitHandler = (event, password) => {
+    const submitHandler = async (event, password) => {
       if (event.sender === modal.webContents) {
-        ipcMain.off("gkguard:ssh-password-submit", submitHandler);
-        ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
-        done(typeof password === "string" ? password : "");
+        const submittedPassword = typeof password === "string" ? password : "";
+        if (!submittedPassword) {
+          done({ connected: false, cancelled: true });
+          return;
+        }
+        sendProgress({ percent: 12, message: "已收到密码，正在连接...", busy: true });
+        try {
+          const result = await connectWithPassword(submittedPassword, sendProgress);
+          sendProgress({ percent: 100, message: result.verified ? "C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
+          done(result);
+        } catch (error) {
+          sendProgress({ percent: 100, message: `连接失败：${error.message}`, busy: false, failed: true });
+          done({ connected: false, error });
+        }
       }
     };
     const cancelHandler = (event) => {
       if (event.sender === modal.webContents) {
         ipcMain.off("gkguard:ssh-password-submit", submitHandler);
         ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
-        done("");
+        done({ connected: false, cancelled: true });
       }
     };
 
@@ -426,7 +483,7 @@ function promptForSshPassword(tunnel, reason) {
     modal.on("closed", () => {
       ipcMain.off("gkguard:ssh-password-submit", submitHandler);
       ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
-      done("");
+      done({ connected: false, cancelled: true });
     });
 
     const query = new URLSearchParams({
@@ -447,33 +504,26 @@ async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
     return false;
   }
 
-  const password = await promptForSshPassword(tunnel, reason);
-  if (!password) {
+  const result = await promptForSshPassword(tunnel, reason, async (password, onProgress) => {
+    await startEmbeddedSshTunnel(tunnel, password, onProgress);
+    return waitForC1TunnelReady(tunnel, onProgress);
+  });
+
+  if (result?.connected) {
+    return true;
+  }
+
+  if (result?.cancelled) {
     return false;
   }
 
-  try {
-    await startEmbeddedSshTunnel(tunnel, password);
-  } catch (error) {
-    await dialog.showMessageBox(mainWindow, {
-      type: "warning",
-      title: "C1 连接失败",
-      message: "无法建立内嵌 SSH 隧道",
-      detail: `${error.message}\n\n请确认服务器密码、校园网/VPN 和 18000 端口占用情况。`,
-    });
-    return false;
-  }
-
-  const connected = await waitForC1Connection(C1_CONNECT_TIMEOUT_MS, { requireTunnel: true, tunnel });
-  if (!connected) {
-    await dialog.showMessageBox(mainWindow, {
-      type: "info",
-      title: "C1 暂未连接",
-      message: "尚未检测到 C1 服务",
-      detail: "可以继续使用离线 mock 演示。若刚刚输入密码，请确认服务器上的 C1 服务正在运行。",
-    });
-  }
-  return connected;
+  await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: "C1 连接失败",
+    message: "尚未确认 C1 服务可用",
+    detail: `${result?.error?.message || "SSH 隧道未能连接到 C1。"}\n\n请确认服务器密码、校园网/VPN、C1 服务状态和 18000 端口占用情况。`,
+  });
+  return false;
 }
 
 async function maybePromptForC1Tunnel() {

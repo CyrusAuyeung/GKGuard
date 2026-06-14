@@ -7,13 +7,13 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.14` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/内嵌 SSH 密码窗口、软件内下载并重启安装的更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
+GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.15` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/内嵌 SSH 密码窗口和连接进度、软件内下载并重启安装的更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
 
 ## 当前状态
 
 - C2 后端位于 `backend/`，提供 FastAPI API、静态演示页、C1 代理、mock fallback、审计和 CampusCar/UE 占位接口。
 - C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；上传页和结果页会优先完整显示用户上传的目标照片，记录列表展示 C1 关键帧缩略图，结果页和路线页都可一键返回重新上传。
-- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会优先建立 SSH 隧道并在软件内提示输入服务器密码，真实检索遇到 C1 503 时也会打开同一个内嵌连接窗口并重试；桌面模式右上角提供 `检查更新` 入口，可在应用内下载新版并重启安装。
+- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会优先建立 SSH 隧道并在软件内提示输入服务器密码与连接进度，真实检索遇到 C1 503 时也会打开同一个内嵌连接窗口并重试；桌面模式右上角提供 `检查更新` 入口，可在应用内下载新版并重启安装。
 - C1 源码位于 `services/campusvision-c1/`，负责视频上传、抽帧、人脸 embedding、人物库、以图搜人和轨迹输出。
 - C2 已实现 `/c1/...` 代理，可以通过 SSH 隧道连接服务器上的真实 C1 服务。
 - 当 C1 不可用、未上传图片或接口报错时，C2 前端会先尝试桌面端 C1 连接/重试；仍不可用时才回退到本地模拟记录，方便离线演示。
@@ -205,13 +205,13 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.14`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an embedded SSH password prompt, an in-app update flow that downloads and restarts to install updates, and the imported C1 CampusVision video retrieval service as a separate module.
+GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.15`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an embedded SSH password prompt and connection progress, an in-app update flow that downloads and restarts to install updates, and the imported C1 CampusVision video retrieval service as a separate module.
 
 ## Current Status
 
 - The C2 backend lives in `backend/` and provides FastAPI APIs, the static demo UI, the C1 proxy, mock fallback, audit APIs, and CampusCar/UE placeholder APIs.
 - The C2 frontend lives in `backend/app/static/` and currently focuses on three screens: face search, face-search results, and person route map; the upload and result screens prefer the full uploaded target image, render C1 keyframe thumbnails in the record list, and provide a return action to upload a new target from result or route screens.
-- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app prioritizes the SSH tunnel, prompts for the server SSH password inside the app when needed, also opens the same embedded connection window and retries when real C1 search returns 503, and exposes a top-right `检查更新` entry in desktop mode for in-app update download and restart-to-install.
+- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app prioritizes the SSH tunnel, prompts for the server SSH password and connection progress inside the app when needed, also opens the same embedded connection window and retries when real C1 search returns 503, and exposes a top-right `检查更新` entry in desktop mode for in-app update download and restart-to-install.
 - The C1 source lives in `services/campusvision-c1/` and owns video upload, frame sampling, face embeddings, person indexing, image search, and trajectory output.
 - C2 now exposes `/c1/...` proxy endpoints and can connect to the real C1 service through an SSH tunnel.
 - If C1 is unavailable, no image is uploaded, or the C1 request fails, the frontend first attempts the desktop C1 connection/retry path; it falls back to local mock records only when C1 remains unavailable.
