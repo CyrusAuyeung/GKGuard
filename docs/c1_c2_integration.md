@@ -7,7 +7,7 @@
 
 # C1 / C2 集成说明
 
-本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和交接检查。当前 `v0.1.12` 已完成 C2 到 C1 的真实检索链路，并在桌面端加入 C1 自动探测、SSH 密码提示和软件内更新入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
+本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和交接检查。当前 `v0.1.13` 已完成 C2 到 C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、C1 503 后连接重试、SSH 密码提示和软件内更新入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
 
 ## 职责边界
 
@@ -26,7 +26,7 @@
 
 ## 运行连接
 
-C2 适配器支持候选地址自动探测，读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`、内置服务器地址 `http://10.4.167.122:8000`，最后回退到默认本机隧道地址：
+C2 适配器支持候选地址自动探测；安装版默认候选地址优先本机隧道 `http://127.0.0.1:18000`，再尝试内置服务器地址 `http://10.4.167.122:8000`。完整读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`、内置候选地址。
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -38,7 +38,7 @@ C1_BASE_URL=http://127.0.0.1:18000
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-这样 C2 可以访问 `http://127.0.0.1:18000`，同时不把 C1 直接暴露到网络。安装版默认会在直连和本机隧道都不可达时弹出提示，打开 PowerShell SSH 窗口；用户只在 PowerShell 中输入服务器密码，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
+这样 C2 可以访问 `http://127.0.0.1:18000`，同时不把 C1 直接暴露到网络。安装版默认会优先要求通过隧道连接；若直连可达但真实检索返回 503，前端会打开 PowerShell SSH 窗口并在用户输入服务器密码后重试。用户只在 PowerShell 中输入服务器密码，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
 
 C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/persons` 正常，但 `/health` 或以图搜人返回 500，通常是运行中的 uvicorn worker 仍继承了旧环境变量，需要检查 `/proc/<pid>/environ` 并重启实际监听端口的 worker。
 
@@ -76,7 +76,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 - 前端只调用 C2，不直接访问 C1。
 - C2 将 C1 相对媒体 URL 改写为 `/c1/media/...`。
 - C2 将 C1 `matches`、`trajectory` 和人物元数据转换为结果页与路线图可用的数据结构。
-- 未上传图片、C1 不可用或 C1 请求失败时，UI 回退本地模拟数据。
+- 未上传图片、C1 不可用或 C1 请求失败时，桌面 UI 会先触发 C1 连接窗口并重试；仍失败时才回退本地模拟数据。
 - 结果页显示当前数据来源：`C1 CampusVision` 或 `本地模拟`。
 
 ## 交接检查
@@ -96,7 +96,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 
 # C1 / C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and handoff checklist between GKGuard C2 and CampusVision C1. As of `v0.1.12`, the real C2-to-C1 search path is implemented, and the desktop app adds C1 auto-probing, an SSH password prompt, and an in-app update entry: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and handoff checklist between GKGuard C2 and CampusVision C1. As of `v0.1.13`, the real C2-to-C1 search path is implemented, and the desktop app adds SSH-tunnel priority, connection retry after C1 503, an SSH password prompt, and an in-app update entry: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 

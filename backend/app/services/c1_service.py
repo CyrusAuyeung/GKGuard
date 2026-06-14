@@ -15,6 +15,7 @@ C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
 C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
 _selected_base_url: str | None = None
+RETRYABLE_STATUS_CODES = {502, 503, 504}
 
 
 class C1ServiceError(RuntimeError):
@@ -264,25 +265,41 @@ def _request_once(base_url: str, method: str, path: str, **kwargs: Any) -> httpx
         return response
 
 
+def _ordered_request_urls(primary_url: str) -> list[str]:
+    urls: list[str] = []
+    for url in [primary_url, *_candidate_urls()]:
+        if url not in urls:
+            urls.append(url)
+    return urls
+
+
 def _request(method: str, path: str, **kwargs: Any) -> httpx.Response:
     global _selected_base_url
 
     base_url = _resolve_base_url()
-    try:
-        return _request_once(base_url, method, path, **kwargs)
-    except httpx.HTTPStatusError as exc:
-        raise C1ServiceError(f"C1 returned HTTP {exc.response.status_code}", exc.response.status_code) from exc
-    except httpx.HTTPError as exc:
+    last_error: Exception | None = None
+
+    for request_url in _ordered_request_urls(base_url):
+        try:
+            response = _request_once(request_url, method, path, **kwargs)
+            _selected_base_url = request_url
+            return response
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            status_code = exc.response.status_code
+            if status_code not in RETRYABLE_STATUS_CODES:
+                raise C1ServiceError(f"C1 returned HTTP {status_code}", status_code) from exc
+            _selected_base_url = None
+        except httpx.HTTPError as exc:
+            last_error = exc
+            _selected_base_url = None
+
+    if isinstance(last_error, httpx.HTTPStatusError):
+        raise C1ServiceError(f"C1 returned HTTP {last_error.response.status_code}", last_error.response.status_code) from last_error
+    if isinstance(last_error, httpx.HTTPError):
         _selected_base_url = None
-        fallback_base_url = _resolve_base_url()
-        if fallback_base_url != base_url:
-            try:
-                return _request_once(fallback_base_url, method, path, **kwargs)
-            except httpx.HTTPStatusError as fallback_exc:
-                raise C1ServiceError(f"C1 returned HTTP {fallback_exc.response.status_code}", fallback_exc.response.status_code) from fallback_exc
-            except httpx.HTTPError as fallback_exc:
-                raise C1ServiceError(f"C1 unavailable: {fallback_exc}") from fallback_exc
-        raise C1ServiceError(f"C1 unavailable: {exc}") from exc
+        raise C1ServiceError(f"C1 unavailable: {last_error}") from last_error
+    raise C1ServiceError("C1 unavailable")
 
 
 def get_status() -> dict[str, Any]:

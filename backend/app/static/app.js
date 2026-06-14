@@ -220,6 +220,23 @@ async function fetchC1Search() {
   return response.json();
 }
 
+async function connectC1AfterFailure(error) {
+  const desktopBridge = window.gkguardDesktop;
+  const isDesktop = new URLSearchParams(window.location.search).get("desktop") === "1";
+  if (!desktopBridge?.connectC1 || !isDesktop) {
+    return false;
+  }
+
+  showToast("C1 暂不可用，正在打开服务器登录窗口。");
+  const result = await desktopBridge.connectC1(error?.message || "C1 服务当前不可用").catch(() => null);
+  if (result?.connected) {
+    showToast(result.prompted ? "C1 已连接，正在重新检索。" : "C1 已可用，正在重新检索。");
+    return true;
+  }
+  showToast("仍未检测到 C1，将使用本地模拟。请确认 SSH 窗口已输入密码且未报错。");
+  return false;
+}
+
 function renderRecordLists() {
   const html = records.map((record, index) => `
     <button class="record-card ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-index="${index}">
@@ -378,8 +395,19 @@ async function startSearch() {
       resetToMockData();
     }
   } catch (error) {
-    resetToMockData();
-    showToast(`${error.message}，已回退本地模拟。`);
+    if (uploadedFile && await connectC1AfterFailure(error)) {
+      try {
+        const retryResult = await fetchC1Search();
+        applyC1Result(retryResult);
+        showToast(`C1 返回 ${records.length} 条关联记录。`);
+      } catch (retryError) {
+        resetToMockData();
+        showToast(`${retryError.message}，已回退本地模拟。`);
+      }
+    } else {
+      resetToMockData();
+      showToast(`${error.message}，已回退本地模拟。`);
+    }
   } finally {
     elements.startSearchBtn.disabled = false;
     elements.startSearchBtn.innerHTML = '<span class="search-action-icon" aria-hidden="true"></span>开始检索';

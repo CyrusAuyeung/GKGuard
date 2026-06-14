@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import httpx
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -59,11 +60,16 @@ def test_desktop_update_bridge_wired() -> None:
 
     assert "preload.js" in main_script
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
+    assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
+    assert "`${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`" in main_script
+    assert "isC1TunnelConnected" in main_script
+    assert "requireTunnel: true" in main_script
     assert "LATEST_RELEASE_API" in main_script
     assert "downloadURL" in main_script
     assert "contextBridge.exposeInMainWorld(\"gkguardDesktop\"" in preload_script
     assert "checkForUpdates" in preload_script
     assert "downloadUpdate" in preload_script
+    assert "connectC1" in preload_script
 
 
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
@@ -103,6 +109,38 @@ def test_c1_status_selects_first_healthy_candidate(monkeypatch) -> None:
     body = response.json()
     assert body["selectedBaseUrl"] == "http://10.4.167.122:8000"
     assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "http://10.4.167.122:8000"]
+
+
+def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> None:
+    from app.services import c1_service
+
+    attempts = []
+
+    class FakeResponse:
+        def json(self):
+            return {"ok": True}
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        attempts.append(base_url)
+        if base_url == "http://10.4.167.122:8000":
+            request = httpx.Request(method, f"{base_url}{path}")
+            response = httpx.Response(503, request=request)
+            raise httpx.HTTPStatusError("Service unavailable", request=request, response=response)
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://10.4.167.122:8000,http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+
+    response = c1_service._request("POST", "/api/v1/search/person-by-image")
+
+    assert response.json() == {"ok": True}
+    assert attempts[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert c1_service._selected_base_url == "http://127.0.0.1:18000"
 
 
 def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:

@@ -123,7 +123,7 @@ function getBackendEnv() {
     ...process.env,
     PYTHONUNBUFFERED: "1",
     C1_CONFIG_PATH: getC1ConfigPath(),
-    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_DIRECT_URL},${DEFAULT_C1_TUNNEL_URL}`,
+    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`,
   };
 }
 
@@ -205,12 +205,21 @@ function isC1Connected(status) {
   return Boolean(status && (status.selectedBaseUrl || (status.reachable && status.healthOk)));
 }
 
-async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS) {
+function getTunnelBaseUrl(tunnel) {
+  return `http://127.0.0.1:${tunnel.localPort}`;
+}
+
+function isC1TunnelConnected(status, tunnel) {
+  return Boolean(tunnel && status?.selectedBaseUrl === getTunnelBaseUrl(tunnel));
+}
+
+async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS, options = {}) {
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     try {
       const status = await getJson(C1_STATUS_URL, 2500);
-      if (isC1Connected(status)) {
+      const connected = options.requireTunnel ? isC1TunnelConnected(status, options.tunnel) : isC1Connected(status);
+      if (connected) {
         return true;
       }
     } catch {
@@ -224,7 +233,8 @@ async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS) {
 function openSshTunnelTerminal(tunnel) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
-  const command = `ssh -N -L ${forward} ${target}`;
+  const sshArgs = ["-N", "-L", forward, "-o", "StrictHostKeyChecking=accept-new", "-o", "ExitOnForwardFailure=yes", "-o", "ConnectTimeout=8", target];
+  const command = `ssh ${sshArgs.map((argument) => `"${argument}"`).join(" ")}`;
 
   if (process.platform === "win32") {
     const child = spawn("cmd.exe", ["/c", "start", "GKGuard C1 Tunnel", "powershell.exe", "-NoExit", "-Command", command], {
@@ -236,32 +246,23 @@ function openSshTunnelTerminal(tunnel) {
     return;
   }
 
-  const child = spawn("ssh", ["-N", "-L", forward, target], {
+  const child = spawn("ssh", sshArgs, {
     detached: true,
     stdio: "ignore",
   });
   child.unref();
 }
 
-async function maybePromptForC1Tunnel() {
+async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
   const tunnel = getSshTunnelConfig();
   if (!tunnel) {
-    return false;
-  }
-
-  try {
-    const status = await getJson(C1_STATUS_URL, 2500);
-    if (isC1Connected(status)) {
-      return true;
-    }
-  } catch {
     return false;
   }
 
   const result = await dialog.showMessageBox(mainWindow, {
     type: "question",
     title: "连接 C1 服务器",
-    message: "未检测到 C1 服务，是否现在打开 SSH 登录窗口？",
+    message: `${reason}，是否现在打开 SSH 登录窗口？`,
     detail: `GKGuard 将打开一个 PowerShell 窗口并执行 SSH 隧道：\nssh -N -L ${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort} ${tunnel.user}@${tunnel.host}\n\n请在该窗口输入服务器密码。GKGuard 不会保存密码。`,
     buttons: ["输入密码连接 C1", "继续离线演示"],
     defaultId: 0,
@@ -273,7 +274,7 @@ async function maybePromptForC1Tunnel() {
   }
 
   openSshTunnelTerminal(tunnel);
-  const connected = await waitForC1Connection();
+  const connected = await waitForC1Connection(C1_CONNECT_TIMEOUT_MS, { requireTunnel: true, tunnel });
   if (!connected) {
     await dialog.showMessageBox(mainWindow, {
       type: "info",
@@ -283,6 +284,26 @@ async function maybePromptForC1Tunnel() {
     });
   }
   return connected;
+}
+
+async function maybePromptForC1Tunnel() {
+  const tunnel = getSshTunnelConfig();
+  if (!tunnel) {
+    return false;
+  }
+
+  try {
+    const status = await getJson(C1_STATUS_URL, 2500);
+    if (isC1TunnelConnected(status, tunnel)) {
+      return true;
+    }
+    if (isC1Connected(status)) {
+      return promptForC1Tunnel("C1 直连可达，但尚未通过服务器密码建立 SSH 隧道");
+    }
+    return promptForC1Tunnel(status?.healthError ? "C1 服务当前不可用" : "未检测到 C1 服务");
+  } catch {
+    return promptForC1Tunnel("未检测到 C1 服务");
+  }
 }
 
 function waitForHealthCheck(timeoutMs = START_TIMEOUT_MS) {
@@ -480,6 +501,11 @@ ipcMain.handle("gkguard:download-update", (_event, url) => {
   }
   mainWindow.webContents.downloadURL(targetUrl);
   return { started: true };
+});
+
+ipcMain.handle("gkguard:connect-c1", async (_event, reason) => {
+  const connected = await promptForC1Tunnel(typeof reason === "string" && reason ? reason : "C1 服务当前不可用");
+  return { connected, prompted: true };
 });
 
 async function boot() {
