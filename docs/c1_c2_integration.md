@@ -7,7 +7,7 @@
 
 # C1 / C2 集成说明
 
-本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和交接检查。当前 `v0.1.17` 已完成 C2 到 C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、细节修正后的线性功能图标、品牌图标资产、应用内更新安装和重新上传入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
+本文记录 GKGuard C2 与 CampusVision C1 的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。当前 `v0.1.17` 已包含 C2 到 C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、细节修正后的线性功能图标、品牌图标资产、应用内更新安装和重新上传入口：C2 前端只访问 C2 后端，C2 后端再通过 `/c1/...` 代理访问 C1。
 
 ## 职责边界
 
@@ -79,7 +79,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 - 未上传图片、C1 不可用或 C1 请求失败时，桌面 UI 会先触发软件内 C1 连接窗口并重试；仍失败时才回退本地模拟数据。
 - 结果页显示当前数据来源：`C1 CampusVision` 或 `本地模拟`。
 
-## 交接检查
+## 联调检查
 
 - C1 确认正式端口，以及服务绑定 `127.0.0.1` 还是 `0.0.0.0`。
 - C1 `/health` 返回 HTTP 200，且 `face_engine=insightface`。
@@ -96,7 +96,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 
 # C1 / C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and handoff checklist between GKGuard C2 and CampusVision C1. As of `v0.1.17`, the real C2-to-C1 search path is implemented, and the desktop app adds SSH-tunnel priority, connection retry after C1 503, an embedded SSH password prompt, connection progress, refined linear UI icons, brand icon assets, in-app update installation, and a return-to-upload action: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between GKGuard C2 and CampusVision C1. As of `v0.1.17`, the real C2-to-C1 search path is included, and the desktop app adds SSH-tunnel priority, connection retry after C1 503, an embedded SSH password prompt, connection progress, refined linear UI icons, brand icon assets, in-app update installation, and a return-to-upload action: the C2 frontend talks only to the C2 backend, and the C2 backend accesses C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 
@@ -168,7 +168,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 - If no image is uploaded, C1 is unavailable, or the C1 request fails, the UI falls back to local mock data.
 - The result screen shows the active data source: `C1 CampusVision` or `本地模拟`.
 
-## Handoff Checklist
+## Integration Checklist
 
 - C1 confirms the official port and whether the service binds to `127.0.0.1` or `0.0.0.0`.
 - C1 `/health` returns HTTP 200 with `face_engine=insightface`.

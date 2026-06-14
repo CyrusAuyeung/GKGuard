@@ -175,9 +175,9 @@ POST /events/ALT-001/disposition
 GET /events/ALT-001/case-package
 ```
 
-期望结果：返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和交接清单。
+期望结果：返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和处理清单。
 
-## 交接备注
+## 维护备注
 
 - 当前前端使用 C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线。
 - 控制/UE 组后续可替换 `/car-tasks/mock-dispatch` 背后的适配器，字段名保持稳定。
@@ -360,9 +360,9 @@ Expected result: a mock archive record with `status_after=closed`.
 GET /events/ALT-001/case-package
 ```
 
-Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and a handoff checklist.
+Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and an action checklist.
 
-## Handoff Notes
+## Maintenance Notes
 
 - The current frontend consumes C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines.
 - The control/UE team can later replace the adapter behind `/car-tasks/mock-dispatch` while keeping field names stable.

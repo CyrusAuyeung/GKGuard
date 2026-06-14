@@ -11,7 +11,7 @@
 
 ## 范围
 
-GKGuard 仍是 C2 工作台，负责 AI 检索、轨迹分析、事件处置、证据导出和操作员交接。CampusCar、ROS2、UE 和底盘控制栈保持在 GKGuard 桌面包之外。
+GKGuard 仍是 C2 工作台，负责 AI 检索、轨迹分析、事件处置、证据导出和操作员处理流程。CampusCar、ROS2、UE 和底盘控制栈保持在 GKGuard 桌面包之外。
 
 GKGuard 应提供：
 
@@ -96,7 +96,7 @@ This document records the integration boundary discovered from the initial mater
 
 ## Scope
 
-GKGuard remains the C2 workbench for AI search, trajectory analysis, event disposition, evidence export, and operator handoff. CampusCar, ROS2, UE, and the low-level chassis stack remain outside the GKGuard desktop package.
+GKGuard remains the C2 workbench for AI search, trajectory analysis, event disposition, evidence export, and operator review workflows. CampusCar, ROS2, UE, and the low-level chassis stack remain outside the GKGuard desktop package.
 
 GKGuard should provide:
 

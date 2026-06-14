@@ -7,11 +7,11 @@
 
 # GKGuard 文档索引
 
-本文档用于交接和维护时快速定位材料。当前文档以 `v0.1.17` 为最新状态，历史 Release notes 保持各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.17` 为最新状态，历史 Release notes 保持各版本发布时的语境。
 
 ## 推荐阅读顺序
 
-1. [README.md](../README.md)：项目定位、交付范围、运行方式、发布流程和验收清单。
+1. [README.md](../README.md)：仓库内容、运行方式、发布流程和验证命令。
 2. [c1_c2_integration.md](c1_c2_integration.md)：C1/C2 职责边界、字段映射和联调检查。
 3. [c1_auto_connection.md](c1_auto_connection.md)：安装版自动连接 C1、SSH 隧道和密码窗口行为。
 4. [api_contract.md](api_contract.md)：C2 API、C1 代理接口和 CampusCar/UE 占位接口。
@@ -45,11 +45,11 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate handoff and maintenance material quickly. The current-state documentation tracks `v0.1.17`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.17`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
-1. [README.md](../README.md): project positioning, delivery scope, run modes, release flow, and acceptance checklist.
+1. [README.md](../README.md): repository contents, run modes, release flow, and validation commands.
 2. [c1_c2_integration.md](c1_c2_integration.md): C1/C2 ownership boundary, field mapping, and integration checklist.
 3. [c1_auto_connection.md](c1_auto_connection.md): packaged-app C1 auto-connection, SSH tunnel, and password-window behavior.
 4. [api_contract.md](api_contract.md): C2 APIs, C1 proxy endpoints, and CampusCar/UE placeholder endpoints.

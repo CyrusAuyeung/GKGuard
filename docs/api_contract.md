@@ -214,7 +214,7 @@ Query 参数：
 
 `GET /events/{event_id}/case-package`
 
-返回案件包，包括事件、对象信息、报告、时间线、证据快照、审计日志和交接清单。
+返回案件包，包括事件、对象信息、报告、时间线、证据快照、审计日志和处理清单。
 
 ## 审计日志
 
@@ -482,7 +482,7 @@ Returns a mock archived disposition record.
 
 `GET /events/{event_id}/case-package`
 
-Returns a case package containing event detail, subject data, report, timeline, evidence snapshots, audit logs, and a handoff checklist.
+Returns a case package containing event detail, subject data, report, timeline, evidence snapshots, audit logs, and an action checklist.
 
 ## Audit Logs
 

@@ -166,7 +166,7 @@ GKGuard C2 当前使用两类数据：
 - `status_topic`：文本/状态反馈 topic，`/R2UTopic_Text`。
 - `video_hls_url`：未来 HLS 流地址。
 - `video_rtsp_url`：未来 RTSP 流地址。
-- `notes`：人工交接说明。
+- `notes`：人工维护说明。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -335,6 +335,6 @@ Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git
 - `status_topic`: text/status feedback topic, `/R2UTopic_Text`.
 - `video_hls_url`: future HLS stream URL.
 - `video_rtsp_url`: future RTSP stream URL.
-- `notes`: human-readable handoff notes.
+- `notes`: human-readable maintenance notes.
 
 <p align="right"><a href="#english">Back to English top</a></p>

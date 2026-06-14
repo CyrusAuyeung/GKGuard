@@ -7,7 +7,7 @@
 
 # 支持说明
 
-本仓库主要用于 GKGuard C2 演示端开发、发布和交接。请根据问题类型选择合适入口。
+本仓库主要用于 GKGuard C2 演示端开发、发布和维护。请根据问题类型选择合适入口。
 
 当前建议版本：`v0.1.17`。报告问题时请优先注明使用的 Release tag、安装包来源和 C1 连接方式。
 
@@ -15,7 +15,7 @@
 
 - 安装包无法打开、Release 下载、桌面端启动问题：提交 Bug Report。
 - C1 连接、SSH 隧道、校园网/VPN 可达性问题：提交 Bug Report，并附 `/c1/status` 脱敏结果。
-- 文档错误、交接说明不清楚：提交 Documentation Update。
+- 文档错误、接口说明不清楚：提交 Documentation Update。
 - 新功能、接口扩展、CampusCar/UE 真实接入建议：提交 Feature Request。
 - 安全、隐私、凭据、真实媒体泄露：不要公开提交，按 [SECURITY.md](SECURITY.md) 处理。
 
@@ -41,7 +41,7 @@
 
 # Support
 
-This repository is primarily for GKGuard C2 demo development, releases, and handoff. Choose the right path based on issue type.
+This repository is primarily for GKGuard C2 demo development, releases, and maintenance. Choose the right path based on issue type.
 
 Recommended current version: `v0.1.17`. When filing an issue, include the Release tag, installer source, and C1 connection path.
 
@@ -49,7 +49,7 @@ Recommended current version: `v0.1.17`. When filing an issue, include the Releas
 
 - Installer, Release download, or desktop startup problems: open a Bug Report.
 - C1 connection, SSH tunnel, campus network, or VPN reachability: open a Bug Report and attach a redacted `/c1/status` result.
-- Documentation errors or unclear handoff notes: open a Documentation Update.
+- Documentation errors or unclear interface notes: open a Documentation Update.
 - New features, API extensions, or real CampusCar/UE integration ideas: open a Feature Request.
 - Security, privacy, credentials, or real media exposure: do not open a public issue; follow [SECURITY.md](SECURITY.md).
 

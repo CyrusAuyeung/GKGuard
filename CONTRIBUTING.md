@@ -7,7 +7,7 @@
 
 # 贡献指南
 
-感谢参与 GKGuard。当前仓库以 C2 桌面壳、C1 接入、演示文档和交接合同为主，请保持改动小而清晰，并优先保护敏感数据。
+感谢参与 GKGuard。当前仓库以 C2 桌面壳、C1 接入、演示文档和接口说明为主，请保持改动小而清晰，并优先保护敏感数据。
 
 ## 开始之前
 
@@ -84,7 +84,7 @@ python -m pytest backend
 
 # Contributing Guide
 
-Thank you for contributing to GKGuard. This repository currently focuses on the C2 desktop shell, C1 integration, demo documentation, and handoff contracts. Keep changes small and clear, and protect sensitive data first.
+Thank you for contributing to GKGuard. This repository currently focuses on the C2 desktop shell, C1 integration, demo documentation, and interface notes. Keep changes small and clear, and protect sensitive data first.
 
 ## Before You Start
 
