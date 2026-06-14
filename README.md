@@ -111,6 +111,14 @@ http://127.0.0.1:8002/docs
 
 ## 运行桌面端
 
+从 GitHub Release 下载的最新 Windows 安装包用于 C2 桌面端演示。安装后直接打开即可启动内置本地 C2 后端并进入 `/demo`，不需要另外安装 Python、Node.js 或手动启动 C2 服务。
+
+网络边界：
+
+- 离线或非校园网环境：可以正常打开软件，使用本地 mock fallback 演示三屏人脸检索壳体、路线图和占位数据。
+- 校园网、VPN 或 SSH 隧道可用时：可以连接服务器上的真实 CampusVision C1 服务，执行真实视频/人脸检索并显示 C1 关键帧和轨迹。
+- 如果不在校园网且没有到 C1 服务器的 VPN/隧道，真实 C1 检索不可用，但软件本身仍可打开并演示 mock 流程。
+
 ```powershell
 python -m pip install -r backend/requirements.txt
 npm install
@@ -137,6 +145,8 @@ git push origin v0.1.x
 ```
 
 tag 推送后，workflow 会安装 Python 和 Node.js、运行后端测试、构建 Electron Windows 安装包、生成 Release 说明，并把安装包和更新元数据附到 GitHub Release。
+
+如果 `docs/releases/v0.1.x.md` 存在，workflow 会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 Release 正文。
 
 本地只做冒烟打包时可运行：
 
@@ -278,6 +288,14 @@ If C1 is not connected, the demo UI still works through the local mock fallback.
 
 ## Run The Desktop App
 
+The latest Windows installer from GitHub Releases is for the C2 desktop demo. After installation, opening the app starts the bundled local C2 backend and loads `/demo`; Python, Node.js, and manual C2 startup are not required for the packaged app.
+
+Network boundary:
+
+- Offline or outside campus network: the app opens normally and can use local mock fallback for the three-screen face-search shell, route map, and placeholder data.
+- Campus network, VPN, or SSH tunnel available: the app can connect to the server-side CampusVision C1 service for real video/face search, C1 keyframes, and trajectories.
+- Without campus access or a VPN/tunnel to the C1 server, real C1 search is unavailable, but the app itself still opens and can demonstrate the mock flow.
+
 ```powershell
 python -m pip install -r backend/requirements.txt
 npm install
@@ -304,6 +322,8 @@ git push origin v0.1.x
 ```
 
 After a tag is pushed, the workflow installs Python and Node.js, runs backend tests, builds the Electron Windows installer, generates release notes, and attaches the installer and update metadata to the GitHub Release.
+
+If `docs/releases/v0.1.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
 
 For local smoke packaging only:
 

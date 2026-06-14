@@ -89,6 +89,8 @@ jobs:
             "## 使用说明",
             "",
             "- 下载 `GKGuard-Setup-*.exe` 安装桌面版。",
+            "- 安装后直接打开即可启动内置本地 C2 后端并进入 `/demo`。",
+            "- 软件本体和 mock fallback 不依赖校园网；真实 C1 检索需要校园网、VPN 或 SSH 隧道访问 C1 服务器。",
             "- `.blockmap` 和 `latest.yml` 用于 Electron 更新机制，通常不需要手动打开。",
             "",
             "## 提交",
@@ -146,6 +148,8 @@ jobs:
             "## Usage",
             "",
             "- Download `GKGuard-Setup-*.exe` to install the desktop app.",
+            "- After installation, opening the app starts the bundled local C2 backend and loads `/demo`.",
+            "- The app itself and mock fallback do not require campus network access; real C1 search requires campus network, VPN, or an SSH tunnel to the C1 server.",
             "- `.blockmap` and `latest.yml` are for the Electron update flow and usually do not need to be opened manually.",
             "",
             '<p align="right"><a href="#english">Back to English top</a></p>'
