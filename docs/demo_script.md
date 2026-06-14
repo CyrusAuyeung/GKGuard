@@ -13,15 +13,16 @@
 
 ## 主视觉流程：C1 真实检索
 
-安装版 `v0.1.13` 推荐流程：
+安装版 `v0.1.14` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.13.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.14.exe`。
 2. 打开 GKGuard。
-3. 软件会优先检查本机 SSH 隧道；如果尚未连接，选择“输入密码连接 C1”。
-4. 如果已经进入页面但真实检索返回 C1 503，页面会再次打开同一个连接窗口并在连接后自动重试一次。
-5. 在打开的 PowerShell SSH 窗口中输入服务器密码。
+3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 C1 服务器”窗口输入服务器密码。
+4. 如果已经进入页面但真实检索返回 C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
+5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
-7. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击即可下载最新安装包。
+7. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
+8. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
@@ -84,7 +85,7 @@ C1 已连接时期望结果：
 
 C1 未连接、接口失败或未上传图片时期望结果：
 
-- 桌面模式下，C1 检索失败会先打开服务器登录窗口并重试一次。
+- 桌面模式下，C1 检索失败会先打开软件内服务器密码窗口并重试一次。
 - UI 回退到本地模拟记录。
 - 结果页数据来源显示 `本地模拟`。
 - 页面仍可用于演示 C2 壳和交互流程。
@@ -197,15 +198,16 @@ Demonstrate the current GKGuard C2 loop: upload a face image, prefer CampusVisio
 
 ## Primary Visual Flow: Real C1 Search
 
-Recommended packaged-app flow for `v0.1.13`:
+Recommended packaged-app flow for `v0.1.14`:
 
-1. Download and install `GKGuard-Setup-0.1.13.exe`.
+1. Download and install `GKGuard-Setup-0.1.14.exe`.
 2. Open GKGuard.
-3. The app checks the local SSH tunnel first; if it is not connected, choose “输入密码连接 C1”.
-4. If the page is already open but real search returns C1 503, the page opens the same connection window again and retries once after connection.
-5. Enter the server password in the PowerShell SSH window that opens.
+3. The app checks the local SSH tunnel first; if it is not connected, enter the server password in the embedded “连接 C1 服务器” window.
+4. If the page is already open but real search returns C1 503, the page opens the same embedded connection window again and retries once after connection.
+5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
-7. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download the latest installer.
+7. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
+8. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`.
 
 GKGuard does not store, read, or log the SSH password.
 

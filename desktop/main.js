@@ -3,7 +3,10 @@ const { spawn } = require("child_process");
 const fs = require("fs");
 const https = require("https");
 const http = require("http");
+const net = require("net");
 const path = require("path");
+const { autoUpdater } = require("electron-updater");
+const { Client: SshClient } = require("ssh2");
 
 const PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
@@ -29,6 +32,33 @@ const DEFAULT_C1_SSH_TUNNEL = {
 
 let backendProcess = null;
 let mainWindow = null;
+let cachedUpdateInfo = null;
+let updateReadyToInstall = false;
+let sshClient = null;
+let sshForwardServer = null;
+
+autoUpdater.autoDownload = false;
+autoUpdater.autoInstallOnAppQuit = false;
+
+function sendUpdateEvent(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send("gkguard:update-event", payload);
+  }
+}
+
+autoUpdater.on("download-progress", (progress) => {
+  sendUpdateEvent({ type: "download-progress", percent: Math.round(progress.percent || 0) });
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+  cachedUpdateInfo = info || cachedUpdateInfo;
+  updateReadyToInstall = true;
+  sendUpdateEvent({ type: "update-downloaded", version: info?.version || cachedUpdateInfo?.version || "" });
+});
+
+autoUpdater.on("error", (error) => {
+  sendUpdateEvent({ type: "error", message: error.message });
+});
 
 function compareVersions(left, right) {
   const leftParts = String(left || "").replace(/^v/i, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
@@ -84,6 +114,23 @@ function isTrustedReleaseUrl(url) {
 }
 
 async function checkForUpdates() {
+  if (app.isPackaged) {
+    const update = await autoUpdater.checkForUpdates();
+    cachedUpdateInfo = update?.updateInfo || null;
+    const latestVersion = cachedUpdateInfo?.version || app.getVersion();
+    return {
+      currentVersion: app.getVersion(),
+      latestVersion,
+      updateAvailable: compareVersions(latestVersion, app.getVersion()) > 0,
+      releaseUrl: cachedUpdateInfo?.releaseUrl || RELEASES_URL,
+      downloadUrl: "embedded://auto-updater",
+      assetName: cachedUpdateInfo?.files?.[0]?.url || "",
+      publishedAt: cachedUpdateInfo?.releaseDate || "",
+      embedded: true,
+      downloaded: updateReadyToInstall,
+    };
+  }
+
   const release = await getHttpsJson(LATEST_RELEASE_API);
   const currentVersion = app.getVersion();
   const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
@@ -96,7 +143,29 @@ async function checkForUpdates() {
     downloadUrl: installer?.browser_download_url || release.html_url || RELEASES_URL,
     assetName: installer?.name || "",
     publishedAt: release.published_at || "",
+    embedded: false,
+    downloaded: false,
   };
+}
+
+async function downloadUpdate() {
+  if (!app.isPackaged) {
+    shell.openExternal(RELEASES_URL);
+    return { started: true, embedded: false, fallbackUrl: RELEASES_URL };
+  }
+  if (updateReadyToInstall) {
+    return { started: false, embedded: true, downloaded: true };
+  }
+  await autoUpdater.downloadUpdate();
+  return { started: true, embedded: true };
+}
+
+function installDownloadedUpdate() {
+  if (!app.isPackaged || !updateReadyToInstall) {
+    return { started: false };
+  }
+  autoUpdater.quitAndInstall(false, true);
+  return { started: true };
 }
 
 function getBackendRoot() {
@@ -230,27 +299,146 @@ async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS, options = 
   return false;
 }
 
-function openSshTunnelTerminal(tunnel) {
+function stopSshTunnel() {
+  if (sshForwardServer) {
+    sshForwardServer.close();
+    sshForwardServer = null;
+  }
+  if (sshClient) {
+    sshClient.end();
+    sshClient = null;
+  }
+}
+
+function startEmbeddedSshTunnel(tunnel, password) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
-  const sshArgs = ["-N", "-L", forward, "-o", "StrictHostKeyChecking=accept-new", "-o", "ExitOnForwardFailure=yes", "-o", "ConnectTimeout=8", target];
-  const command = `ssh ${sshArgs.map((argument) => `"${argument}"`).join(" ")}`;
 
-  if (process.platform === "win32") {
-    const child = spawn("cmd.exe", ["/c", "start", "GKGuard C1 Tunnel", "powershell.exe", "-NoExit", "-Command", command], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
+  return new Promise((resolve, reject) => {
+    stopSshTunnel();
+    const client = new SshClient();
+    let server = null;
+    let settled = false;
+
+    const fail = (error) => {
+      if (settled) return;
+      settled = true;
+      if (server) {
+        server.close();
+      }
+      client.end();
+      stopSshTunnel();
+      reject(error);
+    };
+
+    client.on("ready", () => {
+      server = net.createServer((socket) => {
+        client.forwardOut("127.0.0.1", 0, tunnel.remoteHost, tunnel.remotePort, (error, stream) => {
+          if (error) {
+            socket.destroy(error);
+            return;
+          }
+          socket.pipe(stream).pipe(socket);
+        });
+      });
+
+      server.once("error", fail);
+      server.listen(tunnel.localPort, "127.0.0.1", () => {
+        if (settled) return;
+        settled = true;
+        sshClient = client;
+        sshForwardServer = server;
+        resolve({ target, forward });
+      });
     });
-    child.unref();
-    return;
-  }
 
-  const child = spawn("ssh", sshArgs, {
-    detached: true,
-    stdio: "ignore",
+    client.once("error", fail);
+    client.on("close", () => {
+      if (sshClient === client) {
+        sshClient = null;
+        if (sshForwardServer) {
+          sshForwardServer.close();
+          sshForwardServer = null;
+        }
+      }
+    });
+
+    client.connect({
+      host: tunnel.host,
+      port: 22,
+      username: tunnel.user,
+      password,
+      readyTimeout: 12000,
+      keepaliveInterval: 15000,
+      keepaliveCountMax: 3,
+    });
   });
-  child.unref();
+}
+
+function promptForSshPassword(tunnel, reason) {
+  return new Promise((resolve) => {
+    const modal = new BrowserWindow({
+      width: 480,
+      height: 360,
+      parent: mainWindow,
+      modal: true,
+      resizable: false,
+      minimizable: false,
+      maximizable: false,
+      title: "连接 C1 服务器",
+      backgroundColor: "#f4f7fb",
+      autoHideMenuBar: true,
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        preload: path.join(__dirname, "preload.js"),
+        sandbox: true,
+      },
+    });
+
+    let resolved = false;
+    const done = (value) => {
+      if (resolved) return;
+      resolved = true;
+      resolve(value);
+      if (!modal.isDestroyed()) {
+        modal.close();
+      }
+    };
+
+    const submitHandler = (event, password) => {
+      if (event.sender === modal.webContents) {
+        ipcMain.off("gkguard:ssh-password-submit", submitHandler);
+        ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
+        done(typeof password === "string" ? password : "");
+      }
+    };
+    const cancelHandler = (event) => {
+      if (event.sender === modal.webContents) {
+        ipcMain.off("gkguard:ssh-password-submit", submitHandler);
+        ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
+        done("");
+      }
+    };
+
+    ipcMain.on("gkguard:ssh-password-submit", submitHandler);
+    ipcMain.on("gkguard:ssh-password-cancel", cancelHandler);
+    modal.on("closed", () => {
+      ipcMain.off("gkguard:ssh-password-submit", submitHandler);
+      ipcMain.off("gkguard:ssh-password-cancel", cancelHandler);
+      done("");
+    });
+
+    const query = new URLSearchParams({
+      host: tunnel.host,
+      user: tunnel.user,
+      localPort: String(tunnel.localPort),
+      remoteHost: tunnel.remoteHost,
+      remotePort: String(tunnel.remotePort),
+      reason,
+    });
+    modal.loadFile(path.join(__dirname, "ssh-password.html"), { query: Object.fromEntries(query) });
+  });
 }
 
 async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
@@ -259,28 +447,30 @@ async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
     return false;
   }
 
-  const result = await dialog.showMessageBox(mainWindow, {
-    type: "question",
-    title: "连接 C1 服务器",
-    message: `${reason}，是否现在打开 SSH 登录窗口？`,
-    detail: `GKGuard 将打开一个 PowerShell 窗口并执行 SSH 隧道：\nssh -N -L ${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort} ${tunnel.user}@${tunnel.host}\n\n请在该窗口输入服务器密码。GKGuard 不会保存密码。`,
-    buttons: ["输入密码连接 C1", "继续离线演示"],
-    defaultId: 0,
-    cancelId: 1,
-  });
-
-  if (result.response !== 0) {
+  const password = await promptForSshPassword(tunnel, reason);
+  if (!password) {
     return false;
   }
 
-  openSshTunnelTerminal(tunnel);
+  try {
+    await startEmbeddedSshTunnel(tunnel, password);
+  } catch (error) {
+    await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      title: "C1 连接失败",
+      message: "无法建立内嵌 SSH 隧道",
+      detail: `${error.message}\n\n请确认服务器密码、校园网/VPN 和 18000 端口占用情况。`,
+    });
+    return false;
+  }
+
   const connected = await waitForC1Connection(C1_CONNECT_TIMEOUT_MS, { requireTunnel: true, tunnel });
   if (!connected) {
     await dialog.showMessageBox(mainWindow, {
       type: "info",
       title: "C1 暂未连接",
       message: "尚未检测到 C1 服务",
-      detail: "可以继续使用离线 mock 演示。若刚刚输入密码，请确认 SSH 窗口没有报错，或稍后在页面中重新上传照片。",
+      detail: "可以继续使用离线 mock 演示。若刚刚输入密码，请确认服务器上的 C1 服务正在运行。",
     });
   }
   return connected;
@@ -493,15 +683,9 @@ ipcMain.handle("gkguard:get-app-info", () => ({
 
 ipcMain.handle("gkguard:check-for-updates", () => checkForUpdates());
 
-ipcMain.handle("gkguard:download-update", (_event, url) => {
-  const targetUrl = isTrustedReleaseUrl(url) ? url : RELEASES_URL;
-  if (!mainWindow) {
-    shell.openExternal(targetUrl);
-    return { started: false, fallbackUrl: targetUrl };
-  }
-  mainWindow.webContents.downloadURL(targetUrl);
-  return { started: true };
-});
+ipcMain.handle("gkguard:download-update", () => downloadUpdate());
+
+ipcMain.handle("gkguard:install-update", () => installDownloadedUpdate());
 
 ipcMain.handle("gkguard:connect-c1", async (_event, reason) => {
   const connected = await promptForC1Tunnel(typeof reason === "string" && reason ? reason : "C1 服务当前不可用");

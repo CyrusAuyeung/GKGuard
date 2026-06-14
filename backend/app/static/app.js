@@ -31,6 +31,8 @@ const elements = {
   desktopUpdatePanel: document.querySelector("#desktopUpdatePanel"),
   checkUpdateBtn: document.querySelector("#checkUpdateBtn"),
   updateStatus: document.querySelector("#updateStatus"),
+  newSearchBtn: document.querySelector("#newSearchBtn"),
+  routeNewSearchBtn: document.querySelector("#routeNewSearchBtn"),
   toast: document.querySelector("#toast"),
 };
 
@@ -171,6 +173,23 @@ function resetToMockData() {
   activeSource = "mock";
 }
 
+function resetSearchInput() {
+  uploadedFile = null;
+  uploadedImageUrl = "";
+  matchedPersonImageUrl = "";
+  selectedRecordIndex = 0;
+  if (elements.faceFile) elements.faceFile.value = "";
+  if (elements.uploadHint) elements.uploadHint.textContent = "支持 JPG / PNG，建议上传清晰正脸照片";
+  resetToMockData();
+  syncPortraits();
+  renderRecordLists();
+  renderSelectedRecord();
+  renderRouteMap();
+  renderRouteTimeline();
+  switchScreen("search");
+  showToast("已返回上传页，可选择新的目标照片。");
+}
+
 function applyC1Result(result) {
   if (!result?.records?.length) {
     throw new Error(result?.warning || "C1 没有返回匹配记录");
@@ -227,13 +246,13 @@ async function connectC1AfterFailure(error) {
     return false;
   }
 
-  showToast("C1 暂不可用，正在打开服务器登录窗口。");
+  showToast("C1 暂不可用，请在软件内输入服务器密码。");
   const result = await desktopBridge.connectC1(error?.message || "C1 服务当前不可用").catch(() => null);
   if (result?.connected) {
     showToast(result.prompted ? "C1 已连接，正在重新检索。" : "C1 已可用，正在重新检索。");
     return true;
   }
-  showToast("仍未检测到 C1，将使用本地模拟。请确认 SSH 窗口已输入密码且未报错。");
+  showToast("仍未检测到 C1，将使用本地模拟。请确认服务器密码和校园网连接。");
   return false;
 }
 
@@ -280,13 +299,47 @@ async function initDesktopUpdateEntry() {
     setUpdateStatus(`检查更新 v${appInfo.version}`);
   }
 
+  let updateStage = "idle";
   let latestUpdate = null;
+  desktopBridge.onUpdateEvent?.((event) => {
+    if (event?.type === "download-progress") {
+      updateStage = "downloading";
+      setUpdateStatus(`下载中 ${event.percent}%`, true);
+    }
+    if (event?.type === "update-downloaded") {
+      updateStage = "downloaded";
+      setUpdateStatus("重启安装");
+      showToast("新版已在应用内下载完成，点击即可重启安装。");
+    }
+    if (event?.type === "error") {
+      updateStage = "idle";
+      setUpdateStatus("检查更新");
+      showToast(`更新失败：${event.message}`);
+    }
+  });
+
   elements.checkUpdateBtn.addEventListener("click", async () => {
-    if (latestUpdate?.updateAvailable && latestUpdate.downloadUrl) {
+    if (updateStage === "downloaded") {
+      setUpdateStatus("正在重启...", true);
+      await desktopBridge.installUpdate?.();
+      return;
+    }
+
+    if (latestUpdate?.updateAvailable && updateStage === "available") {
       setUpdateStatus("开始下载...", true);
-      await desktopBridge.downloadUpdate(latestUpdate.downloadUrl);
-      setUpdateStatus(`下载 ${latestUpdate.latestVersion}`);
-      showToast("新版安装包已开始下载，完成后会弹出提示。");
+      const downloadResult = await desktopBridge.downloadUpdate();
+      if (downloadResult?.embedded === false) {
+        updateStage = "idle";
+        setUpdateStatus("检查更新");
+        elements.checkUpdateBtn.disabled = false;
+        showToast("已打开 GitHub Release。正式安装版会在应用内更新。");
+        return;
+      }
+      if (updateStage !== "downloaded") {
+        updateStage = "downloading";
+        setUpdateStatus("下载中...", true);
+      }
+      showToast("新版正在应用内下载。");
       return;
     }
 
@@ -294,9 +347,11 @@ async function initDesktopUpdateEntry() {
     try {
       latestUpdate = await desktopBridge.checkForUpdates();
       if (latestUpdate.updateAvailable) {
-        setUpdateStatus(`下载 ${latestUpdate.latestVersion}`);
-        showToast(`发现新版 ${latestUpdate.latestVersion}，再次点击即可下载。`);
+        updateStage = latestUpdate.downloaded ? "downloaded" : "available";
+        setUpdateStatus(updateStage === "downloaded" ? "重启安装" : `应用内更新 ${latestUpdate.latestVersion}`);
+        showToast(updateStage === "downloaded" ? "新版已下载完成，点击即可重启安装。" : `发现新版 ${latestUpdate.latestVersion}，再次点击将在应用内下载。`);
       } else {
+        updateStage = "idle";
         setUpdateStatus("已是最新版", true);
         showToast(`当前已是最新版本 ${latestUpdate.currentVersion}。`);
         window.setTimeout(() => setUpdateStatus(`检查更新 v${latestUpdate.currentVersion}`), 2400);
@@ -305,7 +360,7 @@ async function initDesktopUpdateEntry() {
       setUpdateStatus("检查更新");
       showToast(`检查更新失败：${error.message}`);
     } finally {
-      if (!latestUpdate || latestUpdate.updateAvailable) {
+      if (updateStage !== "downloading" && (!latestUpdate || latestUpdate.updateAvailable)) {
         elements.checkUpdateBtn.disabled = false;
       }
     }
@@ -446,6 +501,8 @@ function bindEvents() {
     loadImage(event.dataTransfer.files?.[0]);
   });
   elements.startSearchBtn.addEventListener("click", startSearch);
+  elements.newSearchBtn?.addEventListener("click", resetSearchInput);
+  elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。"); });
   document.querySelector("#backToResultBtn").addEventListener("click", () => switchScreen("result"));
   document.querySelector("#showAllBtn").addEventListener("click", () => showToast(`当前已显示全部 ${records.length} 条检索结果。`));

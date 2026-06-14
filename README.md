@@ -7,13 +7,13 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.13` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/SSH 密码提示、软件内更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
+GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.14` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/内嵌 SSH 密码窗口、软件内下载并重启安装的更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
 
 ## 当前状态
 
 - C2 后端位于 `backend/`，提供 FastAPI API、静态演示页、C1 代理、mock fallback、审计和 CampusCar/UE 占位接口。
-- C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；上传页和结果页会优先完整显示用户上传的目标照片，并在记录列表展示 C1 关键帧缩略图。
-- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会优先建立 SSH 隧道并提示输入服务器密码，真实检索遇到 C1 503 时也会打开连接窗口并重试；桌面模式右上角提供 `检查更新` 入口，可直接下载最新安装包。
+- C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；上传页和结果页会优先完整显示用户上传的目标照片，记录列表展示 C1 关键帧缩略图，结果页和路线页都可一键返回重新上传。
+- Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会优先建立 SSH 隧道并在软件内提示输入服务器密码，真实检索遇到 C1 503 时也会打开同一个内嵌连接窗口并重试；桌面模式右上角提供 `检查更新` 入口，可在应用内下载新版并重启安装。
 - C1 源码位于 `services/campusvision-c1/`，负责视频上传、抽帧、人脸 embedding、人物库、以图搜人和轨迹输出。
 - C2 已实现 `/c1/...` 代理，可以通过 SSH 隧道连接服务器上的真实 C1 服务。
 - 当 C1 不可用、未上传图片或接口报错时，C2 前端会先尝试桌面端 C1 连接/重试；仍不可用时才回退到本地模拟记录，方便离线演示。
@@ -74,11 +74,11 @@ services/
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版内置默认 C1 候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，并优先使用本机 SSH 隧道。打开应用后如果尚未通过隧道连接 C1，会提示是否打开 SSH 登录窗口；如果直连服务可达但真实检索返回 503，页面也会触发同一个连接窗口并重试一次。你只需要在 PowerShell 中输入服务器密码，GKGuard 不保存密码。
+安装版内置默认 C1 候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，并优先使用本机 SSH 隧道。打开应用后如果尚未通过隧道连接 C1，会在软件内弹出服务器密码窗口；如果直连服务可达但真实检索返回 503，页面也会触发同一个内嵌连接窗口并重试一次。密码只用于本次 SSH 连接，GKGuard 不保存、不落盘、不记录密码。
 
 通常不需要额外配置。若服务器地址或账号变化，可用 `%APPDATA%\GKGuard\c1-connection.json` 覆盖默认值，示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
 
-如果 C1 在远程服务器上并绑定到服务器本机 `127.0.0.1:8000`，先在 C2 机器上建立 SSH 隧道：
+如果 C1 在远程服务器上并绑定到服务器本机 `127.0.0.1:8000`，安装版会自动建立内嵌 SSH 隧道。开发或排障时也可以在 C2 机器上手动建立 SSH 隧道：
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
@@ -130,7 +130,7 @@ http://127.0.0.1:8002/docs
 
 从 GitHub Release 下载的最新 Windows 安装包用于 C2 桌面端演示。安装后直接打开即可启动内置本地 C2 后端并进入 `/demo`，不需要另外安装 Python、Node.js 或手动启动 C2 服务。
 
-桌面软件右上角提供 `检查更新` 入口：点击后会查询 GitHub 最新 Release；发现新版时再次点击即可直接下载最新 `GKGuard-Setup-*.exe`，下载完成后软件会提示打开所在文件夹。
+桌面软件右上角提供 `检查更新` 入口：点击后会查询 GitHub 最新 Release；发现新版时再次点击会在应用内下载更新，下载完成后点击 `重启安装` 即可完成升级，不需要手动到 GitHub 重新下载安装包。
 
 本地开发或打包桌面端时建议使用 Node.js `22.12.0` 或更高版本；当前 Electron 42 依赖链要求 Node 22+。
 
@@ -205,13 +205,13 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.13`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an SSH password prompt, an in-app update entry, and the imported C1 CampusVision video retrieval service as a separate module.
+GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.14`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an embedded SSH password prompt, an in-app update flow that downloads and restarts to install updates, and the imported C1 CampusVision video retrieval service as a separate module.
 
 ## Current Status
 
 - The C2 backend lives in `backend/` and provides FastAPI APIs, the static demo UI, the C1 proxy, mock fallback, audit APIs, and CampusCar/UE placeholder APIs.
-- The C2 frontend lives in `backend/app/static/` and currently focuses on three screens: face search, face-search results, and person route map; the upload and result screens prefer the full uploaded target image and render C1 keyframe thumbnails in the record list.
-- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app prioritizes the SSH tunnel, prompts for the server SSH password when needed, also opens the connection window and retries when real C1 search returns 503, and exposes a top-right `检查更新` entry in desktop mode to download the latest installer directly.
+- The C2 frontend lives in `backend/app/static/` and currently focuses on three screens: face search, face-search results, and person route map; the upload and result screens prefer the full uploaded target image, render C1 keyframe thumbnails in the record list, and provide a return action to upload a new target from result or route screens.
+- The Electron shell lives in `desktop/`; GitHub Actions can build the Windows installer. The packaged app prioritizes the SSH tunnel, prompts for the server SSH password inside the app when needed, also opens the same embedded connection window and retries when real C1 search returns 503, and exposes a top-right `检查更新` entry in desktop mode for in-app update download and restart-to-install.
 - The C1 source lives in `services/campusvision-c1/` and owns video upload, frame sampling, face embeddings, person indexing, image search, and trajectory output.
 - C2 now exposes `/c1/...` proxy endpoints and can connect to the real C1 service through an SSH tunnel.
 - If C1 is unavailable, no image is uploaded, or the C1 request fails, the frontend first attempts the desktop C1 connection/retry path; it falls back to local mock records only when C1 remains unavailable.
@@ -272,11 +272,11 @@ Default local adapter URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged app has built-in C1 candidates: `http://10.4.167.122:8000` and `http://127.0.0.1:18000`. After opening the app, it probes them automatically. If C1 is not detected, it prompts to open an SSH login window. You only type the server password in PowerShell, and GKGuard does not store it.
+The packaged app has built-in C1 candidates: `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, with the local SSH tunnel first. After opening the app, it probes them automatically. If the tunnel is not connected, it shows an embedded server-password window. The password is used only for the current SSH session; GKGuard does not store it, write it to disk, or log it.
 
 Extra configuration is usually not required. If the server address or account changes, override defaults with `%APPDATA%\GKGuard\c1-connection.json`; see [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
 
-If C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, create an SSH tunnel first:
+If C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, the packaged app creates the embedded SSH tunnel for you. For development or troubleshooting, you can also create the tunnel manually:
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
@@ -328,7 +328,7 @@ If C1 is not connected, the demo UI still works through the local mock fallback.
 
 The latest Windows installer from GitHub Releases is for the C2 desktop demo. After installation, opening the app starts the bundled local C2 backend and loads `/demo`; Python, Node.js, and manual C2 startup are not required for the packaged app.
 
-The desktop app includes a top-right `检查更新` entry. It checks the latest GitHub Release, and when a newer version is available, clicking again downloads the newest `GKGuard-Setup-*.exe` directly and prompts you to open the download folder when complete.
+The desktop app includes a top-right `检查更新` entry. It checks the latest GitHub Release, and when a newer version is available, clicking again downloads the update inside the app. After the download finishes, click `重启安装` to complete the upgrade without manually downloading another installer from GitHub.
 
 For local desktop development or packaging, use Node.js `22.12.0` or later. The current Electron 42 dependency chain requires Node 22+.
 

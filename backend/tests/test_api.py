@@ -28,6 +28,9 @@ def test_demo_page_available() -> None:
     assert "人脸检索结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
+    assert "newSearchBtn" in response.text
+    assert "routeNewSearchBtn" in response.text
+    assert "重新上传" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -43,6 +46,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "uploadedImageUrl = result.person.representativeFaceUrl" not in script
     assert "initDesktopUpdateEntry" in script
     assert "checkForUpdates" in script
+    assert "installUpdate" in script
+    assert "onUpdateEvent" in script
+    assert "function resetSearchInput" in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
@@ -60,16 +66,32 @@ def test_desktop_update_bridge_wired() -> None:
 
     assert "preload.js" in main_script
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
+    assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
     assert "`${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`" in main_script
     assert "isC1TunnelConnected" in main_script
     assert "requireTunnel: true" in main_script
-    assert "LATEST_RELEASE_API" in main_script
-    assert "downloadURL" in main_script
+    assert "autoUpdater.checkForUpdates" in main_script
+    assert "autoUpdater.downloadUpdate" in main_script
+    assert "autoUpdater.quitAndInstall" in main_script
+    assert "startEmbeddedSshTunnel" in main_script
+    assert "promptForSshPassword" in main_script
+    assert "ssh-password.html" in main_script
+    assert "new SshClient" in main_script
+    assert "forwardOut" in main_script
     assert "contextBridge.exposeInMainWorld(\"gkguardDesktop\"" in preload_script
     assert "checkForUpdates" in preload_script
     assert "downloadUpdate" in preload_script
+    assert "installUpdate" in preload_script
+    assert "onUpdateEvent" in preload_script
     assert "connectC1" in preload_script
+    assert "submitSshPassword" in preload_script
+    assert "cancelSshPassword" in preload_script
+
+    password_page = (ROOT_DIR / "desktop" / "ssh-password.html").read_text(encoding="utf-8")
+    assert "服务器密码" in password_page
+    assert "submitSshPassword" in password_page
+    assert "cancelSshPassword" in password_page
 
 
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:

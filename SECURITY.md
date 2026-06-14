@@ -15,8 +15,8 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 
 | 版本 | 状态 |
 |---|---|
-| v0.1.13 | 当前演示版本，接受安全修复 |
-| v0.1.9 - v0.1.12 | 已被 v0.1.13 替代；建议升级到最新版 |
+| v0.1.14 | 当前演示版本，接受安全修复 |
+| v0.1.9 - v0.1.13 | 已被 v0.1.14 替代；建议升级到最新版 |
 | v0.1.8 及更早 | 历史演示版本，仅按需要补充说明 |
 
 ## 如何报告安全问题
@@ -42,7 +42,7 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 
 ## 连接安全
 
-- GKGuard 不保存 SSH 密码；密码只应输入在系统 PowerShell/SSH 窗口中。
+- GKGuard 不保存 SSH 密码；安装版只在软件内密码窗口中接收本次 SSH 连接所需密码，不写入配置文件、日志或仓库。
 - 若 C1 监听 `0.0.0.0`，必须通过防火墙、校园网策略或反向代理限制访问范围。
 - 优先使用受控校园网、VPN 或 SSH 隧道访问 C1。
 - 不要把 C1 识别服务暴露到不可信公网。
@@ -63,8 +63,8 @@ Currently maintained versions:
 
 | Version | Status |
 |---|---|
-| v0.1.13 | Current demo version, accepts security fixes |
-| v0.1.9 - v0.1.12 | Superseded by v0.1.13; upgrade to the latest release |
+| v0.1.14 | Current demo version, accepts security fixes |
+| v0.1.9 - v0.1.13 | Superseded by v0.1.14; upgrade to the latest release |
 | v0.1.8 and earlier | Historical demo versions, documentation updates only as needed |
 
 ## Reporting A Security Issue
@@ -90,7 +90,7 @@ Do not commit or paste:
 
 ## Connection Security
 
-- GKGuard does not store SSH passwords; passwords should only be entered in the system PowerShell/SSH window.
+- GKGuard does not store SSH passwords; the packaged app accepts the password only in its embedded prompt for the current SSH session and does not write it to config files, logs, or the repository.
 - If C1 listens on `0.0.0.0`, restrict access through firewall, campus network policy, or reverse proxy.
 - Prefer controlled campus network, VPN, or SSH tunnel access to C1.
 - Do not expose the C1 recognition service to untrusted public networks.

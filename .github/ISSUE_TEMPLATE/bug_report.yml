@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      description: Release tag or commit, for example v0.1.13.
-      placeholder: v0.1.13
+      description: Release tag or commit, for example v0.1.14.
+      placeholder: v0.1.14
     validations:
       required: true
   - type: dropdown
