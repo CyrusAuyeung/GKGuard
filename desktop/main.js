@@ -426,7 +426,7 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
       resizable: false,
       minimizable: false,
       maximizable: false,
-      title: "连接 C1 服务器",
+      title: "连接 CampusVision C1 服务",
       icon: APP_ICON_PATH,
       backgroundColor: "#f4f7fb",
       autoHideMenuBar: true,
@@ -464,7 +464,7 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
         sendProgress({ percent: 12, message: "已收到密码，正在连接...", busy: true });
         try {
           const result = await connectWithPassword(submittedPassword, sendProgress);
-          sendProgress({ percent: 100, message: result.verified ? "C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
+          sendProgress({ percent: 100, message: result.verified ? "CampusVision C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
           done(result);
         } catch (error) {
           sendProgress({ percent: 100, message: `连接失败：${error.message}`, busy: false, failed: true });
@@ -500,7 +500,7 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
   });
 }
 
-async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
+async function promptForC1Tunnel(reason = "未检测到 CampusVision C1 服务") {
   const tunnel = getSshTunnelConfig();
   if (!tunnel) {
     return false;
@@ -521,9 +521,9 @@ async function promptForC1Tunnel(reason = "未检测到 C1 服务") {
 
   await dialog.showMessageBox(mainWindow, {
     type: "warning",
-    title: "C1 连接失败",
-    message: "尚未确认 C1 服务可用",
-    detail: `${result?.error?.message || "SSH 隧道未能连接到 C1。"}\n\n请确认服务器密码、校园网/VPN、C1 服务状态和 18000 端口占用情况。`,
+    title: "CampusVision C1 连接失败",
+    message: "尚未确认 CampusVision C1 服务可用",
+    detail: `${result?.error?.message || "SSH 隧道未能连接到 CampusVision C1。"}\n\n请确认服务器密码、校园网/VPN、CampusVision C1 服务状态和 18000 端口占用情况。`,
   });
   return false;
 }
@@ -540,11 +540,11 @@ async function maybePromptForC1Tunnel() {
       return true;
     }
     if (isC1Connected(status)) {
-      return promptForC1Tunnel("C1 直连可达，但尚未通过服务器密码建立 SSH 隧道");
+      return promptForC1Tunnel("CampusVision C1 直连可达，但尚未通过服务器密码建立 SSH 隧道");
     }
-    return promptForC1Tunnel(status?.healthError ? "C1 服务当前不可用" : "未检测到 C1 服务");
+    return promptForC1Tunnel(status?.healthError ? "CampusVision C1 服务当前不可用" : "未检测到 CampusVision C1 服务");
   } catch {
-    return promptForC1Tunnel("未检测到 C1 服务");
+    return promptForC1Tunnel("未检测到 CampusVision C1 服务");
   }
 }
 
@@ -741,7 +741,7 @@ ipcMain.handle("gkguard:download-update", () => downloadUpdate());
 ipcMain.handle("gkguard:install-update", () => installDownloadedUpdate());
 
 ipcMain.handle("gkguard:connect-c1", async (_event, reason) => {
-  const connected = await promptForC1Tunnel(typeof reason === "string" && reason ? reason : "C1 服务当前不可用");
+  const connected = await promptForC1Tunnel(typeof reason === "string" && reason ? reason : "CampusVision C1 服务当前不可用");
   return { connected, prompted: true };
 });
 
