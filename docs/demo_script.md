@@ -13,9 +13,9 @@
 
 ## 主视觉流程：C1 真实检索
 
-安装版 `v0.1.16` 推荐流程：
+安装版 `v0.1.17` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.16.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.17.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 C1 服务器”窗口输入服务器密码，并观察连接进度条。
 4. 如果已经进入页面但真实检索返回 C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -198,9 +198,9 @@ Demonstrate the current GKGuard C2 loop: upload a face image, prefer CampusVisio
 
 ## Primary Visual Flow: Real C1 Search
 
-Recommended packaged-app flow for `v0.1.16`:
+Recommended packaged-app flow for `v0.1.17`:
 
-1. Download and install `GKGuard-Setup-0.1.16.exe`.
+1. Download and install `GKGuard-Setup-0.1.17.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, enter the server password in the embedded “连接 C1 服务器” window and watch the connection progress.
 4. If the page is already open but real search returns C1 503, the page opens the same embedded connection window again and retries once after connection.

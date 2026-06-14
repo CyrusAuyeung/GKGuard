@@ -74,6 +74,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "icon-export" in page
     assert "icon-update" in page
     assert "icon-info" in page
+    assert page.index('id="routeNewSearchBtn"') < page.index('id="backToResultBtn"')
+    assert page.index('id="backToResultBtn"') < page.index('id="exportRouteBtn"')
+    assert page.index('id="exportRouteBtn"') < page.index('id="fullRouteBtn"')
 
     for icon_name in [
         "app-mark.png",
