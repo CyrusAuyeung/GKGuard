@@ -7,12 +7,12 @@
 
 # 数据字典
 
-GKGuard C2 当前使用两类数据：
+本文中的 GKGuard C2 指桌面工作台和本地代理层；CampusVision C1 指独立的视频检索服务。GKGuard C2 当前使用两类数据：
 
 - `backend/data/mock/` 下的本地 mock 或脱敏 demo 数据，用于人员、车辆、快照、告警、审计和 CampusCar 占位流程。
 - 通过 `/c1/...` 适配器从 CampusVision C1 获取的真实检索数据，包括关键帧、人脸裁剪图、候选人物和轨迹点。
 
-不要提交 C1 运行数据，例如真实视频、查询图片、抽帧图片、SQLite 数据库、`.env` 或模型缓存。
+不要提交 CampusVision C1 运行数据，例如真实视频、查询图片、抽帧图片、SQLite 数据库、`.env` 或模型缓存。
 
 ## persons
 
@@ -65,18 +65,18 @@ GKGuard C2 当前使用两类数据：
 ## c1_search_result
 
 - `source`：当前为 `c1`。
-- `baseUrl`：适配器当前使用或展示的 C1 地址。
-- `selectedBaseUrl`：自动探测后选中的健康 C1 地址，可能为内置服务器地址 `http://10.4.167.122:8000`、本机隧道地址 `http://127.0.0.1:18000` 或自定义地址。
-- `candidateUrls`：本次探测的 C1 候选地址列表。
-- `searchId`：C1 search ID。
-- `engine`：C1 引擎名，预期为 `insightface`。
+- `baseUrl`：适配器当前使用或展示的 CampusVision C1 地址。
+- `selectedBaseUrl`：自动探测后选中的健康 CampusVision C1 地址，可能为内置服务器地址 `http://10.4.167.122:8000`、本机隧道地址 `http://127.0.0.1:18000` 或自定义地址。
+- `candidateUrls`：本次探测的 CampusVision C1 候选地址列表。
+- `searchId`：CampusVision C1 search ID。
+- `engine`：CampusVision C1 引擎名，预期为 `insightface`。
 - `warning`：低置信或歧义提示。
 - `ambiguous`：候选集是否歧义。
 - `person`：当前 UI 选中的候选人物。
-- `records`：C2 结果页使用的关键帧记录。
-- `routePoints`：C2 路线页使用的地图轨迹点。
-- `appearanceEvents`：C1 连续出现事件，保留给后续更丰富时间线。
-- `raw`：C1 原始 payload，用于调试和后续映射。
+- `records`：GKGuard C2 结果页使用的关键帧记录。
+- `routePoints`：GKGuard C2 路线页使用的地图轨迹点。
+- `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
+- `raw`：CampusVision C1 原始 payload，用于调试和后续映射。
 
 真实部署中的敏感字段：人脸图、帧图、人员关联、移动轨迹和相似度分数。
 
@@ -84,27 +84,27 @@ GKGuard C2 当前使用两类数据：
 
 - `id`：本地展示序号。
 - `title`：如 `记录1`。
-- `time`：紧凑时间；C1 没有捕获时间时可能为 `--:--:--`。
-- `fullTime`：完整时间；C1 没有捕获时间时可能为 `未知时间`。
-- `location`：C1 位置或摄像头标签。
+- `time`：紧凑时间；CampusVision C1 没有捕获时间时可能为 `--:--:--`。
+- `fullTime`：完整时间；CampusVision C1 没有捕获时间时可能为 `未知时间`。
+- `location`：CampusVision C1 位置或摄像头标签。
 - `camera`：摄像头展示名。
-- `cameraId`：C1 摄像头 ID。
-- `similarity`：C1 归一化分数。
-- `note`：C2 展示说明。
+- `cameraId`：CampusVision C1 摄像头 ID。
+- `similarity`：CampusVision C1 归一化分数。
+- `note`：GKGuard C2 展示说明。
 - `frameUrl`：C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于结果列表缩略图和详情关键帧。
-- `faceId`：C1 face record ID。
-- `videoId`：C1 video ID。
+- `faceId`：CampusVision C1 face record ID。
+- `videoId`：CampusVision C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
 
 ## c1_route_points
 
 - `id`：本地展示序号。
 - `time`：路线时间线展示时间。
-- `location`：C1 位置或摄像头标签。
-- `x`、`y`：当前 C2 地图展示坐标，由适配器生成。
+- `location`：CampusVision C1 位置或摄像头标签。
+- `x`、`y`：当前 GKGuard C2 地图展示坐标，由适配器生成。
 - `kind`：可选 `start` 或 `end`。
-- `cameraId`：C1 摄像头 ID。
-- `score`：可用时的 C1 命中分数。
+- `cameraId`：CampusVision C1 摄像头 ID。
+- `score`：可用时的 CampusVision C1 命中分数。
 
 ## access_records
 
@@ -176,12 +176,12 @@ GKGuard C2 当前使用两类数据：
 
 # Data Dictionary
 
-GKGuard C2 currently uses two classes of data:
+Here, GKGuard C2 means the desktop workbench plus local proxy layer, and CampusVision C1 means the standalone video-search service. GKGuard C2 currently uses two classes of data:
 
 - Local mock or desensitized demo data under `backend/data/mock/` for people, vehicles, snapshots, alerts, audit logs, and CampusCar placeholders.
 - Real CampusVision C1 search data returned through `/c1/...` adapter endpoints, including keyframes, face crops, candidate persons, and route points.
 
-Do not commit C1 runtime data such as real videos, query images, extracted frames, SQLite databases, `.env`, or model caches.
+Do not commit CampusVision C1 runtime data such as real videos, query images, extracted frames, SQLite databases, `.env`, or model caches.
 
 ## persons
 
@@ -234,18 +234,18 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 ## c1_search_result
 
 - `source`: currently `c1`.
-- `baseUrl`: C1 URL currently used or displayed by the adapter.
-- `selectedBaseUrl`: healthy C1 URL selected by auto-probing. It may be the built-in server URL `http://10.4.167.122:8000`, the local tunnel URL `http://127.0.0.1:18000`, or a custom URL.
-- `candidateUrls`: C1 candidate URL list checked during the probe.
-- `searchId`: C1 search ID.
-- `engine`: C1 engine name, expected to be `insightface`.
+- `baseUrl`: CampusVision C1 URL currently used or displayed by the adapter.
+- `selectedBaseUrl`: healthy CampusVision C1 URL selected by auto-probing. It may be the built-in server URL `http://10.4.167.122:8000`, the local tunnel URL `http://127.0.0.1:18000`, or a custom URL.
+- `candidateUrls`: CampusVision C1 candidate URL list checked during the probe.
+- `searchId`: CampusVision C1 search ID.
+- `engine`: CampusVision C1 engine name, expected to be `insightface`.
 - `warning`: low-confidence or ambiguity warning.
 - `ambiguous`: whether the candidate set is ambiguous.
 - `person`: selected candidate person for the current UI.
-- `records`: keyframe records used by the C2 result screen.
-- `routePoints`: map-ready route points used by the C2 route screen.
-- `appearanceEvents`: C1 appearance events retained for a richer future timeline.
-- `raw`: original C1 payload for debugging and future mapping.
+- `records`: keyframe records used by the GKGuard C2 result screen.
+- `routePoints`: map-ready route points used by the GKGuard C2 route screen.
+- `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.
+- `raw`: original CampusVision C1 payload for debugging and future mapping.
 
 Sensitive in real deployments: face images, frame images, person links, movement trajectory, and similarity scores.
 
@@ -253,27 +253,27 @@ Sensitive in real deployments: face images, frame images, person links, movement
 
 - `id`: local display sequence.
 - `title`: for example `记录1`.
-- `time`: compact display time; may be `--:--:--` if C1 has no captured timestamp.
-- `fullTime`: full display time; may be `未知时间` if C1 has no captured timestamp.
-- `location`: C1 location or camera label.
+- `time`: compact display time; may be `--:--:--` if CampusVision C1 has no captured timestamp.
+- `fullTime`: full display time; may be `未知时间` if CampusVision C1 has no captured timestamp.
+- `location`: CampusVision C1 location or camera label.
 - `camera`: camera display name.
-- `cameraId`: C1 camera ID.
-- `similarity`: normalized C1 score.
-- `note`: C2 display note.
-- `frameUrl`: C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by result-list thumbnails and the detail keyframe.
-- `faceId`: C1 face record ID.
-- `videoId`: C1 video ID.
+- `cameraId`: CampusVision C1 camera ID.
+- `similarity`: normalized CampusVision C1 score.
+- `note`: GKGuard C2 display note.
+- `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by result-list thumbnails and the detail keyframe.
+- `faceId`: CampusVision C1 face record ID.
+- `videoId`: CampusVision C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.
 
 ## c1_route_points
 
 - `id`: local display sequence.
 - `time`: display time used by the route timeline.
-- `location`: C1 location or camera label.
-- `x`, `y`: current C2 map display coordinates generated by the adapter.
+- `location`: CampusVision C1 location or camera label.
+- `x`, `y`: current GKGuard C2 map display coordinates generated by the adapter.
 - `kind`: optional `start` or `end`.
-- `cameraId`: C1 camera ID.
-- `score`: C1 match score when available.
+- `cameraId`: CampusVision C1 camera ID.
+- `score`: CampusVision C1 match score when available.
 
 ## access_records
 

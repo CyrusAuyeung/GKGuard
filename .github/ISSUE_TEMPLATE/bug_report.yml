@@ -21,9 +21,9 @@ body:
       label: Area / 模块
       options:
         - Desktop installer / 桌面安装包
-        - C2 backend / C2 后端
-        - C2 frontend / C2 前端
-        - C1 connection / C1 连接
+        - GKGuard C2 backend / GKGuard C2 后端
+        - GKGuard C2 frontend / GKGuard C2 前端
+        - CampusVision C1 service connection / CampusVision C1 服务连接
         - CampusCar or UE placeholder / CampusCar 或 UE 占位
         - Documentation / 文档
         - Release workflow / 发布流程
@@ -55,11 +55,11 @@ body:
     id: environment
     attributes:
       label: Environment / 环境
-      description: Windows version, campus network/VPN/SSH tunnel status, C1 URL if relevant.
+      description: Windows version, campus network/VPN/SSH tunnel status, CampusVision C1 URL if relevant.
       placeholder: |
         Windows:
         Network: campus / VPN / offline / SSH tunnel
-        C1: direct 10.4.167.122:8000 / tunnel 127.0.0.1:18000 / custom
+        CampusVision C1: direct 10.4.167.122:8000 / tunnel 127.0.0.1:18000 / custom
   - type: textarea
     id: logs
     attributes:

@@ -140,12 +140,12 @@ Create a compact boot/loading brand icon for GKGuard: combine a shield, camera a
 
 建议命名：`boot-mark`
 
-## 12. 服务器连接 / C1 Connection
+## 12. 服务器连接 / CampusVision C1 Connection
 
-用途：C1 密码窗口标题或未来连接状态图标。
+用途：CampusVision C1 密码窗口标题或未来连接状态图标。
 
 ```text
-Create a server connection icon: a small server stack connected by a secure tunnel line to a shield or lock. It should communicate secure SSH connection to a C1 server, without looking like a generic cloud icon.
+Create a server connection icon: a small server stack connected by a secure tunnel line to a shield or lock. It should communicate secure SSH connection to a CampusVision C1 server, without looking like a generic cloud icon.
 ```
 
 建议命名：`server-connection`

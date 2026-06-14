@@ -9,16 +9,16 @@
 
 ## 目标
 
-演示当前 GKGuard C2 闭环：上传人脸图片，优先调用 CampusVision C1 获取真实关键帧和轨迹；如果 C1 不可用，则回退本地模拟记录；同时保留案件研判、审计、CampusCar/UE 占位等 C2 mock 工作流。
+演示当前 GKGuard C2 工作台闭环：上传人脸图片，GKGuard C2 前端只访问 GKGuard C2 后端；GKGuard C2 后端优先调用 CampusVision C1 服务获取真实关键帧和轨迹；如果 CampusVision C1 不可用，则回退本地模拟记录；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 mock 工作流。
 
-## 主视觉流程：C1 真实检索
+## 主视觉流程：CampusVision C1 真实检索
 
 安装版 `v0.1.17` 推荐流程：
 
 1. 下载并安装 `GKGuard-Setup-0.1.17.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 C1 服务器”窗口输入服务器密码，并观察连接进度条。
-4. 如果已经进入页面但真实检索返回 C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
+4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
 5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
@@ -28,19 +28,19 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 
 本地开发流程：
 
-1. 启动 C1，或连接团队 C1 服务器隧道。
+1. 启动 CampusVision C1 服务，或连接团队 CampusVision C1 服务器隧道。
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-期望 C1 状态：
+期望 CampusVision C1 状态：
 
 ```text
 GET http://127.0.0.1:18000/health -> 200 OK, face_engine=insightface
 ```
 
-1. 启动 C2 后端。
+1. 启动 GKGuard C2 后端。
 
 ```powershell
 cd backend
@@ -60,13 +60,13 @@ http://127.0.0.1:8002/demo
 http://127.0.0.1:8002/docs
 ```
 
-1. 检查 C1 适配器。
+1. 检查 GKGuard C2 内的 CampusVision C1 适配器。
 
 ```text
 GET /c1/status
 ```
 
-期望结果：`reachable=true`、`healthOk=true`，且 C1 health 显示 `face_engine=insightface`。
+期望结果：`reachable=true`、`healthOk=true`，且 CampusVision C1 health 显示 `face_engine=insightface`。
 
 1. 执行视觉检索。
 
@@ -74,25 +74,25 @@ GET /c1/status
 上传人脸或完整帧图片 -> 点击 开始检索 -> 查看 人脸检索结果
 ```
 
-C1 已连接时期望结果：
+CampusVision C1 已连接时期望结果：
 
 - 结果页数据来源显示 `C1 CampusVision`。
-- 上传页和结果页人物照片优先完整显示用户上传图；只有未上传图时才回退 C1 代表人脸。
-- 检索记录列表展示 C1 关键帧缩略图，而不是默认人物占位图；若 C1 缩略图加载失败，才回退占位图。
-- 记录列表显示 C1 摄像头和相似度。
+- 上传页和结果页人物照片优先完整显示用户上传图；只有未上传图时才回退 CampusVision C1 代表人脸。
+- 检索记录列表展示 CampusVision C1 关键帧缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
+- 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
-- 点击 `查看人物路线图` 后，路线图使用 C1 trajectory 数据生成轨迹点、时间线和摘要。
+- 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、时间线和摘要。
 
-C1 未连接、接口失败或未上传图片时期望结果：
+CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 
-- 桌面模式下，C1 检索失败会先打开软件内服务器密码窗口并重试一次。
+- 桌面模式下，CampusVision C1 检索失败会先打开软件内服务器密码窗口并重试一次。
 - UI 回退到本地模拟记录。
 - 结果页数据来源显示 `本地模拟`。
-- 页面仍可用于演示 C2 壳和交互流程。
+- 页面仍可用于演示 GKGuard C2 工作台和交互流程。
 
 ## 旧 mock API 演示
 
-以下接口仍可用于不依赖 C1 的 API 级演示。
+以下接口仍可用于不依赖 CampusVision C1 的 API 级演示。
 
 ### 搜索演示人员
 
@@ -179,10 +179,10 @@ GET /events/ALT-001/case-package
 
 ## 维护备注
 
-- 当前前端使用 C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线。
+- 当前前端使用 CampusVision C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线。
 - 控制/UE 组后续可替换 `/car-tasks/mock-dispatch` 背后的适配器，字段名保持稳定。
 - 不要把 UE 测试 app 打包进 GKGuard；它应作为 ROS2/UE Bridge 回路的外部验证目标。
-- 保留 legacy `/search/image` mock 接口用于非 C1 演示；真实人脸检索路径是 `/c1/search/person-by-image`。
+- 保留 legacy `/search/image` mock 接口用于非 CampusVision C1 演示；真实人脸检索路径是 `/c1/search/person-by-image`。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -194,16 +194,16 @@ GET /events/ALT-001/case-package
 
 ## Goal
 
-Demonstrate the current GKGuard C2 loop: upload a face image, prefer CampusVision C1 for real keyframes and trajectory, fall back to local mock records if C1 is unavailable, and keep C2 mock workflows for case review, audit, and CampusCar/UE placeholders.
+Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the GKGuard C2 frontend call only the GKGuard C2 backend, let the GKGuard C2 backend prefer the CampusVision C1 service for real keyframes and trajectory, fall back to local mock records if CampusVision C1 is unavailable, and keep GKGuard C2 mock workflows for case review, audit, and CampusCar/UE placeholders.
 
-## Primary Visual Flow: Real C1 Search
+## Primary Visual Flow: Real CampusVision C1 Search
 
 Recommended packaged-app flow for `v0.1.17`:
 
 1. Download and install `GKGuard-Setup-0.1.17.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, enter the server password in the embedded “连接 C1 服务器” window and watch the connection progress.
-4. If the page is already open but real search returns C1 503, the page opens the same embedded connection window again and retries once after connection.
+4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
@@ -213,19 +213,19 @@ GKGuard does not store, read, or log the SSH password.
 
 Local development flow:
 
-1. Start C1 or connect to the team C1 server through a tunnel.
+1. Start the CampusVision C1 service or connect to the team CampusVision C1 server through a tunnel.
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-Expected C1 status:
+Expected CampusVision C1 status:
 
 ```text
 GET http://127.0.0.1:18000/health -> 200 OK, face_engine=insightface
 ```
 
-1. Start the C2 backend.
+1. Start the GKGuard C2 backend.
 
 ```powershell
 cd backend
@@ -245,13 +245,13 @@ http://127.0.0.1:8002/demo
 http://127.0.0.1:8002/docs
 ```
 
-1. Check the C1 adapter.
+1. Check the CampusVision C1 adapter inside GKGuard C2.
 
 ```text
 GET /c1/status
 ```
 
-Expected result: `reachable=true`, `healthOk=true`, and C1 health reports `face_engine=insightface`.
+Expected result: `reachable=true`, `healthOk=true`, and CampusVision C1 health reports `face_engine=insightface`.
 
 1. Run the visual search.
 
@@ -259,25 +259,25 @@ Expected result: `reachable=true`, `healthOk=true`, and C1 health reports `face_
 Upload a face or full-frame image -> click 开始检索 -> inspect 人脸检索结果
 ```
 
-Expected result with C1 connected:
+Expected result with CampusVision C1 connected:
 
 - The result source shows `C1 CampusVision`.
-- The upload and result portraits prefer the full user-uploaded image; C1 representative faces are used only when no upload is available.
-- The search record list shows C1 keyframe thumbnails instead of the default person placeholder; if a C1 thumbnail fails to load, the UI falls back to the placeholder.
-- The record list shows C1 camera IDs and similarity scores.
+- The upload and result portraits prefer the full user-uploaded image; CampusVision C1 representative faces are used only when no upload is available.
+- The search record list shows CampusVision C1 keyframe thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
+- The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
-- `查看人物路线图` opens a route view generated from C1 trajectory data.
+- `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data.
 
-Expected result without C1, after a C1 failure, or without an uploaded image:
+Expected result without CampusVision C1, after a CampusVision C1 failure, or without an uploaded image:
 
-- In desktop mode, failed C1 search first opens the server login window and retries once.
+- In desktop mode, failed CampusVision C1 search first opens the server login window and retries once.
 - The UI falls back to local mock records.
 - The result source shows `本地模拟`.
-- The page remains usable for demonstrating the C2 shell and interactions.
+- The page remains usable for demonstrating the GKGuard C2 workbench and interactions.
 
 ## Legacy Mock API Walkthrough
 
-The following endpoints remain useful for API-level demos that do not depend on C1.
+The following endpoints remain useful for API-level demos that do not depend on CampusVision C1.
 
 ### Search The Demo Person
 
@@ -364,9 +364,9 @@ Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline
 
 ## Maintenance Notes
 
-- The current frontend consumes C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines.
+- The current frontend consumes CampusVision C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines.
 - The control/UE team can later replace the adapter behind `/car-tasks/mock-dispatch` while keeping field names stable.
 - Do not package the UE test app into GKGuard; keep it as an external validation target for the ROS2/UE Bridge loop.
-- Keep the legacy `/search/image` mock endpoint for non-C1 demos. The real face-search path is `/c1/search/person-by-image`.
+- Keep the legacy `/search/image` mock endpoint for non-CampusVision C1 demos. The real face-search path is `/c1/search/person-by-image`.
 
 <p align="right"><a href="#english">Back to English top</a></p>

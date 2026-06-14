@@ -35,7 +35,7 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 
 以下内容不得提交或粘贴到公开位置：
 
-- C1 服务器密码、SSH 私钥、token、API key。
+- CampusVision C1 服务器密码、SSH 私钥、token、API key。
 - `.env`、数据库、模型缓存、真实运行日志。
 - 真实校园视频、查询图片、抽帧图片、人脸裁剪图。
 - 真实人员身份、联系方式、轨迹、车牌、案件材料。
@@ -43,9 +43,9 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 ## 连接安全
 
 - GKGuard 不保存 SSH 密码；安装版只在软件内密码窗口中接收本次 SSH 连接所需密码，不写入配置文件、日志或仓库。
-- 若 C1 监听 `0.0.0.0`，必须通过防火墙、校园网策略或反向代理限制访问范围。
-- 优先使用受控校园网、VPN 或 SSH 隧道访问 C1。
-- 不要把 C1 识别服务暴露到不可信公网。
+- 若 CampusVision C1 服务监听 `0.0.0.0`，必须通过防火墙、校园网策略或反向代理限制访问范围。
+- 优先使用受控校园网、VPN 或 SSH 隧道访问 CampusVision C1 服务。
+- 不要把 CampusVision C1 识别服务暴露到不可信公网。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -83,7 +83,7 @@ If sensitive content was already exposed publicly, remove it first, then notify 
 
 Do not commit or paste:
 
-- C1 server passwords, SSH private keys, tokens, or API keys.
+- CampusVision C1 server passwords, SSH private keys, tokens, or API keys.
 - `.env` files, databases, model caches, or real runtime logs.
 - Real campus videos, query images, extracted frames, or face crops.
 - Real identities, contact details, trajectories, license plates, or case material.
@@ -91,8 +91,8 @@ Do not commit or paste:
 ## Connection Security
 
 - GKGuard does not store SSH passwords; the packaged app accepts the password only in its embedded prompt for the current SSH session and does not write it to config files, logs, or the repository.
-- If C1 listens on `0.0.0.0`, restrict access through firewall, campus network policy, or reverse proxy.
-- Prefer controlled campus network, VPN, or SSH tunnel access to C1.
-- Do not expose the C1 recognition service to untrusted public networks.
+- If the CampusVision C1 service listens on `0.0.0.0`, restrict access through firewall, campus network policy, or reverse proxy.
+- Prefer controlled campus network, VPN, or SSH tunnel access to the CampusVision C1 service.
+- Do not expose the CampusVision C1 recognition service to untrusted public networks.
 
 <p align="right"><a href="#english">Back to English top</a></p>

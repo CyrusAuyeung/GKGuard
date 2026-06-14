@@ -5,7 +5,7 @@
 
 <a id="中文"></a>
 
-# C1 API 说明
+# CampusVision C1 API 说明
 
 Base URL：
 
@@ -167,7 +167,7 @@ http://127.0.0.1:8000/docs
 
 <a id="english"></a>
 
-# C1 API Reference
+# CampusVision C1 API Reference
 
 Base URL:
 

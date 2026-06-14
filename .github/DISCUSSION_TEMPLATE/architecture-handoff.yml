@@ -13,10 +13,10 @@ body:
     attributes:
       label: Scope / 相关范围
       options:
-        - label: C2 backend / C2 后端
-        - label: C2 frontend / C2 前端
+        - label: GKGuard C2 backend / GKGuard C2 后端
+        - label: GKGuard C2 frontend / GKGuard C2 前端
         - label: Electron desktop app / Electron 桌面端
-        - label: C1 CampusVision
+        - label: CampusVision C1 service / CampusVision C1 服务
         - label: CampusCar / UE / control team
         - label: Docs / Release / maintenance
   - type: textarea

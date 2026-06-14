@@ -5,13 +5,13 @@
 
 <a id="中文"></a>
 
-# C1 设计说明
+# CampusVision C1 设计说明
 
 CampusVision C1 负责校园历史视频中的人脸检索与轨迹分析，为 GKGuard C2 提供可调用的 AI 能力。当前实现以 FastAPI 暴露接口，以 SQLite 保存元数据和向量，以 InsightFace/ArcFace 生成 512 维人脸 embedding。
 
 ## 目标
 
-C1 的第一阶段目标是闭环以下能力：
+CampusVision C1 的第一阶段目标是闭环以下能力：
 
 1. 上传或接入历史视频。
 2. 按时间间隔抽帧。
@@ -29,11 +29,11 @@ C1 的第一阶段目标是闭环以下能力：
 - 实时 RTSP 拉流和流媒体运维。
 - 低层摄像头 SDK 适配。
 - 车辆重识别。
-- C2 桌面 UI。
+- GKGuard C2 桌面 UI。
 - CampusCar、UE 或底盘控制。
 - 用户认证、权限和生产审计。
 
-这些能力应由后续模块或上层 C2 接入。
+这些能力应由后续模块或上层 GKGuard C2 接入。
 
 ## 架构
 
@@ -126,7 +126,7 @@ FACE_ENGINE=insightface
 - 人脸检测和识别能力稳定。
 - ArcFace 512 维向量适合相似度比较。
 - 视频索引、人物聚类和查询图片可以共用同一向量空间。
-- C2 适配器和阈值解释更稳定。
+- GKGuard C2 适配器和阈值解释更稳定。
 
 本地开发如果使用旧环境或错误 worker，可能出现 `/health` 仍显示旧引擎的情况。需要确认实际监听端口的 uvicorn worker 环境变量。
 
@@ -147,13 +147,13 @@ FACE_ENGINE=insightface
 
 `trajectory` 是逐帧命中按时间排序后的地图/时间线视图。每个点包含摄像头、位置、时间和相似度。
 
-`appearance_events` 把同一视频、同一摄像头、连续时间窗口内的命中合并为一次出现。它更适合 C2 展示“某人在某地点停留/经过”的摘要。
+`appearance_events` 把同一视频、同一摄像头、连续时间窗口内的命中合并为一次出现。它更适合 GKGuard C2 展示“某人在某地点停留/经过”的摘要。
 
-## 与 C2 的关系
+## 与 GKGuard C2 的关系
 
-C2 不直接读取 C1 数据库或运行目录，而是通过 HTTP API 调用 C1。
+GKGuard C2 不直接读取 CampusVision C1 数据库或运行目录，而是通过 HTTP API 调用 CampusVision C1。
 
-推荐 C2 调用面：
+推荐 GKGuard C2 调用面：
 
 - `GET /health`
 - `GET /api/v1/persons`
@@ -162,7 +162,7 @@ C2 不直接读取 C1 数据库或运行目录，而是通过 HTTP API 调用 C1
 - `GET /api/v1/media/frame/{face_id}`
 - `GET /api/v1/media/face/{face_id}`
 
-C2 当前通过自身 `/c1/...` 代理和适配器转发这些能力，避免前端直接依赖 C1 内部结构。
+GKGuard C2 当前通过自身 `/c1/...` 代理和适配器转发这些能力，避免前端直接依赖 CampusVision C1 内部结构。
 
 ## 运行数据与安全
 
@@ -187,7 +187,7 @@ data/campusvision.sqlite3
 3. 增加批量索引进度查询。
 4. 将大规模 embedding 检索迁移到 FAISS 或向量数据库。
 5. 增加身份、权限、审计和数据保留策略。
-6. 提供 C2 所需的更稳定 response schema 版本号。
+6. 提供 GKGuard C2 所需的更稳定 response schema 版本号。
 7. 增加人体 ReID 和车辆检索能力。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
@@ -196,13 +196,13 @@ data/campusvision.sqlite3
 
 <a id="english"></a>
 
-# C1 Design Notes
+# CampusVision C1 Design Notes
 
 CampusVision C1 provides face retrieval and trajectory analysis over campus historical video, exposing AI capabilities for GKGuard C2. The current implementation uses FastAPI for APIs, SQLite for metadata and vectors, and InsightFace/ArcFace for 512-dimensional face embeddings.
 
 ## Goals
 
-The first C1 milestone closes this loop:
+The first CampusVision C1 milestone closes this loop:
 
 1. Upload or import historical video.
 2. Sample frames at a time interval.
@@ -220,11 +220,11 @@ The current phase does not own:
 - Real-time RTSP ingestion and streaming operations.
 - Low-level camera SDK adapters.
 - Vehicle re-identification.
-- C2 desktop UI.
+- GKGuard C2 desktop UI.
 - CampusCar, UE, or chassis control.
 - User authentication, authorization, and production audit.
 
-Those capabilities should be added by later modules or upper-level C2 integration.
+Those capabilities should be added by later modules or upper-level GKGuard C2 integration.
 
 ## Architecture
 
@@ -317,7 +317,7 @@ Reasons:
 - Stable face detection and recognition.
 - ArcFace 512-dimensional vectors are suitable for similarity search.
 - Video indexing, person clustering, and query images share one vector space.
-- C2 adapter behavior and threshold interpretation are more stable.
+- GKGuard C2 adapter behavior and threshold interpretation are more stable.
 
 In local development, an old environment or stale worker can make `/health` still show an old engine. Confirm the environment variables of the actual uvicorn worker that owns the listening port.
 
@@ -338,13 +338,13 @@ Thresholds should be calibrated against real camera angles, image quality, light
 
 `trajectory` is the map/timeline view created from frame-level matches sorted by time. Each point includes camera, location, time, and similarity.
 
-`appearance_events` merges hits from the same video, camera, and continuous time window into one appearance. It is better suited for C2 summaries such as “this person stayed at or passed through this place.”
+`appearance_events` merges hits from the same video, camera, and continuous time window into one appearance. It is better suited for GKGuard C2 summaries such as “this person stayed at or passed through this place.”
 
-## Relationship With C2
+## Relationship With GKGuard C2
 
-C2 should not read the C1 database or runtime directories directly. It should call C1 over HTTP APIs.
+GKGuard C2 should not read the CampusVision C1 database or runtime directories directly. It should call CampusVision C1 over HTTP APIs.
 
-Recommended C2 call surface:
+Recommended GKGuard C2 call surface:
 
 - `GET /health`
 - `GET /api/v1/persons`
@@ -353,7 +353,7 @@ Recommended C2 call surface:
 - `GET /api/v1/media/frame/{face_id}`
 - `GET /api/v1/media/face/{face_id}`
 
-C2 currently forwards these capabilities through its own `/c1/...` proxy and adapter so the frontend does not depend on C1 internals.
+GKGuard C2 currently forwards these capabilities through its own `/c1/...` proxy and adapter so the frontend does not depend on CampusVision C1 internals.
 
 ## Runtime Data And Safety
 
@@ -378,7 +378,7 @@ Suggested next steps:
 3. Add batch indexing progress APIs.
 4. Move large-scale embedding search to FAISS or a vector database.
 5. Add identity, permission, audit, and retention policies.
-6. Provide a more stable response schema version for C2.
+6. Provide a more stable response schema version for GKGuard C2.
 7. Add body ReID and vehicle retrieval.
 
 <p align="right"><a href="#english">Back to English top</a></p>

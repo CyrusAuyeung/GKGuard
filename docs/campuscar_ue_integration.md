@@ -7,11 +7,11 @@
 
 # CampusCar / UE 集成合同
 
-本文记录从初期材料、UE 测试模块和控制组 PPT 中整理出的集成边界。当前 GKGuard 只实现 C2 侧占位合同，不打包 UE 运行时，也不直接接管 ROS2 或底盘控制。
+本文记录从初期材料、UE 测试模块和控制组 PPT 中整理出的集成边界。当前 GKGuard 只实现 GKGuard C2 侧占位合同，不打包 UE 运行时，也不直接接管 ROS2 或底盘控制。
 
 ## 范围
 
-GKGuard 仍是 C2 工作台，负责 AI 检索、轨迹分析、事件处置、证据导出和操作员处理流程。CampusCar、ROS2、UE 和底盘控制栈保持在 GKGuard 桌面包之外。
+GKGuard 仍是 GKGuard C2 工作台，负责 AI 检索、轨迹分析、事件处置、证据导出和操作员处理流程。CampusCar、ROS2、UE 和底盘控制栈保持在 GKGuard 桌面包之外。
 
 GKGuard 应提供：
 
@@ -50,7 +50,7 @@ GKGuard C2 UI
   -> UE Bridge topics 与真实车辆栈
 ```
 
-未来 adapter service 可以是独立 Python/ROS2 进程。它负责把 GKGuard 复核任务转换为 ROS 消息，并把车辆/UE 反馈转换回 C2 任务状态。
+未来 adapter service 可以是独立 Python/ROS2 进程。它负责把 GKGuard 复核任务转换为 ROS 消息，并把车辆/UE 反馈转换回 GKGuard C2 任务状态。
 
 ## 字段映射
 
@@ -92,11 +92,11 @@ GKGuard C2 UI
 
 # CampusCar / UE Integration Contract
 
-This document records the integration boundary discovered from the initial materials, the UE test module, and the control group slides. GKGuard currently implements only the C2-side placeholder contract. It does not package the UE runtime and does not directly own ROS2 or chassis control.
+This document records the integration boundary discovered from the initial materials, the UE test module, and the control group slides. GKGuard currently implements only the GKGuard C2-side placeholder contract. It does not package the UE runtime and does not directly own ROS2 or chassis control.
 
 ## Scope
 
-GKGuard remains the C2 workbench for AI search, trajectory analysis, event disposition, evidence export, and operator review workflows. CampusCar, ROS2, UE, and the low-level chassis stack remain outside the GKGuard desktop package.
+GKGuard remains the GKGuard C2 workbench for AI search, trajectory analysis, event disposition, evidence export, and operator review workflows. CampusCar, ROS2, UE, and the low-level chassis stack remain outside the GKGuard desktop package.
 
 GKGuard should provide:
 
@@ -135,7 +135,7 @@ GKGuard C2 UI
   -> UE Bridge topics and real vehicle stack
 ```
 
-The future adapter service can be a separate Python/ROS2 process. It should translate GKGuard review tasks into ROS messages and translate vehicle/UE feedback back into C2 task status.
+The future adapter service can be a separate Python/ROS2 process. It should translate GKGuard review tasks into ROS messages and translate vehicle/UE feedback back into GKGuard C2 task status.
 
 ## Contract Mapping
 

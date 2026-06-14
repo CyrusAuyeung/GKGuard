@@ -8,8 +8,8 @@ body:
     attributes:
       label: Area / 模块
       options:
-        - C2 search workflow / C2 检索流程
-        - C1 integration / C1 接入
+        - GKGuard C2 search workflow / GKGuard C2 检索流程
+        - CampusVision C1 service integration / CampusVision C1 服务接入
         - Desktop startup or installer / 桌面启动或安装包
         - CampusCar or UE integration / CampusCar 或 UE 集成
         - Documentation or maintenance / 文档或维护
@@ -39,5 +39,5 @@ body:
       label: Boundary check / 边界检查
       options:
         - label: This does not require committing real media or private data. / 不需要提交真实媒体或隐私数据。
-        - label: If it touches C1/CampusCar/UE, the external service boundary is described. / 如涉及 C1/CampusCar/UE，已说明外部服务边界。
+        - label: If it touches CampusVision C1/CampusCar/UE, the external service boundary is described. / 如涉及 CampusVision C1/CampusCar/UE，已说明外部服务边界。
         - label: If it affects releases, docs and release notes will be updated. / 如影响发布，会同步文档和 Release notes。

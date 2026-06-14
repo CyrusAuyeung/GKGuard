@@ -7,46 +7,48 @@
 
 # API 合同
 
-C2 本地开发常用地址：
+本文中的 GKGuard C2 指桌面工作台和本地 FastAPI 代理层；CampusVision C1 指独立的视频检索服务。GKGuard C2 前端只访问 GKGuard C2 API；所有真实 CampusVision C1 检索都通过 GKGuard C2 的 `/c1/...` 代理完成。
+
+GKGuard C2 本地开发常用地址：
 
 ```text
 http://127.0.0.1:8002
 ```
 
-C1 适配器默认本机隧道地址：
+CampusVision C1 适配器默认本机隧道地址：
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版 `v0.1.17` 还内置候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，优先使用本机 SSH 隧道。C2 会自动探测候选 C1；若未通过隧道连接，桌面端会在软件内提示输入服务器密码、显示连接进度并建立 SSH 隧道。真实检索遇到 C1 502/503/504 时，适配器会尝试下一个候选地址。本版进一步修正上传、检查更新、路线、导出和信息提示图标，并保持路线页 `重新上传` 为最左侧操作。
+安装版 `v0.1.17` 还内置候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，优先使用本机 SSH 隧道。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内提示输入服务器密码、显示连接进度并建立 SSH 隧道。真实检索遇到 CampusVision C1 502/503/504 时，适配器会尝试下一个候选地址。本版进一步修正上传、检查更新、路线、导出和信息提示图标，并保持路线页 `重新上传` 为最左侧操作。
 
-C2 前端只访问 C2 API。真实 C1 检索通过 C2 的 `/c1/...` 代理完成；旧 mock API 继续保留用于离线演示和非 C1 流程。
+GKGuard C2 前端只访问 GKGuard C2 API。真实 CampusVision C1 检索通过 GKGuard C2 的 `/c1/...` 代理完成；旧 mock API 继续保留用于离线演示和非 CampusVision C1 流程。
 
 ## 系统
 
 `GET /health`
 
-返回 C2 服务状态。
+返回 GKGuard C2 服务状态。
 
-## C1 适配器状态
+## CampusVision C1 适配器状态
 
 `GET /c1/status`
 
-返回 C1 可达性与健康状态。
+返回 CampusVision C1 服务可达性与健康状态。
 
 关键字段：
 
-- `baseUrl`：当前用于展示或请求的 C1 地址。
-- `selectedBaseUrl`：自动探测后选中的健康 C1 地址；未选中时为 `null`。
-- `candidateUrls`：本次探测的候选 C1 地址列表。
+- `baseUrl`：当前用于展示或请求的 CampusVision C1 地址。
+- `selectedBaseUrl`：自动探测后选中的健康 CampusVision C1 地址；未选中时为 `null`。
+- `candidateUrls`：本次探测的候选 CampusVision C1 地址列表。
 - `candidates[]`：每个候选地址的 OpenAPI 与 `/health` 探测结果。
-- `reachable`：当前 `baseUrl` 是否能读取 C1 OpenAPI。
-- `healthOk`：当前 `baseUrl` 的 C1 `/health` 是否成功。
-- `health`：C1 health payload。
+- `reachable`：当前 `baseUrl` 是否能读取 CampusVision C1 OpenAPI。
+- `healthOk`：当前 `baseUrl` 的 CampusVision C1 `/health` 是否成功。
+- `health`：CampusVision C1 health payload。
 - `error` / `healthError`：连接或 HTTP 错误。
 
-## C1 人物与视频
+## CampusVision C1 人物与视频
 
 `GET /c1/persons`
 
@@ -58,7 +60,7 @@ C2 前端只访问 C2 API。真实 C1 检索通过 C2 的 `/c1/...` 代理完成
 }
 ```
 
-C2 会把 C1 人物代表帧和人脸裁剪图 URL 改写为 `/c1/media/...`。
+GKGuard C2 会把 CampusVision C1 人物代表帧和人脸裁剪图 URL 改写为 `/c1/media/...`。
 
 `GET /c1/videos`
 
@@ -70,13 +72,13 @@ C2 会把 C1 人物代表帧和人脸裁剪图 URL 改写为 `/c1/media/...`。
 }
 ```
 
-## C1 以图搜人
+## CampusVision C1 以图搜人
 
 `POST /c1/search/person-by-image`
 
 Multipart 表单字段：
 
-- `file`：C2 前端上传的一张查询图片。
+- `file`：GKGuard C2 前端上传的一张查询图片。
 
 Query 参数：
 
@@ -84,30 +86,30 @@ Query 参数：
 - `min_score`：可选，相似度阈值，范围 `0..1`。
 - `max_gap_sec`：默认 `3.0`。
 
-C2 会把 `file` 转发成 C1 所需的 `files` 字段，并返回归一化视图模型：
+GKGuard C2 会把 `file` 转发成 CampusVision C1 所需的 `files` 字段，并返回归一化视图模型：
 
 - `source`：`c1`。
-- `searchId`：C1 search ID。
+- `searchId`：CampusVision C1 search ID。
 - `engine`：通常为 `insightface`。
-- `warning` / `ambiguous`：C1 低置信或歧义提示。
+- `warning` / `ambiguous`：CampusVision C1 低置信或歧义提示。
 - `person`：当前 UI 选中的候选人物。
 - `records[]`：结果页关键帧记录，`frameUrl` 同时用于记录缩略图和详情关键帧。
 - `routePoints[]`：路线图轨迹点。
-- `appearanceEvents[]`：C1 连续出现事件。
-- `raw`：原始 C1 响应，保留用于调试和后续映射。
+- `appearanceEvents[]`：CampusVision C1 连续出现事件。
+- `raw`：原始 CampusVision C1 响应，保留用于调试和后续映射。
 
-如果 C1 不可用，C2 返回结构化错误；当前桌面 UI 会先触发 C1 连接窗口并重试一次，仍失败时才回退本地模拟数据。
+如果 CampusVision C1 服务不可用，GKGuard C2 返回结构化错误；当前桌面 UI 会先触发 CampusVision C1 连接窗口并重试一次，仍失败时才回退本地模拟数据。
 
-## C1 媒体代理
+## CampusVision C1 媒体代理
 
 `GET /c1/media/{kind}/{face_id}`
 
 路径参数：
 
 - `kind`：`frame` 或 `face`。
-- `face_id`：C1 face record ID。
+- `face_id`：CampusVision C1 face record ID。
 
-返回 C1 图片字节，通常为 `image/jpeg`。
+返回 CampusVision C1 图片字节，通常为 `image/jpeg`。
 
 ## 人员搜索（mock）
 
@@ -174,7 +176,7 @@ Query 参数：
 - `top_k`：默认 `5`。
 - `min_similarity`：默认 `0.72`。
 
-返回本地 Top-K mock 图片检索结果。真实 C1 人脸检索请使用 `/c1/search/person-by-image`。
+返回本地 Top-K mock 图片检索结果。真实 CampusVision C1 人脸检索请使用 `/c1/search/person-by-image`。
 
 ## 时间线（mock）
 
@@ -275,46 +277,48 @@ Query 参数：
 
 # API Contract
 
-Common local C2 development URL:
+Here, GKGuard C2 means the desktop workbench plus local FastAPI proxy layer, and CampusVision C1 means the standalone video-search service. The GKGuard C2 frontend calls GKGuard C2 APIs only; all real CampusVision C1 search goes through GKGuard C2 `/c1/...` proxy endpoints.
+
+Common local GKGuard C2 development URL:
 
 ```text
 http://127.0.0.1:8002
 ```
 
-Default local C1 tunnel URL:
+Default local CampusVision C1 tunnel URL:
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged `v0.1.17` app also has built-in candidates `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, preferring the local SSH tunnel. C2 probes candidate C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app, shows connection progress, and creates the SSH tunnel. When real search hits C1 502/503/504, the adapter tries the next candidate URL. This version further refines the upload, update, route, export, and information icons, and keeps the route-screen `重新上传` action as the leftmost control.
+The packaged `v0.1.17` app also has built-in candidates `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, preferring the local SSH tunnel. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app, shows connection progress, and creates the SSH tunnel. When real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL. This version further refines the upload, update, route, export, and information icons, and keeps the route-screen `重新上传` action as the leftmost control.
 
-The C2 frontend calls C2 APIs only. Real C1 search is exposed through C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-C1 workflows.
+The GKGuard C2 frontend calls GKGuard C2 APIs only. Real CampusVision C1 search is exposed through GKGuard C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-CampusVision C1 workflows.
 
 ## System
 
 `GET /health`
 
-Returns C2 service status.
+Returns GKGuard C2 service status.
 
-## C1 Adapter Status
+## CampusVision C1 Adapter Status
 
 `GET /c1/status`
 
-Returns C1 reachability and health information.
+Returns CampusVision C1 service reachability and health information.
 
 Important fields:
 
-- `baseUrl`: C1 URL currently used for display or requests.
-- `selectedBaseUrl`: healthy C1 URL selected by auto-probing, or `null` if none is selected.
-- `candidateUrls`: candidate C1 URLs checked during this probe.
+- `baseUrl`: CampusVision C1 URL currently used for display or requests.
+- `selectedBaseUrl`: healthy CampusVision C1 URL selected by auto-probing, or `null` if none is selected.
+- `candidateUrls`: candidate CampusVision C1 URLs checked during this probe.
 - `candidates[]`: OpenAPI and `/health` probe result for each candidate.
-- `reachable`: whether the current `baseUrl` can read C1 OpenAPI metadata.
-- `healthOk`: whether the current `baseUrl` succeeds on C1 `/health`.
-- `health`: C1 health payload.
+- `reachable`: whether the current `baseUrl` can read CampusVision C1 OpenAPI metadata.
+- `healthOk`: whether the current `baseUrl` succeeds on CampusVision C1 `/health`.
+- `health`: CampusVision C1 health payload.
 - `error` / `healthError`: connection or HTTP failures.
 
-## C1 People And Videos
+## CampusVision C1 People And Videos
 
 `GET /c1/persons`
 
@@ -326,7 +330,7 @@ Returns:
 }
 ```
 
-C2 rewrites C1 representative frame and face-crop URLs to `/c1/media/...`.
+GKGuard C2 rewrites CampusVision C1 representative frame and face-crop URLs to `/c1/media/...`.
 
 `GET /c1/videos`
 
@@ -338,13 +342,13 @@ Returns:
 }
 ```
 
-## C1 Person Search By Image
+## CampusVision C1 Person Search By Image
 
 `POST /c1/search/person-by-image`
 
 Multipart form field:
 
-- `file`: one query image uploaded by the C2 frontend.
+- `file`: one query image uploaded by the GKGuard C2 frontend.
 
 Query parameters:
 
@@ -352,30 +356,30 @@ Query parameters:
 - `min_score`: optional similarity threshold, range `0..1`.
 - `max_gap_sec`: default `3.0`.
 
-C2 forwards `file` as C1's required `files` field and returns a normalized view model:
+GKGuard C2 forwards `file` as CampusVision C1's required `files` field and returns a normalized view model:
 
 - `source`: `c1`.
-- `searchId`: C1 search ID.
+- `searchId`: CampusVision C1 search ID.
 - `engine`: usually `insightface`.
-- `warning` / `ambiguous`: C1 low-confidence or ambiguity information.
+- `warning` / `ambiguous`: CampusVision C1 low-confidence or ambiguity information.
 - `person`: selected candidate person for the current UI.
 - `records[]`: keyframe records for the result screen; `frameUrl` powers both record thumbnails and the detail keyframe.
 - `routePoints[]`: route points for the route screen.
-- `appearanceEvents[]`: C1 appearance events.
-- `raw`: original C1 response for debugging and future mapping.
+- `appearanceEvents[]`: CampusVision C1 appearance events.
+- `raw`: original CampusVision C1 response for debugging and future mapping.
 
-If C1 is unavailable, C2 returns a structured error. The current desktop UI first opens the C1 connection prompt and retries once; it falls back to local mock data only if C1 is still unavailable.
+If the CampusVision C1 service is unavailable, GKGuard C2 returns a structured error. The current desktop UI first opens the CampusVision C1 connection prompt and retries once; it falls back to local mock data only if CampusVision C1 is still unavailable.
 
-## C1 Media Proxy
+## CampusVision C1 Media Proxy
 
 `GET /c1/media/{kind}/{face_id}`
 
 Path parameters:
 
 - `kind`: `frame` or `face`.
-- `face_id`: C1 face record ID.
+- `face_id`: CampusVision C1 face record ID.
 
-Returns C1 image bytes, usually as `image/jpeg`.
+Returns CampusVision C1 image bytes, usually as `image/jpeg`.
 
 ## Person Search (Mock)
 
@@ -442,7 +446,7 @@ Query parameters:
 - `top_k`: default `5`.
 - `min_similarity`: default `0.72`.
 
-Returns local Top-K mock image-search matches. Use `/c1/search/person-by-image` for real C1 face search.
+Returns local Top-K mock image-search matches. Use `/c1/search/person-by-image` for real CampusVision C1 face search.
 
 ## Timeline (Mock)
 

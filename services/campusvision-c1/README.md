@@ -7,7 +7,7 @@
 
 # CampusVision C1：校园智能视频检索与轨迹分析接口版
 
-C1 是校园智能视频检索的第一阶段服务，负责打通：
+CampusVision C1 是校园智能视频检索的第一阶段服务，负责打通：
 
 ```text
 上传/接入视频 -> 抽帧 -> 人脸向量入库 -> 上传目标照片 -> 返回出现时间、地点、截图、相似度 -> 生成轨迹时间线
@@ -155,7 +155,7 @@ campusvision-c1/
     smoke_test.sh
 ```
 
-## C1 边界
+## CampusVision C1 边界
 
 当前重点：
 
@@ -190,7 +190,7 @@ data/frames/
 
 ### 可以直接接监控流吗？
 
-当前 C1 先以视频文件建立闭环。RTSP/SDK 接入依赖现场网络、权限、厂商协议和码流稳定性，建议作为后续能力独立设计。
+当前 CampusVision C1 先以视频文件建立闭环。RTSP/SDK 接入依赖现场网络、权限、厂商协议和码流稳定性，建议作为后续能力独立设计。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -200,7 +200,7 @@ data/frames/
 
 # CampusVision C1: Campus Video Retrieval And Trajectory API
 
-C1 is the first-stage campus video retrieval service. It connects:
+CampusVision C1 is the first-stage campus video retrieval service. It connects:
 
 ```text
 upload/import video -> sample frames -> index face embeddings -> upload target photo -> return time, location, frame, similarity -> generate trajectory timeline
@@ -348,7 +348,7 @@ campusvision-c1/
     smoke_test.sh
 ```
 
-## C1 Boundary
+## CampusVision C1 Boundary
 
 Current focus:
 
@@ -383,6 +383,6 @@ Do not commit these runtime files.
 
 ### Can It Connect Directly To Camera Streams?
 
-The current C1 milestone closes the loop with uploaded video files first. RTSP/SDK integration depends on site network access, permissions, vendor protocols, and stream stability, so it should be designed as a later capability.
+The current CampusVision C1 milestone closes the loop with uploaded video files first. RTSP/SDK integration depends on site network access, permissions, vendor protocols, and stream stability, so it should be designed as a later capability.
 
 <p align="right"><a href="#english">Back to English top</a></p>
