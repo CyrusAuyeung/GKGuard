@@ -25,6 +25,22 @@ def test_demo_page_available() -> None:
     assert "人物路线图" in response.text
 
 
+def test_static_assets_render_real_thumbnails() -> None:
+    script_response = client.get("/static/app.js")
+    assert script_response.status_code == 200
+    script = script_response.text
+    assert "function recordThumbMarkup" in script
+    assert "mini-face has-thumb" in script
+    assert "record.frameUrl" in script
+
+    style_response = client.get("/static/styles.css")
+    assert style_response.status_code == 200
+    style = style_response.text
+    assert ".portrait-frame img" in style
+    assert "object-fit: contain" in style
+    assert ".mini-face img" in style
+
+
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
     from app.services import c1_service
 

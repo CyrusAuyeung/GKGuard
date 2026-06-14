@@ -15,7 +15,7 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 
 | 版本 | 状态 |
 |---|---|
-| v0.1.9 | 当前演示版本，接受安全修复 |
+| v0.1.11 | 当前演示版本，接受安全修复 |
 | v0.1.8 及更早 | 历史演示版本，仅按需要补充说明 |
 
 ## 如何报告安全问题
@@ -62,7 +62,7 @@ Currently maintained versions:
 
 | Version | Status |
 |---|---|
-| v0.1.9 | Current demo version, accepts security fixes |
+| v0.1.11 | Current demo version, accepts security fixes |
 | v0.1.8 and earlier | Historical demo versions, documentation updates only as needed |
 
 ## Reporting A Security Issue

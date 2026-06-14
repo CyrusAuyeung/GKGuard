@@ -91,7 +91,7 @@ GKGuard C2 当前使用两类数据：
 - `cameraId`：C1 摄像头 ID。
 - `similarity`：C1 归一化分数。
 - `note`：C2 展示说明。
-- `frameUrl`：C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`。
+- `frameUrl`：C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于结果列表缩略图和详情关键帧。
 - `faceId`：C1 face record ID。
 - `videoId`：C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
@@ -260,7 +260,7 @@ Sensitive in real deployments: face images, frame images, person links, movement
 - `cameraId`: C1 camera ID.
 - `similarity`: normalized C1 score.
 - `note`: C2 display note.
-- `frameUrl`: C2 proxy media URL, usually `/c1/media/frame/{face_id}`.
+- `frameUrl`: C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by result-list thumbnails and the detail keyframe.
 - `faceId`: C1 face record ID.
 - `videoId`: C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.

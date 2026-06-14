@@ -117,6 +117,13 @@ function portraitMarkup() {
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
 
+function recordThumbMarkup(record) {
+  if (record.frameUrl) {
+    return `<span class="mini-face has-thumb"><img src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
+  }
+  return '<span class="mini-face" aria-hidden="true"></span>';
+}
+
 function syncPortraits() {
   [elements.uploadPreview, elements.resultPortrait, elements.routePortrait].forEach((target) => {
     if (!target) return;
@@ -199,7 +206,7 @@ async function fetchC1Search() {
 function renderRecordLists() {
   const html = records.map((record, index) => `
     <button class="record-card ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-index="${index}">
-      <span class="mini-face" aria-hidden="true"></span>
+      ${recordThumbMarkup(record)}
       <span>
         <strong>${escapeHtml(record.title)}</strong>
         <span>${escapeHtml(record.time)}</span>

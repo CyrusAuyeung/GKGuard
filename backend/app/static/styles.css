@@ -208,7 +208,7 @@ input, select {
 }
 .large-placeholder { width: 180px; height: 148px; }
 .target-frame { width: 160px; height: 136px; margin: 16px auto 2px; border-radius: 9px; }
-.portrait-frame img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.portrait-frame img { width: 100%; height: 100%; object-fit: contain; border-radius: inherit; background: #eef4ff; }
 .portrait-frame::after {
   content: "";
   position: absolute;
@@ -249,6 +249,9 @@ input, select {
 .record-card strong { display: block; margin-bottom: 8px; font-size: 15px; }
 .record-card span span { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; color: #7b8da5; font-size: 12px; }
 .mini-face { position: relative; overflow: hidden; width: 72px; height: 48px; border-radius: 6px; background: linear-gradient(135deg, #dde8f8, #f7fbff 52%, #bfd1ec); }
+.mini-face img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mini-face.has-thumb::before,
+.mini-face.has-thumb::after { display: none; }
 .mini-face::before { content: ""; position: absolute; left: 31px; top: 10px; width: 16px; height: 20px; border-radius: 50% 50% 42% 42%; background: #222c39; }
 .mini-face::after { content: ""; position: absolute; left: 25px; bottom: 0; width: 30px; height: 24px; border-radius: 14px 14px 0 0; background: #111927; }
 
