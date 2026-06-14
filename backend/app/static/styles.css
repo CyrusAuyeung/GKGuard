@@ -56,9 +56,20 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   box-shadow: 0 9px 20px rgba(44, 70, 110, 0.1);
 }
 
-.update-icon { position: relative; width: 16px; height: 16px; }
-.update-icon::before { content: ""; position: absolute; inset: 2px; border: 2px solid currentColor; border-left-color: transparent; border-radius: 50%; }
-.update-icon::after { content: ""; position: absolute; right: 0; top: 1px; width: 6px; height: 6px; border-top: 2px solid currentColor; border-right: 2px solid currentColor; transform: rotate(20deg); }
+.icon-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.ui-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  color: currentColor;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.update-icon { width: 18px; height: 18px; }
 
 .search-card,
 .workbench {
@@ -82,24 +93,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .screen-heading h1 { margin: 0; font-size: 30px; line-height: 1.2; font-weight: 800; }
 .screen-heading p { margin: 10px 0 0; color: var(--muted); font-size: 16px; }
 
-.face-icon { position: relative; width: 36px; height: 36px; color: var(--primary); }
-.face-icon::before,
-.face-icon::after { content: ""; position: absolute; }
-.face-icon::before {
-  left: 12px;
-  top: 10px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 14px 0 4px rgba(36, 111, 245, 0.16);
-}
-.face-icon::after {
-  inset: 2px;
-  border: 3px solid currentColor;
-  border-radius: 9px;
-  clip-path: polygon(0 0, 33% 0, 33% 14%, 14% 14%, 14% 33%, 0 33%, 0 0, 67% 0, 100% 0, 100% 33%, 86% 33%, 86% 14%, 67% 14%, 67% 0, 100% 67%, 100% 100%, 67% 100%, 67% 86%, 86% 86%, 86% 67%, 100% 67%, 33% 100%, 0 100%, 0 67%, 14% 67%, 14% 86%, 33% 86%, 33% 100%);
-}
+.face-icon { width: 40px; height: 40px; color: var(--primary); stroke-width: 1.8; }
 
 .search-layout {
   position: relative;
@@ -140,14 +134,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 }
 .upload-drop.is-dragging { border-color: var(--primary); background: #eef5ff; }
 .upload-action { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
-.upload-action i,
-.download-icon,
-.route-small-icon,
-.back-icon,
-.search-action-icon { position: relative; display: inline-block; width: 18px; height: 18px; flex: 0 0 auto; }
-.upload-action i { border: 1px solid #d9e7ff; border-radius: 50%; background: #fff; }
-.upload-action i::before { content: ""; position: absolute; left: 7px; top: 4px; width: 4px; height: 8px; border-left: 2px solid var(--primary); border-top: 2px solid var(--primary); transform: rotate(45deg); }
-.upload-action i::after { content: ""; position: absolute; left: 5px; bottom: 4px; width: 8px; border-top: 2px solid var(--primary); }
+.upload-icon { width: 22px; height: 22px; }
 .upload-drop small { color: #6a7b91; font-size: 13px; }
 
 .query-panel { grid-column: 3; display: grid; gap: 44px; padding-top: 26px; }
@@ -183,8 +170,7 @@ input, select {
 .outline-action { color: #2e5fbd; background: #fff; border-color: #d7e3f4; }
 .outline-action:hover { border-color: #8cb7ff; background: #f5f9ff; }
 .search-action { grid-column: 2; grid-row: 1; justify-self: center; align-self: center; min-width: 148px; min-height: 60px; font-size: 17px; }
-.search-action-icon::before { content: ""; position: absolute; inset: 2px 5px 6px 2px; border: 3px solid currentColor; border-radius: 50%; }
-.search-action-icon::after { content: ""; position: absolute; right: 1px; bottom: 1px; width: 8px; border-top: 3px solid currentColor; transform: rotate(45deg); transform-origin: right center; }
+.search-action-icon { width: 22px; height: 22px; }
 
 .info-banner {
   display: flex;
@@ -198,7 +184,7 @@ input, select {
   color: #3864aa;
   background: #f3f8ff;
 }
-.info-banner span { display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid var(--primary); border-radius: 50%; color: var(--primary); font-weight: 900; font-style: normal; }
+.info-icon { width: 20px; height: 20px; }
 
 .workbench { display: grid; gap: 18px; min-height: 638px; padding: 20px; }
 .result-workbench { grid-template-columns: 310px 1fr; }
@@ -243,12 +229,9 @@ input, select {
 
 .detail-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
 .button-cluster { display: flex; align-items: center; gap: 10px; }
-.route-small-icon::before { content: ""; position: absolute; inset: 4px 3px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: skew(-20deg); }
-.route-small-icon::after { content: ""; position: absolute; right: 2px; top: 3px; width: 5px; height: 5px; border-radius: 50%; background: currentColor; box-shadow: -10px 9px 0 currentColor; }
-.download-icon::before { content: ""; position: absolute; left: 8px; top: 2px; height: 10px; border-left: 2px solid currentColor; }
-.download-icon::after { content: ""; position: absolute; left: 4px; bottom: 3px; width: 10px; height: 8px; border-bottom: 2px solid currentColor; border-left: 2px solid currentColor; border-right: 2px solid currentColor; }
-.back-icon::before { content: ""; position: absolute; left: 4px; top: 8px; width: 12px; border-top: 2px solid currentColor; }
-.back-icon::after { content: ""; position: absolute; left: 3px; top: 5px; width: 7px; height: 7px; border-left: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); }
+.route-small-icon,
+.download-icon,
+.back-icon { width: 18px; height: 18px; }
 
 .record-list { display: grid; gap: 10px; margin-top: 12px; }
 .record-card {
@@ -353,7 +336,7 @@ input, select {
 .summary-rows span { color: #677890; }
 .summary-rows strong { color: #33445d; }
 .summary-note { grid-template-columns: 24px 1fr !important; color: #3b6bb6; }
-.summary-note span { display: grid; place-items: center; width: 18px; height: 18px; border: 2px solid var(--primary); border-radius: 50%; color: var(--primary); font-weight: 900; }
+.summary-note .info-icon { width: 18px; height: 18px; }
 
 .route-stats { display: grid; gap: 10px; margin: 18px 0 0; padding: 14px; border: 1px solid #edf2f8; border-radius: 7px; background: #f8fbff; }
 .route-stats div { display: grid; grid-template-columns: 92px 1fr; }

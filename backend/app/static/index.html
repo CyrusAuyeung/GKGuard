@@ -7,9 +7,67 @@
     <link rel="stylesheet" href="/static/styles.css?v=faceflow6" />
   </head>
   <body>
+    <svg class="icon-defs" aria-hidden="true" focusable="false">
+      <symbol id="icon-update" viewBox="0 0 24 24">
+        <path d="M20 7a8 8 0 0 0-13.2-3.1L4 6.5" />
+        <path d="M4 4v2.5h2.5" />
+        <path d="M4 17a8 8 0 0 0 13.2 3.1L20 17.5" />
+        <path d="M20 20v-2.5h-2.5" />
+        <path d="m9.5 12 1.8 1.8 3.6-4" />
+      </symbol>
+      <symbol id="icon-face-search" viewBox="0 0 24 24">
+        <path d="M7 3H4.5A1.5 1.5 0 0 0 3 4.5V7" />
+        <path d="M17 3h2.5A1.5 1.5 0 0 1 21 4.5V7" />
+        <path d="M7 21H4.5A1.5 1.5 0 0 1 3 19.5V17" />
+        <path d="M17 21h2.5a1.5 1.5 0 0 0 1.5-1.5V17" />
+        <circle cx="12" cy="10" r="3" />
+        <path d="M7.5 18c.9-2.5 2.4-3.7 4.5-3.7s3.6 1.2 4.5 3.7" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m15.5 15.5 4.5 4.5" />
+        <circle cx="10.5" cy="9.2" r="1.8" />
+        <path d="M7.4 14c.7-1.5 1.7-2.2 3.1-2.2s2.4.7 3.1 2.2" />
+      </symbol>
+      <symbol id="icon-upload" viewBox="0 0 24 24">
+        <rect x="4" y="5" width="16" height="14" rx="2" />
+        <path d="M8 16.5h8" />
+        <path d="M12 15V8" />
+        <path d="m8.8 11.2 3.2-3.2 3.2 3.2" />
+      </symbol>
+      <symbol id="icon-back-upload" viewBox="0 0 24 24">
+        <path d="M9 7 4 12l5 5" />
+        <path d="M4 12h9a5 5 0 0 1 5 5v1" />
+        <rect x="13" y="5" width="7" height="6" rx="1.5" />
+      </symbol>
+      <symbol id="icon-back-results" viewBox="0 0 24 24">
+        <path d="M9 7 4 12l5 5" />
+        <path d="M4 12h16" />
+        <path d="M14 7h6" />
+        <path d="M14 17h6" />
+      </symbol>
+      <symbol id="icon-route" viewBox="0 0 24 24">
+        <circle cx="6" cy="18" r="2" />
+        <circle cx="12" cy="6" r="2" />
+        <circle cx="18" cy="16" r="2.5" />
+        <path d="M7.2 16.4c2.2-2.1 3.2-4.1 3.8-8.4" />
+        <path d="M13.2 7.6c2.4 1.9 3.7 3.7 4.2 6" />
+      </symbol>
+      <symbol id="icon-export" viewBox="0 0 24 24">
+        <path d="M12 4v10" />
+        <path d="m8.5 10.5 3.5 3.5 3.5-3.5" />
+        <path d="M5 15v3.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V15" />
+        <path d="M7 4h10" />
+      </symbol>
+      <symbol id="icon-info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 11v5" />
+        <path d="M12 8h.01" />
+      </symbol>
+    </svg>
     <div id="desktopUpdatePanel" class="desktop-update" hidden>
       <button id="checkUpdateBtn" class="outline-action update-action" type="button">
-        <span class="update-icon" aria-hidden="true"></span>
+        <svg class="ui-icon update-icon" aria-hidden="true"><use href="#icon-update"></use></svg>
         <span id="updateStatus">检查更新</span>
       </button>
     </div>
@@ -17,7 +75,7 @@
       <section id="searchView" class="screen search-screen is-active" data-screen="search">
         <article class="search-card">
           <header class="screen-heading compact-heading">
-            <span class="face-icon" aria-hidden="true"></span>
+            <svg class="ui-icon face-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
             <div>
               <h1>人脸检索</h1>
               <p>上传目标人脸图片，在指定时间范围内检索相关关键帧</p>
@@ -29,7 +87,7 @@
               <h2>上传图片</h2>
               <button id="uploadDrop" class="upload-drop" type="button">
                 <span id="uploadPreview" class="portrait-frame large-placeholder" aria-hidden="true"><span class="portrait-art"></span></span>
-                <span class="upload-action"><i aria-hidden="true"></i>点击上传或拖拽图片到此处</span>
+                <span class="upload-action"><svg class="ui-icon upload-icon" aria-hidden="true"><use href="#icon-upload"></use></svg>点击上传或拖拽图片到此处</span>
                 <small id="uploadHint">支持 JPG / PNG，建议上传清晰正脸照片</small>
               </button>
               <input id="faceFile" type="file" accept="image/png,image/jpeg" hidden />
@@ -60,18 +118,18 @@
             </section>
 
             <button id="startSearchBtn" class="primary-action search-action" type="button">
-              <span class="search-action-icon" aria-hidden="true"></span>
+              <svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
               开始检索
             </button>
           </div>
 
-          <footer class="info-banner"><span aria-hidden="true">i</span>检索源：历史监控关键帧，人脸结果将进入记录详情与路线图。</footer>
+          <footer class="info-banner"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg>检索源：历史监控关键帧，人脸结果将进入记录详情与路线图。</footer>
         </article>
       </section>
 
       <section id="resultView" class="screen result-screen" data-screen="result">
         <header class="screen-heading">
-          <span class="face-icon" aria-hidden="true"></span>
+          <svg class="ui-icon face-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
           <div>
             <h1>人脸检索结果</h1>
             <p>基于上传目标人脸，在历史监控关键帧中检索到相关记录</p>
@@ -91,9 +149,9 @@
             <div class="detail-toolbar">
               <h2 id="recordTitle">记录1</h2>
               <div class="button-cluster">
-                <button id="newSearchBtn" class="outline-action" type="button"><span class="back-icon" aria-hidden="true"></span>重新上传</button>
-                <button id="openRouteBtn" class="outline-action" type="button"><span class="route-small-icon" aria-hidden="true"></span>查看人物路线图</button>
-                <button id="exportFrameBtn" class="outline-action" type="button"><span class="download-icon" aria-hidden="true"></span>导出截图</button>
+                <button id="newSearchBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-upload"></use></svg>重新上传</button>
+                <button id="openRouteBtn" class="outline-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>查看人物路线图</button>
+                <button id="exportFrameBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出截图</button>
                 <button id="showAllBtn" class="primary-action" type="button">查看全部结果</button>
               </div>
             </div>
@@ -123,7 +181,7 @@
 
       <section id="routeView" class="screen route-screen" data-screen="route">
         <header class="screen-heading">
-          <span class="face-icon" aria-hidden="true"></span>
+          <svg class="ui-icon face-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
           <div>
             <h1>人物路线图</h1>
             <p>基于历史监控关键帧，自动还原目标人物在校园内的移动路径</p>
@@ -148,10 +206,10 @@
             <div class="detail-toolbar">
               <h2>目标人物路线图</h2>
               <div class="button-cluster">
-                <button id="backToResultBtn" class="outline-action" type="button"><span class="back-icon" aria-hidden="true"></span>返回检索结果</button>
-                <button id="routeNewSearchBtn" class="outline-action" type="button"><span class="back-icon" aria-hidden="true"></span>重新上传</button>
-                <button id="exportRouteBtn" class="outline-action" type="button"><span class="download-icon" aria-hidden="true"></span>导出路线图</button>
-                <button id="fullRouteBtn" class="primary-action" type="button"><span class="route-small-icon" aria-hidden="true"></span>查看完整轨迹</button>
+                <button id="backToResultBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-results"></use></svg>返回检索结果</button>
+                <button id="routeNewSearchBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-upload"></use></svg>重新上传</button>
+                <button id="exportRouteBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出路线图</button>
+                <button id="fullRouteBtn" class="primary-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>查看完整轨迹</button>
               </div>
             </div>
 
@@ -169,7 +227,7 @@
                   <div><span>覆盖摄像头：</span><strong id="summaryCameraCount">4路</strong></div>
                   <div><span>关键帧数量：</span><strong id="summaryFrameCount">5</strong></div>
                   <div><span>最终相似度：</span><strong id="summaryFinalSimilarity">98%</strong></div>
-                  <div class="summary-note"><span aria-hidden="true">i</span><strong>系统根据检索结果自动生成目标人物校园活动路径。</strong></div>
+                  <div class="summary-note"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg><strong>系统根据检索结果自动生成目标人物校园活动路径。</strong></div>
                 </div>
               </section>
             </div>

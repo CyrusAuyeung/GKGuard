@@ -7,7 +7,7 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.15` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/内嵌 SSH 密码窗口和连接进度、软件内下载并重启安装的更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
+GKGuard 是校园安防 AI 检索项目中的 C2 演示端。当前 `v0.1.16` 状态下，仓库包含 C2 后端、三界面人脸检索前端、Electron 桌面壳、C1 自动连接/内嵌 SSH 密码窗口和连接进度、自然融合的线性功能图标、品牌图标资产、软件内下载并重启安装的更新入口，以及作为独立模块导入的 C1 CampusVision 视频检索服务。
 
 ## 当前状态
 
@@ -205,7 +205,7 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.15`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an embedded SSH password prompt and connection progress, an in-app update flow that downloads and restarts to install updates, and the imported C1 CampusVision video retrieval service as a separate module.
+GKGuard is the C2 demo shell for the campus security AI search project. As of `v0.1.16`, this repository contains the C2 backend, the three-screen face-search frontend, the Electron desktop shell, C1 auto-connection with an embedded SSH password prompt and connection progress, naturally integrated linear UI icons, brand icon assets, an in-app update flow that downloads and restarts to install updates, and the imported C1 CampusVision video retrieval service as a separate module.
 
 ## Current Status
 

@@ -58,6 +58,30 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "object-position: center center" in style
     assert ".mini-face img" in style
     assert ".desktop-update" in style
+    assert ".ui-icon" in style
+    assert "stroke: currentColor" in style
+    assert "background-image: url(\"/static/icons/search-action.png\")" not in style
+
+    page_response = client.get("/demo")
+    assert page_response.status_code == 200
+    page = page_response.text
+    assert "icon-face-search" in page
+    assert "icon-search" in page
+    assert "icon-upload" in page
+    assert "icon-back-upload" in page
+    assert "icon-back-results" in page
+    assert "icon-route" in page
+    assert "icon-export" in page
+    assert "icon-update" in page
+    assert "icon-info" in page
+
+    for icon_name in [
+        "app-mark.png",
+        "boot-mark.png",
+    ]:
+        icon_response = client.get(f"/static/icons/{icon_name}")
+        assert icon_response.status_code == 200
+        assert icon_response.headers["content-type"] == "image/png"
 
 
 def test_desktop_update_bridge_wired() -> None:
@@ -65,6 +89,8 @@ def test_desktop_update_bridge_wired() -> None:
     preload_script = (ROOT_DIR / "desktop" / "preload.js").read_text(encoding="utf-8")
 
     assert "preload.js" in main_script
+    assert "APP_ICON_PATH" in main_script
+    assert "app-mark.ico" in main_script
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
     assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
@@ -93,6 +119,7 @@ def test_desktop_update_bridge_wired() -> None:
 
     password_page = (ROOT_DIR / "desktop" / "ssh-password.html").read_text(encoding="utf-8")
     assert "服务器密码" in password_page
+    assert "connection-icon" in password_page
     assert "submitSshPassword" in password_page
     assert "cancelSshPassword" in password_page
     assert "progressBar" in password_page

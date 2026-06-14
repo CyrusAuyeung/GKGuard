@@ -21,6 +21,7 @@ const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/re
 const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
 const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
 const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
+const APP_ICON_PATH = path.join(__dirname, "assets", "icons", "app-mark.ico");
 const DEFAULT_C1_SSH_TUNNEL = {
   enabled: true,
   host: "10.4.167.122",
@@ -418,14 +419,15 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
 function promptForSshPassword(tunnel, reason, connectWithPassword) {
   return new Promise((resolve) => {
     const modal = new BrowserWindow({
-      width: 480,
-      height: 360,
+      width: 520,
+      height: 470,
       parent: mainWindow,
       modal: true,
       resizable: false,
       minimizable: false,
       maximizable: false,
       title: "连接 C1 服务器",
+      icon: APP_ICON_PATH,
       backgroundColor: "#f4f7fb",
       autoHideMenuBar: true,
       webPreferences: {
@@ -676,6 +678,7 @@ function createWindow() {
     height: 860,
     minWidth: 1180,
     minHeight: 720,
+    icon: APP_ICON_PATH,
     backgroundColor: "#f4f7fb",
     title: "GKGuard",
     autoHideMenuBar: true,

@@ -1,6 +1,6 @@
 {
   "name": "gkguard-desktop",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "description": "GKGuard campus security AI dashboard desktop shell.",
   "main": "desktop/main.js",
   "author": "GKGuard Team",
@@ -31,6 +31,7 @@
       }
     ],
     "artifactName": "GKGuard-Setup-${version}.${ext}",
+    "icon": "desktop/assets/icons/app-mark.ico",
     "files": [
       "desktop/**/*",
       "package.json"

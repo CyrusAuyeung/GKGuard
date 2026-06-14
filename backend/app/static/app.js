@@ -439,7 +439,7 @@ function renderRouteTimeline() {
 
 async function startSearch() {
   elements.startSearchBtn.disabled = true;
-  elements.startSearchBtn.textContent = "检索中...";
+  elements.startSearchBtn.innerHTML = '<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>检索中...';
   showToast(uploadedFile ? "正在调用 C1 检索服务。" : "未上传图片，使用本地模拟数据。");
   try {
     if (uploadedFile) {
@@ -465,7 +465,7 @@ async function startSearch() {
     }
   } finally {
     elements.startSearchBtn.disabled = false;
-    elements.startSearchBtn.innerHTML = '<span class="search-action-icon" aria-hidden="true"></span>开始检索';
+    elements.startSearchBtn.innerHTML = '<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>开始检索';
     selectedRecordIndex = 0;
     renderRecordLists();
     renderSelectedRecord();
