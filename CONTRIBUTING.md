@@ -30,6 +30,8 @@ python -m pytest
 
 桌面端：
 
+本地桌面开发和打包建议使用 Node.js `22.12.0` 或更高版本；当前 Electron 42 依赖链要求 Node 22+。
+
 ```powershell
 npm install
 npm run desktop
@@ -103,6 +105,8 @@ python -m pytest
 ```
 
 Desktop app:
+
+Use Node.js `22.12.0` or later for local desktop development and packaging. The current Electron 42 dependency chain requires Node 22+.
 
 ```powershell
 npm install

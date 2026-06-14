@@ -130,6 +130,8 @@ http://127.0.0.1:8002/docs
 
 从 GitHub Release 下载的最新 Windows 安装包用于 C2 桌面端演示。安装后直接打开即可启动内置本地 C2 后端并进入 `/demo`，不需要另外安装 Python、Node.js 或手动启动 C2 服务。
 
+本地开发或打包桌面端时建议使用 Node.js `22.12.0` 或更高版本；当前 Electron 42 依赖链要求 Node 22+。
+
 网络边界：
 
 - 离线或非校园网环境：可以正常打开软件，使用本地 mock fallback 演示三屏人脸检索壳体、路线图和占位数据。
@@ -161,7 +163,7 @@ git tag -a v0.1.x -m "GKGuard v0.1.x"
 git push origin v0.1.x
 ```
 
-tag 推送后，workflow 会安装 Python 和 Node.js、运行后端测试、构建 Electron Windows 安装包、生成 Release 说明，并把安装包和更新元数据附到 GitHub Release。
+tag 推送后，workflow 会安装 Python 和 Node.js 22、运行后端测试、构建 Electron Windows 安装包、生成 Release 说明，并把安装包和更新元数据附到 GitHub Release。
 
 如果 `docs/releases/v0.1.x.md` 存在，workflow 会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 Release 正文。
 
@@ -324,6 +326,8 @@ If C1 is not connected, the demo UI still works through the local mock fallback.
 
 The latest Windows installer from GitHub Releases is for the C2 desktop demo. After installation, opening the app starts the bundled local C2 backend and loads `/demo`; Python, Node.js, and manual C2 startup are not required for the packaged app.
 
+For local desktop development or packaging, use Node.js `22.12.0` or later. The current Electron 42 dependency chain requires Node 22+.
+
 Network boundary:
 
 - Offline or outside campus network: the app opens normally and can use local mock fallback for the three-screen face-search shell, route map, and placeholder data.
@@ -355,7 +359,7 @@ git tag -a v0.1.x -m "GKGuard v0.1.x"
 git push origin v0.1.x
 ```
 
-After a tag is pushed, the workflow installs Python and Node.js, runs backend tests, builds the Electron Windows installer, generates release notes, and attaches the installer and update metadata to the GitHub Release.
+After a tag is pushed, the workflow installs Python and Node.js 22, runs backend tests, builds the Electron Windows installer, generates release notes, and attaches the installer and update metadata to the GitHub Release.
 
 If `docs/releases/v0.1.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
 
