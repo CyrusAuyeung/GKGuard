@@ -2,7 +2,7 @@
 
 ## 变更摘要
 
-- 
+- 请概述本次变更。
 
 ## 影响范围
 
@@ -33,7 +33,7 @@
 
 ## Summary
 
-- 
+- Please summarize this change.
 
 ## Scope
 

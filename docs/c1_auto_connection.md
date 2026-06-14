@@ -242,7 +242,7 @@ This is secure but not fully automatic, because the SSH password or key still be
 
 ## Default Option C: Enter SSH Password After Opening The App
 
-The desktop app supports this mode by default: at startup it checks the local SSH tunnel first. If the tunnel is not connected, the app shows an embedded “Connect C1 server” password window with progress. After you type the server password, GKGuard uses it for the current SSH tunnel only; it does not store, log, or write the password. If real search returns CampusVision C1 503 after the page opens, the UI triggers the same embedded connection window and retries once.
+The desktop app supports this mode by default: at startup it checks the local SSH tunnel first. If the tunnel is not connected, the app shows an embedded “Connect CampusVision C1 service” password window with progress. After you type the server password, GKGuard uses it for the current SSH tunnel only; it does not store, log, or write the password. If real search returns CampusVision C1 503 after the page opens, the UI triggers the same embedded connection window and retries once.
 
 Built-in defaults:
 
@@ -284,8 +284,8 @@ Optional override path:
 Startup behavior:
 
 1. GKGuard probes `candidateUrls` first.
-2. If the local tunnel is not connected, it shows a “Connect C1 server” prompt; even when the direct URL is reachable, the app prefers establishing the tunnel.
-3. The app opens the embedded “Connect C1 server” window.
+2. If the local tunnel is not connected, it shows a “Connect CampusVision C1 service” prompt; even when the direct URL is reachable, the app prefers establishing the tunnel.
+3. The app opens the embedded “Connect CampusVision C1 service” window.
 4. You type the server password in that window, and the main process creates the SSH tunnel with that one-time password.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 

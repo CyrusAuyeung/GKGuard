@@ -28,7 +28,7 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 
 本地开发流程：
 
-1. 启动 CampusVision C1 服务，或连接团队 CampusVision C1 服务器隧道。
+1. 启动 CampusVision C1 服务，或连接团队 CampusVision C1 服务所在服务器隧道。
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>

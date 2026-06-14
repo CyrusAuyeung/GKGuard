@@ -198,7 +198,7 @@ http://127.0.0.1:8002/docs
 
 - 离线或非校园网环境：可以正常打开软件，使用本地 mock fallback 演示三屏人脸检索壳体、路线图和占位数据。
 - 校园网、VPN 或 SSH 隧道可用时：可以连接服务器上的真实 CampusVision C1 服务，执行真实视频/人脸检索并显示 CampusVision C1 关键帧和轨迹。
-- 如果不在校园网且没有到 CampusVision C1 服务器的 VPN/隧道，真实 CampusVision C1 检索不可用，但软件本身仍可打开并演示 mock 流程。
+- 如果不在校园网且没有到 CampusVision C1 服务所在服务器的 VPN/隧道，真实 CampusVision C1 检索不可用，但软件本身仍可打开并演示 mock 流程。
 
 ```powershell
 python -m pip install -r backend/requirements.txt
