@@ -25,6 +25,54 @@ def test_demo_page_available() -> None:
     assert "人物路线图" in response.text
 
 
+def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:9")
+    response = client.get("/c1/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["baseUrl"] == "http://127.0.0.1:9"
+    assert body["reachable"] is False
+
+
+def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_search_person_by_image(**kwargs):
+        assert kwargs["filename"] == "target.jpg"
+        return {
+            "source": "c1",
+            "records": [
+                {
+                    "id": 1,
+                    "title": "记录1",
+                    "time": "10:00:00",
+                    "fullTime": "2026-06-14 10:00:00",
+                    "location": "cam02",
+                    "camera": "cam02",
+                    "cameraId": "cam02",
+                    "similarity": 0.88,
+                    "note": "来自 C1 CampusVision 的真实检索结果",
+                    "sceneClass": "scene-1",
+                    "progress": 21,
+                    "frameUrl": "/c1/media/frame/face-1",
+                }
+            ],
+            "routePoints": [],
+        }
+
+    monkeypatch.setattr(c1_service, "search_person_by_image", fake_search_person_by_image)
+    response = client.post(
+        "/c1/search/person-by-image",
+        files={"file": ("target.jpg", b"fake image", "image/jpeg")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source"] == "c1"
+    assert body["records"][0]["frameUrl"] == "/c1/media/frame/face-1"
+
+
 def test_root_redirects_to_demo() -> None:
     response = client.get("/", follow_redirects=False)
     assert response.status_code in {307, 308}

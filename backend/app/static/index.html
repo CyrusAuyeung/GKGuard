@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=faceflow1" />
+    <link rel="stylesheet" href="/static/styles.css?v=faceflow2" />
   </head>
   <body>
     <main class="app-shell" aria-live="polite">
@@ -131,9 +131,9 @@
             <h2>关联记录</h2>
             <div id="routeRecordList" class="record-list compact-list"></div>
             <dl class="route-stats">
-              <div><dt>轨迹点数：</dt><dd>6</dd></div>
-              <div><dt>起点：</dt><dd>校门口</dd></div>
-              <div><dt>终点：</dt><dd>C2 教学楼南门</dd></div>
+              <div><dt>轨迹点数：</dt><dd id="routePointCount">6</dd></div>
+              <div><dt>起点：</dt><dd id="routeStart">校门口</dd></div>
+              <div><dt>终点：</dt><dd id="routeEnd">C2 教学楼南门</dd></div>
             </dl>
           </aside>
 
@@ -157,10 +157,10 @@
               <section class="summary-table">
                 <h3>轨迹摘要</h3>
                 <div class="summary-rows">
-                  <div><span>总时长：</span><strong>6小时35分</strong></div>
-                  <div><span>覆盖摄像头：</span><strong>4路</strong></div>
-                  <div><span>关键帧数量：</span><strong>5</strong></div>
-                  <div><span>最终相似度：</span><strong>98%</strong></div>
+                  <div><span>总时长：</span><strong id="summaryDuration">6小时35分</strong></div>
+                  <div><span>覆盖摄像头：</span><strong id="summaryCameraCount">4路</strong></div>
+                  <div><span>关键帧数量：</span><strong id="summaryFrameCount">5</strong></div>
+                  <div><span>最终相似度：</span><strong id="summaryFinalSimilarity">98%</strong></div>
                   <div class="summary-note"><span aria-hidden="true">i</span><strong>系统根据检索结果自动生成目标人物校园活动路径。</strong></div>
                 </div>
               </section>
@@ -171,6 +171,6 @@
     </main>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="/static/app.js?v=faceflow1" defer></script>
+    <script src="/static/app.js?v=faceflow2" defer></script>
   </body>
 </html>

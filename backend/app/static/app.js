@@ -21,6 +21,13 @@ const elements = {
   trackProgress: document.querySelector("#trackProgress"),
   campusRouteMap: document.querySelector("#campusRouteMap"),
   routeTimelineRows: document.querySelector("#routeTimelineRows"),
+  routePointCount: document.querySelector("#routePointCount"),
+  routeStart: document.querySelector("#routeStart"),
+  routeEnd: document.querySelector("#routeEnd"),
+  summaryDuration: document.querySelector("#summaryDuration"),
+  summaryCameraCount: document.querySelector("#summaryCameraCount"),
+  summaryFrameCount: document.querySelector("#summaryFrameCount"),
+  summaryFinalSimilarity: document.querySelector("#summaryFinalSimilarity"),
   toast: document.querySelector("#toast"),
 };
 
@@ -32,6 +39,8 @@ const records = [
   { id: 5, title: "记录5", time: "09:48:57", fullTime: "2025-05-24 09:48:57", location: "校门口", camera: "C2-NM-01 校门摄像机", cameraId: "C2-NM-01", similarity: 0.91, note: "最早关联关键帧，作为路径起点", sceneClass: "scene-5", progress: 8 },
 ];
 
+const mockRecords = records.map((record) => ({ ...record }));
+
 const routePoints = [
   { id: 1, time: "09:48:57", location: "校门口", x: 26, y: 84, kind: "start" },
   { id: 2, time: "12:05:33", location: "宿舍区主干道", x: 30, y: 56 },
@@ -40,6 +49,8 @@ const routePoints = [
   { id: 5, time: "16:05:12", location: "教学楼广场", x: 64, y: 55 },
   { id: 6, time: "16:24:18", location: "C2 教学楼南门", x: 84, y: 24, kind: "end" },
 ];
+
+const mockRoutePoints = routePoints.map((point) => ({ ...point }));
 
 const buildings = [
   { name: "体育馆", x: 31, y: 28, w: 14, h: 12 },
@@ -52,6 +63,8 @@ const buildings = [
 
 let selectedRecordIndex = 0;
 let uploadedImageUrl = "";
+let uploadedFile = null;
+let activeSource = "mock";
 let toastTimer = null;
 
 function escapeHtml(value) {
@@ -64,7 +77,25 @@ function escapeHtml(value) {
 }
 
 function formatPercent(value) {
-  return `${Math.round(Number(value) * 100)}%`;
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "--";
+  return `${Math.round(number * 100)}%`;
+}
+
+function parseTimeSeconds(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 3600 + Number(match[2]) * 60 + Number(match[3]);
+}
+
+function formatDuration(seconds) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "--";
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
+  if (hours) return `${hours}小时${minutes}分`;
+  if (minutes) return `${minutes}分${secs}秒`;
+  return `${secs}秒`;
 }
 
 function switchScreen(name) {
@@ -101,12 +132,68 @@ function loadImage(file) {
   }
   const reader = new FileReader();
   reader.addEventListener("load", () => {
+    uploadedFile = file;
     uploadedImageUrl = String(reader.result || "");
     elements.uploadHint.textContent = `${file.name} 已就绪`;
     syncPortraits();
     showToast("目标照片已加载。");
   });
   reader.readAsDataURL(file);
+}
+
+function resetToMockData() {
+  records.splice(0, records.length, ...mockRecords.map((record) => ({ ...record })));
+  routePoints.splice(0, routePoints.length, ...mockRoutePoints.map((point) => ({ ...point })));
+  activeSource = "mock";
+}
+
+function applyC1Result(result) {
+  if (!result?.records?.length) {
+    throw new Error(result?.warning || "C1 没有返回匹配记录");
+  }
+
+  records.splice(0, records.length, ...result.records.map((record, index) => ({
+    ...record,
+    id: index + 1,
+    title: record.title || `记录${index + 1}`,
+    sceneClass: record.sceneClass || `scene-${(index % 5) + 1}`,
+    progress: Number.isFinite(Number(record.progress)) ? Number(record.progress) : Math.min(92, 10 + index * 14),
+  })));
+
+  const incomingRoute = result.routePoints?.length ? result.routePoints : records.map((record, index) => ({
+    id: index + 1,
+    time: record.time,
+    location: record.location,
+    x: 22 + ((index * 15) % 62),
+    y: 76 - ((index * 11) % 48),
+  }));
+  routePoints.splice(0, routePoints.length, ...incomingRoute.map((point, index) => ({
+    ...point,
+    id: index + 1,
+    kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
+  })));
+
+  if (result.person?.representativeFaceUrl) {
+    uploadedImageUrl = result.person.representativeFaceUrl;
+    syncPortraits();
+  }
+
+  activeSource = "c1";
+}
+
+async function fetchC1Search() {
+  if (!uploadedFile) throw new Error("请先上传目标人脸图片");
+  const formData = new FormData();
+  formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
+  const response = await fetch("/c1/search/person-by-image?top_k=5&max_gap_sec=3", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail?.detail?.message || `C1 接口返回 ${response.status}`);
+  }
+  return response.json();
 }
 
 function renderRecordLists() {
@@ -116,7 +203,7 @@ function renderRecordLists() {
       <span>
         <strong>${escapeHtml(record.title)}</strong>
         <span>${escapeHtml(record.time)}</span>
-        <span>${escapeHtml(record.cameraId)}</span>
+        <span>${escapeHtml(record.cameraId || "C1")}</span>
       </span>
     </button>
   `).join("");
@@ -135,7 +222,15 @@ function renderRecordLists() {
 function renderSelectedRecord() {
   const record = records[selectedRecordIndex];
   elements.recordTitle.textContent = record.title;
-  elements.recordScene.className = `camera-scene ${record.sceneClass}`;
+  elements.recordScene.className = `camera-scene ${record.frameUrl ? "has-frame" : record.sceneClass}`;
+  elements.recordScene.querySelectorAll(".scene-frame").forEach((node) => node.remove());
+  if (record.frameUrl) {
+    const image = document.createElement("img");
+    image.className = "scene-frame";
+    image.src = record.frameUrl;
+    image.alt = `${record.title} 监控关键帧`;
+    elements.recordScene.prepend(image);
+  }
   elements.recordScene.querySelector(".scene-time").innerHTML = record.fullTime.replace(" ", "&nbsp;&nbsp;");
   elements.timeBubble.textContent = record.time;
   elements.trackProgress.style.left = `${record.progress}%`;
@@ -146,7 +241,7 @@ function renderSelectedRecord() {
     <div class="info-item"><span>位置：</span><strong>${escapeHtml(record.location)}</strong></div>
     <div class="info-item"><span>说明：</span><strong>${escapeHtml(record.note)}</strong></div>
     <div class="info-item"><span>摄像头：</span><strong>${escapeHtml(record.camera)}</strong></div>
-    <div class="info-item"><span>记录编号：</span><strong>${escapeHtml(record.title)}</strong></div>
+    <div class="info-item"><span>数据来源：</span><strong>${activeSource === "c1" ? "C1 CampusVision" : "本地模拟"}</strong></div>
   `;
 }
 
@@ -179,21 +274,46 @@ function renderRouteTimeline() {
       <strong>${escapeHtml(point.location)}</strong>
     </div>
   `).join("");
+
+  const startPoint = routePoints[0];
+  const endPoint = routePoints[routePoints.length - 1];
+  const cameras = new Set(records.map((record) => record.cameraId || record.camera).filter(Boolean));
+  const sortedSeconds = routePoints.map((point) => parseTimeSeconds(point.time)).filter((value) => value !== null).sort((left, right) => left - right);
+  const duration = sortedSeconds.length > 1 ? sortedSeconds[sortedSeconds.length - 1] - sortedSeconds[0] : null;
+  elements.routePointCount.textContent = String(routePoints.length);
+  elements.routeStart.textContent = startPoint?.location || "--";
+  elements.routeEnd.textContent = endPoint?.location || "--";
+  elements.summaryDuration.textContent = formatDuration(duration);
+  elements.summaryCameraCount.textContent = `${Math.max(cameras.size, 1)}路`;
+  elements.summaryFrameCount.textContent = String(records.length);
+  elements.summaryFinalSimilarity.textContent = formatPercent(records[0]?.similarity);
 }
 
-function startSearch() {
+async function startSearch() {
   elements.startSearchBtn.disabled = true;
   elements.startSearchBtn.textContent = "检索中...";
-  showToast("正在检索历史关键帧。");
-  window.setTimeout(() => {
+  showToast(uploadedFile ? "正在调用 C1 检索服务。" : "未上传图片，使用本地模拟数据。");
+  try {
+    if (uploadedFile) {
+      const result = await fetchC1Search();
+      applyC1Result(result);
+      showToast(`C1 返回 ${records.length} 条关联记录。`);
+    } else {
+      resetToMockData();
+    }
+  } catch (error) {
+    resetToMockData();
+    showToast(`${error.message}，已回退本地模拟。`);
+  } finally {
     elements.startSearchBtn.disabled = false;
     elements.startSearchBtn.innerHTML = '<span class="search-action-icon" aria-hidden="true"></span>开始检索';
     selectedRecordIndex = 0;
     renderRecordLists();
     renderSelectedRecord();
+    renderRouteMap();
+    renderRouteTimeline();
     switchScreen("result");
-    showToast("已检索到 5 条关联记录。");
-  }, 520);
+  }
 }
 
 function downloadText(filename, content) {
@@ -224,8 +344,8 @@ function bindEvents() {
   elements.startSearchBtn.addEventListener("click", startSearch);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。"); });
   document.querySelector("#backToResultBtn").addEventListener("click", () => switchScreen("result"));
-  document.querySelector("#showAllBtn").addEventListener("click", () => showToast("当前已显示全部 5 条检索结果。"));
-  document.querySelector("#fullRouteBtn").addEventListener("click", () => showToast("完整 6 个轨迹点已展开。"));
+  document.querySelector("#showAllBtn").addEventListener("click", () => showToast(`当前已显示全部 ${records.length} 条检索结果。`));
+  document.querySelector("#fullRouteBtn").addEventListener("click", () => showToast(`完整 ${routePoints.length} 个轨迹点已展开。`));
   document.querySelector("#playBtn").addEventListener("click", () => showToast("关键帧时间线已定位到当前记录。"));
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
