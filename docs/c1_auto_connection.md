@@ -140,7 +140,7 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 2. GKGuard C2 自动选择健康的 CampusVision C1 地址。
 3. GKGuard C2 把照片转发给 CampusVision C1 `person-by-image`。
 4. CampusVision C1 返回候选人物、关键帧、相似度、摄像头、时间和轨迹。
-5. 前端显示 `C1 CampusVision` 的真实结果。
+5. 前端显示 `CampusVision C1` 的真实结果。
 
 如果所有候选 CampusVision C1 服务都不可达：
 
@@ -226,7 +226,7 @@ If CampusVision C1 is safely exposed to the campus network, put the direct URL f
 
 ## Recommended Option B: Auto-Detect SSH Tunnel
 
-If C1 still binds to the server's local `127.0.0.1:8000`, create a tunnel first:
+If CampusVision C1 still binds to the server's local `127.0.0.1:8000`, create a tunnel first:
 
 ```powershell
 ssh -L 18000:127.0.0.1:8000 speng@10.4.167.122
@@ -312,7 +312,7 @@ If any candidate CampusVision C1 service is reachable:
 2. GKGuard C2 selects a healthy CampusVision C1 URL automatically.
 3. GKGuard C2 forwards the image to CampusVision C1 `person-by-image`.
 4. CampusVision C1 returns candidate persons, keyframes, similarity, camera, time, and route points.
-5. The frontend shows real `C1 CampusVision` results.
+5. The frontend shows real `CampusVision C1` results.
 
 If all candidate CampusVision C1 URLs are unavailable:
 

@@ -13,7 +13,7 @@ The project uses third-party tools and libraries including, but not limited to:
 - FastAPI, Starlette, Uvicorn, Pydantic, HTTPX, pytest, PyInstaller.
 - Electron and electron-builder.
 - CampusVision C1 dependencies listed under `services/campusvision-c1/requirements.txt` and `environment-from-scratch.yml`.
-- Model/runtime dependencies used by C1, including InsightFace-related packages when installed in the C1 environment.
+- Model/runtime dependencies used by CampusVision C1, including InsightFace-related packages when installed in the CampusVision C1 environment.
 
 Each third-party component keeps its own license. Before redistribution, production deployment, or public hosting, review dependency licenses and model terms separately.
 
