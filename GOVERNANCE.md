@@ -28,7 +28,8 @@ GKGuard 当前是项目演示仓库，治理目标是保持 GKGuard C2 工作台
 
 ## 合并与发布
 
-- 普通变更通过 PR 或直接维护者提交进入 `main`。
+- 普通协作变更通过 PR 进入 `main`，并由 `.github/workflows/ci.yml` 执行基础检查。
+- 维护者可直接处理低风险文档勘误、Release 正文同步和紧急小修，但仍需保留可追溯提交记录。
 - 影响安装包的变更需要更新版本号和 `docs/releases/vX.Y.Z.md`。
 - 影响当前行为或仓库边界的变更需要同步 README、`docs/README.md`、API/集成/演示/支持/安全等相关文档。
 - `v*` 版本标签会触发 `.github/workflows/release-desktop.yml` 构建 Windows 安装包。
@@ -72,7 +73,8 @@ GKGuard is currently a project demo repository. Governance focuses on keeping th
 
 ## Merge And Release
 
-- Normal changes enter `main` through PRs or maintainer commits.
+- Normal collaborative changes enter `main` through PRs, with `.github/workflows/ci.yml` running the baseline checks.
+- Maintainers may commit low-risk documentation corrections, Release-body synchronization, and urgent small fixes directly, while keeping traceable commits.
 - Installer-impacting changes must update the version and `docs/releases/vX.Y.Z.md`.
 - Changes that affect current behavior or repository boundaries must also update README, `docs/README.md`, and relevant API/integration/demo/support/security docs.
 - Tags matching `v*` trigger `.github/workflows/release-desktop.yml` to build the Windows installer.
