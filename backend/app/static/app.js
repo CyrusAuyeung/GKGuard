@@ -108,6 +108,14 @@ function switchScreen(name) {
   Object.entries(screens).forEach(([key, screen]) => {
     screen?.classList.toggle("is-active", key === name);
   });
+
+  const resetScroll = () => {
+    window.scrollTo(0, 0);
+    document.scrollingElement?.scrollTo(0, 0);
+  };
+  resetScroll();
+  window.requestAnimationFrame(resetScroll);
+  window.setTimeout(resetScroll, 80);
 }
 
 function showToast(message) {

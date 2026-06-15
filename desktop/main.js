@@ -676,8 +676,8 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1380,
     height: 860,
-    minWidth: 1180,
-    minHeight: 720,
+    minWidth: 680,
+    minHeight: 640,
     icon: APP_ICON_PATH,
     backgroundColor: "#f4f7fb",
     title: "GKGuard",
