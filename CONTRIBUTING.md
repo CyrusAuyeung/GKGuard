@@ -110,7 +110,21 @@ Issue 或 PR 创建后，应按实际情况设置标签：
 
 同时应加入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project，用 Backlog、Ready、In progress、Review、Done 跟踪状态。
 
-如果没有权限设置标签或 Project，只需要在 Issue 或 PR 中说明，维护者会补充。
+Project item 需要补齐以下字段，避免 Roadmap 视图无法按时间展示：
+
+- `Status`：按当前阶段设置为 Backlog、Ready、In progress、Review 或 Done。
+- `Area`：对应 Backend、Frontend、Desktop、CampusVision C1、Docs 或 Release。
+- `Type`：对应 Bug、Feature、Task 或 Polish。
+- `Priority`：对应 High、Medium 或 Low。
+- `Blocked`：默认 No；如果确实受阻，选择 Yes、Waiting for data、Waiting for server 或 Waiting for review。
+- `Start date`：Issue/PR 通常填写开始处理或创建日期；版本阶段项填写阶段开始日期。
+- `End date`：Issue/PR 完成后填写合并或关闭日期；版本阶段项填写阶段结束或发布日期。
+- `Timeline order`：按真实先后顺序填写递增数字。同一天内按发布时间、PR 创建时间或合并时间排序。
+- `Target version`：如果对应明确版本或版本区间，填写 `vX.Y.Z`、`vX.Y.Z-vX.Y.Z` 或 `post-vX.Y.Z`。
+
+目前不把这些字段做成仓库 GitHub Actions 强制自动化。GitHub Projects 支持内置自动化和 GraphQL API，但 GKGuard Roadmap 是用户级 Project，仓库 workflow 稳定写入自定义字段通常需要额外 Project 写权限 token；日期、版本区间和 `Timeline order` 也需要维护者按真实进度确认。维护者或 AI agent 可以用 GitHub UI 或 `gh project item-edit` 半自动补齐，但最终必须核验 Project 字段。
+
+如果没有权限设置标签或 Project，只需要在 Issue 或 PR 中说明缺少哪些字段，维护者会补充。
 
 ## 准备本地仓库
 
@@ -431,7 +445,8 @@ git push
 - 文档已经按需同步。
 - PR 正文保留并填写了自动模板。
 - 如果只改文档，已说明代码测试不适用。
-- Issue 或 PR 已按需设置标签并加入 GKGuard Roadmap Project；如果没有权限，已说明需要维护者补充。
+- Issue 或 PR 已按需设置标签并加入 GKGuard Roadmap Project。
+- Project item 已补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version；如果没有权限，已说明需要维护者补充哪些字段。
 
 ## 给 AI Agent 的协作提示词
 
@@ -450,7 +465,7 @@ git push
 5. main 是稳定基线，受保护规则约束。PR 合并前需要 Verify CI 通过、审查完成、对话解决，并使用 squash merge。
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
 7. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
-8. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；如果没有权限，应在回复中提醒维护者补充。
+8. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
 
 实现与验证：
 9. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
@@ -467,7 +482,7 @@ git push
 16. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
 17. 文档-only、协作流程或模板说明改动通常不需要发布新版本；除非用户明确要求，不要为这类改动创建 Release。
 18. 完成后汇报改动内容、验证结果、是否已更新相关文档、是否存在未解决风险，以及 PR/CI/合并状态。
-19. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
+19. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态和 Roadmap 日期/顺序字段推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
 ```
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
@@ -571,7 +586,21 @@ Use labels as appropriate:
 
 Issues and Pull Requests should also be tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project with Backlog, Ready, In progress, Review, and Done status.
 
-If you do not have permission to set labels or Project fields, note that in the Issue or PR and a maintainer will do it.
+Each Project item should include these fields so the Roadmap view can render and sort the timeline correctly:
+
+- `Status`: Backlog, Ready, In progress, Review, or Done.
+- `Area`: Backend, Frontend, Desktop, CampusVision C1, Docs, or Release.
+- `Type`: Bug, Feature, Task, or Polish.
+- `Priority`: High, Medium, or Low.
+- `Blocked`: No by default; use Yes, Waiting for data, Waiting for server, or Waiting for review only when applicable.
+- `Start date`: for Issues/PRs, usually the start or creation date; for version-stage items, the stage start date.
+- `End date`: for completed Issues/PRs, the merge or close date; for version-stage items, the stage end or release date.
+- `Timeline order`: an increasing number that reflects the real chronological order. For items on the same date, use release time, PR creation time, or merge time.
+- `Target version`: when there is a clear version or version range, use `vX.Y.Z`, `vX.Y.Z-vX.Y.Z`, or `post-vX.Y.Z`.
+
+These fields are not currently enforced through repository GitHub Actions. GitHub Projects supports built-in automation and GraphQL API updates, but GKGuard Roadmap is a user-level Project; reliably writing custom fields from repository workflows usually requires an extra token with Project write permission. Dates, version ranges, and `Timeline order` also need maintainer confirmation from the real project history. Maintainers or AI agents may use GitHub UI or `gh project item-edit` to fill fields semi-automatically, but the final Project fields must be checked.
+
+If you do not have permission to set labels or Project fields, note which fields are missing in the Issue or PR and a maintainer will do it.
 
 ## Prepare Your Local Repository
 
@@ -872,7 +901,8 @@ Before opening a Pull Request:
 - Documentation is synchronized where needed.
 - The automatic PR template is kept and filled in.
 - Documentation-only changes explain why code tests are not applicable.
-- Labels and GKGuard Roadmap Project fields are set where possible, or I have asked a maintainer to add them.
+- Labels and the GKGuard Roadmap Project item are set where possible.
+- The Project item has Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version fields; if I lack permission, I have listed the missing fields for a maintainer.
 
 ## Prompt For AI Agents
 
@@ -891,7 +921,7 @@ Branches and PRs:
 5. main is the stable protected baseline. Before merge, a PR needs the Verify CI check to pass, review completion, resolved conversations, and squash merge.
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
 7. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
-8. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. If you lack permission, tell the maintainer to add them.
+8. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. If you lack permission, tell the maintainer exactly which fields need to be added.
 
 Implementation and validation:
 9. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
@@ -908,7 +938,7 @@ Release and closeout:
 16. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.
 17. Documentation-only, collaboration workflow, or template guidance changes usually do not need a new Release. Do not create a Release for them unless the user explicitly asks.
 18. At the end, report what changed, validation results, whether related docs were updated, any remaining risk, and the PR/CI/merge status.
-19. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and move the Project item to the appropriate status. If permissions or rules block that flow, state the exact blocker.
+19. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and update the Project status plus Roadmap date/order fields. If permissions or rules block that flow, state the exact blocker.
 ```
 
 <p align="right"><a href="#english">Back to English top</a></p>

@@ -124,7 +124,7 @@ services/
 - `main` 是稳定基线，受 GitHub 规则集 `Protect main` 保护；常规功能、配置、发布和文档协作改动通过 `codex/...` 或其他短期分支提交 Pull Request 后合并。
 - 小范围文档勘误、GitHub Release 正文同步或紧急低风险修复可由维护者直接提交到 `main`，但必须保留清晰提交记录。
 - Pull Request 合并前需要 `.github/workflows/ci.yml` 中的 `Verify` 检查通过，完成审查，并解决所有对话；仓库使用 squash merge，合并后删除源分支。
-- Issue 和 Pull Request 使用 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并放入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) 跟踪 Backlog、Ready、In progress、Review、Done 状态。
+- Issue 和 Pull Request 使用 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并放入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) 跟踪 Backlog、Ready、In progress、Review、Done 状态；Project item 还应补齐 `Start date`、`End date`、`Timeline order` 等 Roadmap 字段，按真实日期和先后顺序展示。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用，后续明确发布节奏或审查归属后再补充。
 
 ## CampusVision C1 / GKGuard C2 接入
@@ -418,7 +418,7 @@ services/
 - `main` is the stable baseline and is protected by the GitHub ruleset `Protect main`; normal feature, configuration, release, and documentation collaboration changes should enter through a Pull Request from `codex/...` or another short-lived branch.
 - Maintainers may commit small documentation corrections, GitHub Release body synchronization, or urgent low-risk fixes directly to `main`, while keeping clear commit history.
 - Before merge, Pull Requests must pass the `Verify` check from `.github/workflows/ci.yml`, complete review, and resolve all conversations. The repository uses squash merge and deletes merged head branches.
-- Issues and Pull Requests use `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and are tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project through Backlog, Ready, In progress, Review, and Done.
+- Issues and Pull Requests use `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and are tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project through Backlog, Ready, In progress, Review, and Done. Project items should also include Roadmap fields such as `Start date`, `End date`, and `Timeline order` so work is shown by real date and sequence.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet and should be added only after the release cadence or review ownership is clearer.
 
 ## CampusVision C1 / GKGuard C2 Integration
