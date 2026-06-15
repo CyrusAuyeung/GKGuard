@@ -32,7 +32,7 @@
 - [GOVERNANCE.md](../GOVERNANCE.md)：A组机械结构、B组嵌入式控制、C组算法感知的维护职责，以及 `main` 保护、审查、CI、标签和 Project 规则。
 - [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
 - [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
-- 当前协作配置以 `main` 保护、短期分支 Pull Request、`Verify` 必需检查、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准。
+- 当前协作配置以 `main` 保护、短期分支 Pull Request、`Verify` 必需检查、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用。
 
 ## 配置示例
@@ -79,7 +79,7 @@ Use this page to locate maintenance material quickly. The current-state document
 - [GOVERNANCE.md](../GOVERNANCE.md): Group A mechanical structure, Group B embedded control, and Group C algorithm perception ownership, plus `main` protection, review, CI, label, and Project rules.
 - [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
 - [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.
-- The current collaboration setup is `main` protection, short-lived branch Pull Requests, required `Verify` checks, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project.
+- The current collaboration setup is `main` protection, short-lived branch Pull Requests, required `Verify` checks, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet.
 
 ## Configuration Examples

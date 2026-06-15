@@ -26,6 +26,7 @@
 - [ ] 检查 `/c1/status`
 - [ ] 文档-only，代码测试不适用
 - [ ] 已按需设置标签并加入 GKGuard Roadmap Project
+- [ ] Project item 已补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version
 
 ## 安全与数据检查
 
@@ -62,6 +63,7 @@
 - [ ] Checked `/c1/status`
 - [ ] Documentation-only, code tests not applicable
 - [ ] Labels are set and the PR is added to the GKGuard Roadmap Project when applicable
+- [ ] Project item fields are filled: Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version
 
 ## Security And Data Check
 
