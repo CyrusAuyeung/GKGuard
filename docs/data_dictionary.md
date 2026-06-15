@@ -91,7 +91,8 @@
 - `cameraId`：CampusVision C1 摄像头 ID。
 - `similarity`：CampusVision C1 归一化分数。
 - `note`：GKGuard C2 展示说明。
-- `frameUrl`：C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于结果列表缩略图和详情关键帧。
+- `frameUrl`：C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于详情关键帧。
+- `faceUrl`：C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图。
 - `faceId`：CampusVision C1 face record ID。
 - `videoId`：CampusVision C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
@@ -260,7 +261,8 @@ Sensitive in real deployments: face images, frame images, person links, movement
 - `cameraId`: CampusVision C1 camera ID.
 - `similarity`: normalized CampusVision C1 score.
 - `note`: GKGuard C2 display note.
-- `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by result-list thumbnails and the detail keyframe.
+- `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by the detail keyframe.
+- `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails.
 - `faceId`: CampusVision C1 face record ID.
 - `videoId`: CampusVision C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.
