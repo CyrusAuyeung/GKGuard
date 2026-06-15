@@ -1,7 +1,7 @@
 name: Feature request / 功能建议
 description: Suggest a scoped improvement for GKGuard / 提出清晰范围的功能建议
 title: "[Feature]: "
-labels: ["enhancement"]
+labels: ["type: feature"]
 body:
   - type: dropdown
     id: area

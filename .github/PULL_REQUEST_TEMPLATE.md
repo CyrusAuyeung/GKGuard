@@ -12,7 +12,7 @@
 - [ ] GKGuard C2 本地代理或 CampusVision C1 服务
 - [ ] CampusCar / UE 占位接口规范
 - [ ] 文档 / 发布说明
-- [ ] GitHub Actions / 发布流程
+- [ ] GitHub Actions / CI 或发布流程
 
 ## 验证
 
@@ -25,6 +25,7 @@
 - [ ] 手动打开 `/demo`
 - [ ] 检查 `/c1/status`
 - [ ] 文档-only，代码测试不适用
+- [ ] 已按需设置标签并加入 GKGuard Roadmap Project
 
 ## 安全与数据检查
 
@@ -47,7 +48,7 @@
 - [ ] GKGuard C2 local proxy or CampusVision C1 service
 - [ ] CampusCar / UE placeholder interface specification
 - [ ] Docs / Release notes
-- [ ] GitHub Actions / release flow
+- [ ] GitHub Actions / CI or release flow
 
 ## Validation
 
@@ -60,6 +61,7 @@
 - [ ] Manually opened `/demo`
 - [ ] Checked `/c1/status`
 - [ ] Documentation-only, code tests not applicable
+- [ ] Labels are set and the PR is added to the GKGuard Roadmap Project when applicable
 
 ## Security And Data Check
 
