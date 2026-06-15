@@ -35,6 +35,7 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 - `main` 禁止删除和强制推送；仓库合并策略使用 squash merge，并在合并后删除源分支。
 - Issue 和 Pull Request 使用 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并放入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪 Backlog、Ready、In progress、Review、Done 状态。
 - GKGuard Roadmap item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`；日期字段用于 Roadmap 展示，`Timeline order` 用于同日内按真实先后排序。
+- Project item 以 GKGuard Roadmap 视图或 Project 主列表可见为准；PR/Issue 页面显示关联但 Roadmap 不显示时，应重新查询并修复。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用，后续明确发布节奏或审查归属后再补充。
 
 ## 合并与发布
@@ -91,6 +92,7 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 - Deleting or force-pushing `main` is blocked. The repository merge policy uses squash merge and deletes merged head branches.
 - Issues and Pull Requests use `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and are tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project through Backlog, Ready, In progress, Review, and Done.
 - GKGuard Roadmap items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`; date fields power the Roadmap view, and `Timeline order` preserves the real order for same-day items.
+- A Project item is considered complete only when it is visible in the GKGuard Roadmap view or Project main item list; if the PR/Issue page shows an association but Roadmap does not, query again and fix the item.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet and should be added only after the release cadence or review ownership is clearer.
 
 ## Merge And Release
