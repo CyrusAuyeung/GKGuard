@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.18` 推荐流程：
+安装版 `v0.1.19` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.18.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.19.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口输入服务器密码，并观察连接进度条。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -23,6 +23,7 @@
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 8. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`。
+9. 在最大化窗口、常规桌面窗口和 `680x640` 小窗口下检查页面无横向滚动，上传图、结果缩略图和关键帧不被裁切。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
@@ -79,6 +80,7 @@ CampusVision C1 已连接时期望结果：
 - 结果页数据来源显示 `C1 CampusVision`。
 - 上传页和结果页人物照片优先完整显示用户上传图；只有未上传图时才回退 CampusVision C1 代表人脸。
 - 检索记录列表展示 CampusVision C1 关键帧缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
+- 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
 - 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、时间线和摘要。
@@ -198,9 +200,9 @@ Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the 
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.18`:
+Recommended packaged-app flow for `v0.1.19`:
 
-1. Download and install `GKGuard-Setup-0.1.18.exe`.
+1. Download and install `GKGuard-Setup-0.1.19.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, enter the server password in the embedded “连接 CampusVision C1 服务” window and watch the connection progress.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -208,6 +210,7 @@ Recommended packaged-app flow for `v0.1.18`:
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 8. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`.
+9. Check maximized, regular desktop, and `680x640` small-window layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, and keyframes.
 
 GKGuard does not store, read, or log the SSH password.
 
@@ -264,6 +267,7 @@ Expected result with CampusVision C1 connected:
 - The result source shows `C1 CampusVision`.
 - The upload and result portraits prefer the full user-uploaded image; CampusVision C1 representative faces are used only when no upload is available.
 - The search record list shows CampusVision C1 keyframe thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
+- Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
 - `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data.
