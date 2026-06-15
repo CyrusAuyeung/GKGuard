@@ -92,6 +92,7 @@ services/
     scripts/
     README.md
 .github/
+  workflows/ci.yml
   workflows/release-desktop.yml
   ISSUE_TEMPLATE/
 ```
@@ -229,6 +230,8 @@ git push origin v0.1.x
 
 如果 `docs/releases/v0.1.x.md` 存在，发布工作流会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 GitHub Release 正文。
 
+Pull Request 和 `main` 分支推送会触发 `.github/workflows/ci.yml`，执行后端测试、桌面端语法检查、桌面后端入口编译和 npm 安全审计。Release 安装包仍只由 `v*` 标签触发的 `.github/workflows/release-desktop.yml` 构建。
+
 本地只做冒烟打包时可运行：
 
 ```powershell
@@ -243,13 +246,14 @@ npm run pack
 
 ```powershell
 python -m pytest backend
+python -m py_compile backend/desktop_server.py
 node --check desktop/main.js
 node --check desktop/preload.js
 npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.1.20` 的基线结果：后端测试 `25 passed`，Electron 主进程语法检查通过，桌面后端入口编译通过，`git diff --check` 通过；GitHub Actions 发布工作流会生成 Windows 安装包和 Electron 自动更新元数据。
+当前 `v0.1.20` 的基线结果：后端测试 `25 passed`，Electron 主进程语法检查通过，桌面后端入口编译通过，`git diff --check` 通过；GitHub Actions CI 工作流覆盖 PR 基础检查，发布工作流会生成 Windows 安装包和 Electron 自动更新元数据。
 
 只修改文档时，可至少执行：
 
@@ -374,6 +378,7 @@ services/
     scripts/
     README.md
 .github/
+  workflows/ci.yml
   workflows/release-desktop.yml
   ISSUE_TEMPLATE/
 ```
@@ -511,6 +516,8 @@ After a tag is pushed, the workflow installs Python and Node.js 22, runs backend
 
 If `docs/releases/v0.1.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
 
+Pull requests and pushes to `main` trigger `.github/workflows/ci.yml`, which runs backend tests, desktop syntax checks, desktop backend entrypoint compilation, and npm security audit. Windows installer assets are still built only by `.github/workflows/release-desktop.yml` on `v*` tags.
+
 For local smoke packaging only:
 
 ```powershell
@@ -525,13 +532,14 @@ For code or packaging changes, run:
 
 ```powershell
 python -m pytest backend
+python -m py_compile backend/desktop_server.py
 node --check desktop/main.js
 node --check desktop/preload.js
 npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.1.20` baseline: backend tests pass with `25 passed`, Electron main-process syntax checks pass, the desktop backend entrypoint compiles, and `git diff --check` passes. The GitHub Actions Release workflow produces the Windows installer and Electron auto-update metadata.
+Current `v0.1.20` baseline: backend tests pass with `25 passed`, Electron main-process syntax checks pass, the desktop backend entrypoint compiles, and `git diff --check` passes. The GitHub Actions CI workflow covers PR checks, and the Release workflow produces the Windows installer and Electron auto-update metadata.
 
 For documentation-only changes, run at least:
 

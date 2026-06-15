@@ -69,10 +69,14 @@ PR 应包含：
 在合并前请确认：
 
 ```powershell
-node --check desktop/main.js
-$env:PYTHONPATH = "backend"
 python -m pytest backend
+python -m py_compile backend/desktop_server.py
+node --check desktop/main.js
+node --check desktop/preload.js
+npm audit --audit-level=low
 ```
+
+Pull Request 会自动运行 `.github/workflows/ci.yml`。本地验证结果仍应写进 PR，方便审查者判断风险和复现方式。
 
 如只改文档，可以说明未运行代码测试的原因。
 
@@ -146,10 +150,14 @@ A PR should include:
 Before merge, confirm:
 
 ```powershell
-node --check desktop/main.js
-$env:PYTHONPATH = "backend"
 python -m pytest backend
+python -m py_compile backend/desktop_server.py
+node --check desktop/main.js
+node --check desktop/preload.js
+npm audit --audit-level=low
 ```
+
+Pull requests automatically run `.github/workflows/ci.yml`. Still include local validation results in the PR so reviewers can assess risk and reproduce checks.
 
 For documentation-only changes, state why code tests were not run.
 
