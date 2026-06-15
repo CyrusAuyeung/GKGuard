@@ -40,6 +40,8 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 - 真实校园视频、查询图片、抽帧图片、人脸裁剪图。
 - 真实人员身份、联系方式、轨迹、车牌、案件材料。
 
+GitHub secret scanning 和 push protection 已启用，用于拦截常见凭据误提交；这不能替代人工检查。若凭据已经提交或公开暴露，仍需立即轮换凭据，并按本文件流程清理公开内容、历史记录或 Release 附件。
+
 ## 连接安全
 
 - GKGuard 不保存 SSH 密码；安装版只在软件内密码窗口中接收本次 SSH 连接所需密码，不写入配置文件、日志或仓库。
@@ -87,6 +89,8 @@ Do not commit or paste:
 - `.env` files, databases, model caches, or real runtime logs.
 - Real campus videos, query images, extracted frames, or face crops.
 - Real identities, contact details, trajectories, license plates, or case material.
+
+GitHub secret scanning and push protection are enabled to block common accidental credential commits. They do not replace manual review. If a credential is committed or exposed publicly, rotate it immediately and use this process to clean public content, history, or Release assets.
 
 ## Connection Security
 

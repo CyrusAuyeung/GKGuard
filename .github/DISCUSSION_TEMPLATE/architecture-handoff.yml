@@ -1,5 +1,5 @@
 title: "Architecture and integration discussion"
-labels: ["architecture", "integration"]
+labels: ["type: task"]
 body:
   - type: textarea
     id: topic

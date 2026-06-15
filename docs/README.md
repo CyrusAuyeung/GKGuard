@@ -26,6 +26,15 @@
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
 - 发布后需要核对 GitHub Release 正文、安装包、`.blockmap` 和 `latest.yml`。
 
+## 仓库协作与管理
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md)：分支、Pull Request、验证命令和文档同步要求。
+- [GOVERNANCE.md](../GOVERNANCE.md)：A组机械结构、B组嵌入式控制、C组算法感知的维护职责，以及 `main` 保护、审查、CI、标签和 Project 规则。
+- [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
+- [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
+- 当前协作配置以 `main` 保护、短期分支 Pull Request、`Verify` 必需检查、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准。
+- Milestone 暂不强制使用；CODEOWNERS 暂不启用。
+
 ## 配置示例
 
 - [examples/c1-connection.example.json](examples/c1-connection.example.json)：CampusVision C1 候选地址和 SSH 隧道覆盖配置示例。
@@ -63,6 +72,15 @@ Use this page to locate maintenance material quickly. The current-state document
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.
 - After publishing, verify the GitHub Release body, installer, `.blockmap`, and `latest.yml`.
+
+## Repository Collaboration And Management
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md): branch, Pull Request, validation command, and documentation synchronization requirements.
+- [GOVERNANCE.md](../GOVERNANCE.md): Group A mechanical structure, Group B embedded control, and Group C algorithm perception ownership, plus `main` protection, review, CI, label, and Project rules.
+- [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
+- [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.
+- The current collaboration setup is `main` protection, short-lived branch Pull Requests, required `Verify` checks, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project.
+- Milestones are not mandatory yet. CODEOWNERS is not enabled yet.
 
 ## Configuration Examples
 

@@ -1,7 +1,7 @@
 name: Release or installer issue / 发布或安装包问题
 description: Report a GitHub Release, installer, or packaging problem / 反馈 Release、安装包或打包问题
 title: "[Release]: "
-labels: ["release"]
+labels: ["area: release", "type: bug"]
 body:
   - type: input
     id: release

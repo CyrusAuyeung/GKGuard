@@ -1,7 +1,7 @@
 name: Documentation update / 文档更新
 description: Report outdated or unclear documentation / 反馈过时或不清楚的文档
 title: "[Docs]: "
-labels: ["documentation"]
+labels: ["area: docs", "type: task"]
 body:
   - type: input
     id: doc
