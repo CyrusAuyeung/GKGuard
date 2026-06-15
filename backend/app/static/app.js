@@ -133,7 +133,7 @@ function portraitMarkup() {
 }
 
 function recordThumbMarkup(record) {
-  const thumbUrl = record.thumbnailUrl || record.frameUrl || record.faceUrl;
+  const thumbUrl = record.thumbnailUrl || record.faceUrl || record.frameUrl;
   if (thumbUrl) {
     return `<span class="mini-face has-thumb"><img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
   }

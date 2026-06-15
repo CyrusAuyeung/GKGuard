@@ -38,11 +38,13 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
   align-items: stretch;
   justify-content: center;
   padding: clamp(16px, 2vw, 28px);
+  width: 100%;
 }
 
 .screen {
   display: none;
-  width: calc(100vw - clamp(24px, 4vw, 56px));
+  width: min(100%, calc(100vw - clamp(24px, 4vw, 56px)));
+  max-width: none;
 }
 .screen.is-active { display: block; }
 
@@ -197,11 +199,16 @@ input, select {
 .workbench {
   display: grid;
   gap: clamp(16px, 1.6vw, 24px);
+  width: 100%;
   min-height: calc(100vh - 142px);
   padding: clamp(16px, 1.6vw, 24px);
 }
-.result-workbench { grid-template-columns: clamp(310px, 22vw, 390px) minmax(0, 1fr); }
-.route-workbench { grid-template-columns: clamp(296px, 21vw, 370px) minmax(0, 1fr); }
+.result-screen,
+.route-screen {
+  width: min(100%, calc(100vw - clamp(24px, 3vw, 48px)));
+}
+.result-workbench { grid-template-columns: clamp(300px, 18vw, 360px) minmax(0, 1fr); }
+.route-workbench { grid-template-columns: clamp(286px, 17vw, 340px) minmax(0, 1fr); }
 
 .side-panel,
 .detail-panel,
@@ -257,10 +264,10 @@ input, select {
 .record-list { display: grid; gap: 10px; margin-top: 12px; }
 .record-card {
   display: grid;
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: 96px minmax(0, 1fr);
   align-items: center;
   gap: 12px;
-  min-height: 64px;
+  min-height: 76px;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -270,9 +277,10 @@ input, select {
 }
 .record-card.is-active { border-color: #7cabff; box-shadow: 0 0 0 2px rgba(36, 111, 245, 0.14); background: #f7fbff; }
 .record-card strong { display: block; margin-bottom: 8px; font-size: 15px; }
+.record-card > span:last-child { min-width: 0; }
 .record-card span span { display: inline-flex; align-items: center; gap: 4px; margin-right: 8px; color: #7b8da5; font-size: 12px; }
-.mini-face { position: relative; overflow: hidden; width: 72px; height: 48px; border-radius: 6px; background: linear-gradient(135deg, #dde8f8, #f7fbff 52%, #bfd1ec); }
-.mini-face img { width: 100%; height: 100%; object-fit: contain; object-position: center center; display: block; background: #111927; }
+.mini-face { position: relative; overflow: hidden; width: 96px; height: 60px; border-radius: 6px; background: linear-gradient(135deg, #dde8f8, #f7fbff 52%, #bfd1ec); }
+.mini-face img { width: 100%; height: 100%; object-fit: contain; object-position: center center; display: block; background: #eef4ff; }
 .mini-face.has-thumb::before,
 .mini-face.has-thumb::after { display: none; }
 .mini-face::before { content: ""; position: absolute; left: 31px; top: 10px; width: 16px; height: 20px; border-radius: 50% 50% 42% 42%; background: #222c39; }
@@ -291,7 +299,7 @@ input, select {
 .camera-scene.has-frame .scene-tree,
 .camera-scene.has-frame .walking-person,
 .camera-scene.has-frame .camera-sign { display: none; }
-.scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center center; background: #111927; }
+.scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: center center; background: #eef4ff; }
 .camera-scene::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 82px; background: repeating-linear-gradient(102deg, rgba(255,255,255,.55) 0 26px, rgba(170,176,180,.26) 26px 30px); }
 .scene-time { position: absolute; left: 18px; top: 14px; z-index: 5; color: #fff; font-size: 16px; text-shadow: 0 2px 8px rgba(0,0,0,.42); }
 .building-door { position: absolute; left: 34px; bottom: 76px; width: 205px; height: 226px; background: linear-gradient(90deg, #26313a, #6f7c83 46%, #d3d5cf 47%); box-shadow: inset -10px 0 0 rgba(255,255,255,.34); }
@@ -387,8 +395,10 @@ input, select {
 @media (max-width: 1220px) {
   .screen { width: calc(100vw - 32px); }
   .search-layout { grid-template-columns: minmax(290px, .9fr) minmax(116px, .28fr) minmax(340px, 1.25fr); gap: 18px; }
-  .result-workbench { grid-template-columns: minmax(260px, 32vw) minmax(0, 1fr); }
-  .route-workbench { grid-template-columns: minmax(250px, 30vw) minmax(0, 1fr); }
+  .result-screen,
+  .route-screen { width: calc(100vw - 32px); }
+  .result-workbench { grid-template-columns: minmax(280px, 30vw) minmax(0, 1fr); }
+  .route-workbench { grid-template-columns: minmax(270px, 29vw) minmax(0, 1fr); }
 }
 
 @media (max-width: 980px) {
@@ -443,8 +453,8 @@ input, select {
   .button-cluster .outline-action,
   .button-cluster .primary-action { flex: 1 1 160px; }
   .info-grid { grid-template-columns: 1fr; }
-  .record-card { grid-template-columns: 82px 1fr; }
-  .mini-face { width: 82px; height: 54px; }
+  .record-card { grid-template-columns: 92px 1fr; }
+  .mini-face { width: 92px; height: 58px; }
   .camera-scene,
   .campus-illustration {
     height: 320px;

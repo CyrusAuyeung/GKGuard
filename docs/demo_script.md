@@ -79,7 +79,7 @@ CampusVision C1 已连接时期望结果：
 
 - 结果页数据来源显示 `C1 CampusVision`。
 - 上传页和结果页人物照片优先完整显示用户上传图；只有未上传图时才回退 CampusVision C1 代表人脸。
-- 检索记录列表展示 CampusVision C1 关键帧缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
+- 检索记录列表优先展示 CampusVision C1 人脸裁剪缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
@@ -266,7 +266,7 @@ Expected result with CampusVision C1 connected:
 
 - The result source shows `C1 CampusVision`.
 - The upload and result portraits prefer the full user-uploaded image; CampusVision C1 representative faces are used only when no upload is available.
-- The search record list shows CampusVision C1 keyframe thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
+- The search record list prefers CampusVision C1 face-crop thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
 - Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.

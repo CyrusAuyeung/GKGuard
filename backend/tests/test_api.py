@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=responsive1" in response.text
-    assert "/static/app.js?v=responsive1" in response.text
+    assert "/static/styles.css?v=resultlayout3" in response.text
+    assert "/static/app.js?v=resultlayout3" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -41,7 +41,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     script = script_response.text
     assert "function recordThumbMarkup" in script
     assert "mini-face has-thumb" in script
-    assert "record.thumbnailUrl || record.frameUrl || record.faceUrl" in script
+    assert "record.thumbnailUrl || record.faceUrl || record.frameUrl" in script
     assert "record.frameUrl" in script
     assert "matchedPersonImageUrl" in script
     assert "uploadedImageUrl || matchedPersonImageUrl" in script
@@ -62,7 +62,12 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".scene-frame" in style
     assert "min-width: 0" in style
     assert "width: calc(100vw" in style
+    assert ".result-screen," in style
+    assert "grid-template-columns: clamp(300px, 18vw, 360px) minmax(0, 1fr)" in style
+    assert "grid-template-columns: 96px minmax(0, 1fr)" in style
+    assert ".mini-face { position: relative; overflow: hidden; width: 96px; height: 60px" in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
+    assert "background: #eef4ff" in style
     assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain" in style
     assert ".desktop-update" in style
     assert ".ui-icon" in style
@@ -105,6 +110,11 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
+    assert "STATIC_ASSET_VERSION = \"resultlayout3\"" in main_script
+    assert "prepareBackendPort" in main_script
+    assert "existingBackendMatchesCurrentBuild" in main_script
+    assert "getAvailablePort" in main_script
+    assert "GKGUARD_PORT: String(activeBackendPort)" in main_script
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
     assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
@@ -258,6 +268,7 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
                     "sceneClass": "scene-1",
                     "progress": 21,
                     "frameUrl": "/c1/media/frame/face-1",
+                    "faceUrl": "/c1/media/face/face-1",
                 }
             ],
             "routePoints": [],
@@ -272,6 +283,26 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
     body = response.json()
     assert body["source"] == "c1"
     assert body["records"][0]["frameUrl"] == "/c1/media/frame/face-1"
+    assert body["records"][0]["faceUrl"] == "/c1/media/face/face-1"
+
+
+def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    record = c1_service._record_from_match(
+        {
+            "face_id": "face-1",
+            "frame_url": "/api/v1/media/frame/face-1",
+            "captured_at": "2026-06-14T10:00:00",
+            "camera_id": "cam02",
+            "score": 0.91,
+        },
+        1,
+    )
+
+    assert record["frameUrl"] == "/c1/media/frame/face-1"
+    assert record["faceUrl"] == "/c1/media/face/face-1"
 
 
 def test_root_redirects_to_demo() -> None:

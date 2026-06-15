@@ -8,12 +8,9 @@ const path = require("path");
 const { autoUpdater } = require("electron-updater");
 const { Client: SshClient } = require("ssh2");
 
-const PORT = Number(process.env.GKGUARD_PORT || 8000);
+const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const BASE_URL = `http://${HOST}:${PORT}`;
-const HEALTH_URL = `${BASE_URL}/health`;
-const C1_STATUS_URL = `${BASE_URL}/c1/status`;
-const DEMO_URL = `${BASE_URL}/demo?desktop=1`;
+const STATIC_ASSET_VERSION = "resultlayout3";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
@@ -37,6 +34,7 @@ let cachedUpdateInfo = null;
 let updateReadyToInstall = false;
 let sshClient = null;
 let sshForwardServer = null;
+let activeBackendPort = DEFAULT_PORT;
 
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = false;
@@ -103,6 +101,22 @@ function getHttpsJson(url, timeoutMs = 8000) {
       request.destroy(new Error("Update check timed out"));
     });
   });
+}
+
+function getBaseUrl(port = activeBackendPort) {
+  return `http://${HOST}:${port}`;
+}
+
+function getHealthUrl(port = activeBackendPort) {
+  return `${getBaseUrl(port)}/health`;
+}
+
+function getC1StatusUrl(port = activeBackendPort) {
+  return `${getBaseUrl(port)}/c1/status`;
+}
+
+function getDemoUrl(port = activeBackendPort) {
+  return `${getBaseUrl(port)}/demo?desktop=1`;
 }
 
 function isTrustedReleaseUrl(url) {
@@ -192,6 +206,7 @@ function getBackendEnv() {
   return {
     ...process.env,
     PYTHONUNBUFFERED: "1",
+    GKGUARD_PORT: String(activeBackendPort),
     C1_CONFIG_PATH: getC1ConfigPath(),
     C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`,
   };
@@ -287,7 +302,7 @@ async function waitForC1Connection(timeoutMs = C1_CONNECT_TIMEOUT_MS, options = 
   const startedAt = Date.now();
   while (Date.now() - startedAt < timeoutMs) {
     try {
-      const status = await getJson(C1_STATUS_URL, 2500);
+      const status = await getJson(getC1StatusUrl(), 2500);
       const connected = options.requireTunnel ? isC1TunnelConnected(status, options.tunnel) : isC1Connected(status);
       if (connected) {
         return true;
@@ -535,7 +550,7 @@ async function maybePromptForC1Tunnel() {
   }
 
   try {
-    const status = await getJson(C1_STATUS_URL, 2500);
+    const status = await getJson(getC1StatusUrl(), 2500);
     if (isC1TunnelConnected(status, tunnel)) {
       return true;
     }
@@ -552,7 +567,7 @@ function waitForHealthCheck(timeoutMs = START_TIMEOUT_MS) {
   const startedAt = Date.now();
   return new Promise((resolve, reject) => {
     const check = () => {
-      const request = http.get(HEALTH_URL, (response) => {
+      const request = http.get(getHealthUrl(), (response) => {
         response.resume();
         if (response.statusCode === 200) {
           resolve();
@@ -591,7 +606,7 @@ function spawnBackendWith(command) {
     "--host",
     HOST,
     "--port",
-    String(PORT),
+    String(activeBackendPort),
   ];
 
   return spawn(command, args, {
@@ -661,7 +676,81 @@ async function startBackend() {
   throw lastError || new Error("未找到可用的 Python 命令。请安装 Python，并执行 pip install -r backend/requirements.txt。");
 }
 
+function getText(url, timeoutMs = 1200) {
+  return new Promise((resolve, reject) => {
+    const request = http.get(url, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`HTTP ${response.statusCode}`));
+          return;
+        }
+        resolve(body);
+      });
+    });
+
+    request.on("error", reject);
+    request.setTimeout(timeoutMs, () => {
+      request.destroy(new Error("Request timed out"));
+    });
+  });
+}
+
+async function existingBackendMatchesCurrentBuild(port) {
+  try {
+    await getJson(getHealthUrl(port), 900);
+    const page = await getText(getDemoUrl(port), 900);
+    return page.includes(`/static/styles.css?v=${STATIC_ASSET_VERSION}`)
+      && page.includes(`/static/app.js?v=${STATIC_ASSET_VERSION}`);
+  } catch {
+    return false;
+  }
+}
+
+function isPortAvailable(port) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, HOST);
+  });
+}
+
+function getAvailablePort() {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.once("error", reject);
+    server.once("listening", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : DEFAULT_PORT;
+      server.close(() => resolve(port));
+    });
+    server.listen(0, HOST);
+  });
+}
+
+async function prepareBackendPort() {
+  if (await existingBackendMatchesCurrentBuild(DEFAULT_PORT)) {
+    activeBackendPort = DEFAULT_PORT;
+    return;
+  }
+
+  if (await isPortAvailable(DEFAULT_PORT)) {
+    activeBackendPort = DEFAULT_PORT;
+    return;
+  }
+
+  activeBackendPort = await getAvailablePort();
+}
+
 async function ensureBackend() {
+  await prepareBackendPort();
   try {
     await waitForHealthCheck(1200);
     return "existing";
@@ -750,7 +839,7 @@ async function boot() {
   try {
     await ensureBackend();
     await maybePromptForC1Tunnel();
-    await mainWindow.loadURL(DEMO_URL);
+    await mainWindow.loadURL(getDemoUrl());
     if (process.argv.includes("--devtools")) {
       mainWindow.webContents.openDevTools({ mode: "detach" });
     }

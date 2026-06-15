@@ -177,6 +177,7 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
     score = float(match.get("score") or match.get("best_score") or 0)
     frame_url = _absolute_media_url(match.get("frame_url") or match.get("best_frame_url"))
     face_id = match.get("face_id") or match.get("best_face_id") or f"c1-{index}"
+    face_url = _absolute_media_url(match.get("face_url") or match.get("face_crop_url") or f"/api/v1/media/face/{face_id}")
     return {
         "id": index,
         "title": f"记录{index}",
@@ -190,6 +191,7 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
         "sceneClass": f"scene-{((index - 1) % 5) + 1}",
         "progress": min(92, max(8, 8 + index * 13)),
         "frameUrl": frame_url,
+        "faceUrl": face_url,
         "faceId": face_id,
         "videoId": match.get("video_id"),
         "videoTimestampSec": match.get("video_timestamp_sec"),
