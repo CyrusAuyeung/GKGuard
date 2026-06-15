@@ -19,7 +19,7 @@
 - 新功能、接口扩展、CampusCar/UE 真实接入建议：提交功能建议。
 - 安全、隐私、凭据、真实媒体泄露：不要公开提交，按 [SECURITY.md](SECURITY.md) 处理。
 
-公开问题请优先使用仓库 Issue 模板；维护者会按 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并在 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 中跟踪处理状态、Roadmap 日期字段和时间线顺序。
+公开问题请优先使用仓库 Issue 模板；维护者会按 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并在 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 中补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
 
 ## 提交问题前请准备
 
@@ -55,7 +55,7 @@ Recommended current version: `v0.1.20`. When filing an issue, include the releas
 - New features, API extensions, or real CampusCar/UE integration ideas: open a Feature Request.
 - Security, privacy, credentials, or real media exposure: do not open a public issue; follow [SECURITY.md](SECURITY.md).
 
-For public issues, use the repository issue templates first. Maintainers triage with `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and track status, Roadmap date fields, and timeline order in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project.
+For public issues, use the repository issue templates first. Maintainers triage with `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and fill `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version` in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project.
 
 ## Prepare Before Filing
 
