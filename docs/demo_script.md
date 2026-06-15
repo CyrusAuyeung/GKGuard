@@ -9,7 +9,7 @@
 
 ## 目标
 
-演示当前 GKGuard C2 工作台闭环：上传人脸图片，GKGuard C2 前端只访问 GKGuard C2 后端；GKGuard C2 后端优先调用 CampusVision C1 服务获取真实关键帧和轨迹；如果 CampusVision C1 不可用，则回退本地模拟记录；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 mock 工作流。
+演示当前 GKGuard C2 工作台闭环：上传人脸图片，GKGuard C2 前端只访问 GKGuard C2 后端；GKGuard C2 后端优先调用 CampusVision C1 服务获取真实关键帧和轨迹；如果 CampusVision C1 不可用，则回退本地模拟记录；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 模拟工作流。
 
 ## 主视觉流程：CampusVision C1 真实检索
 
@@ -92,7 +92,7 @@ CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 - 结果页数据来源显示 `本地模拟`。
 - 页面仍可用于演示 GKGuard C2 工作台和交互流程。
 
-## 旧 mock API 演示
+## 旧版模拟 API 演示
 
 以下接口仍可用于不依赖 CampusVision C1 的 API 级演示。
 
@@ -102,16 +102,16 @@ CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 GET /search/persons?student_id=S2026001
 ```
 
-期望结果：返回 `P001` 这个主 demo 对象。
+期望结果：返回 `P001` 这个主演示对象。
 
-### 上传图片到 legacy mock 搜索
+### 上传图片到旧版模拟搜索
 
 ```text
 POST /search/image?top_k=5&min_similarity=0.8
 file: p001_target.jpg
 ```
 
-期望结果：返回 `P001` 的 Top-K mock 记录。
+期望结果：返回 `P001` 的 Top-K 模拟记录。
 
 ### 生成人员时间线
 
@@ -147,7 +147,7 @@ POST /car-tasks/mock-dispatch
 
 期望结果：返回 `arrived_mock` 状态和 `bridge_contract`。
 
-### 查看 UE/CampusCar bridge 占位状态
+### 查看 UE/CampusCar 桥接占位状态
 
 ```text
 GET /car-tasks/ue-bridge-status
@@ -182,9 +182,9 @@ GET /events/ALT-001/case-package
 ## 维护备注
 
 - 当前前端使用 CampusVision C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线。
-- 控制/UE 组后续可替换 `/car-tasks/mock-dispatch` 背后的适配器，字段名保持稳定。
-- 不要把 UE 测试 app 打包进 GKGuard；它应作为 ROS2/UE Bridge 回路的外部验证目标。
-- 保留 legacy `/search/image` mock 接口用于非 CampusVision C1 演示；真实人脸检索路径是 `/c1/search/person-by-image`。
+- B组嵌入式控制后续可替换 `/car-tasks/mock-dispatch` 背后的适配器，字段名保持稳定。
+- 不要把 UE 测试应用打包进 GKGuard；它应作为 ROS2/UE Bridge 回路的外部验证目标。
+- 保留旧版 `/search/image` 模拟接口用于非 CampusVision C1 演示；真实人脸检索路径是 `/c1/search/person-by-image`。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -369,7 +369,7 @@ Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline
 ## Maintenance Notes
 
 - The current frontend consumes CampusVision C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines.
-- The control/UE team can later replace the adapter behind `/car-tasks/mock-dispatch` while keeping field names stable.
+- Group B embedded control can later replace the adapter behind `/car-tasks/mock-dispatch` while keeping field names stable.
 - Do not package the UE test app into GKGuard; keep it as an external validation target for the ROS2/UE Bridge loop.
 - Keep the legacy `/search/image` mock endpoint for non-CampusVision C1 demos. The real face-search path is `/c1/search/person-by-image`.
 

@@ -10,8 +10,8 @@
 - [ ] GKGuard C2 前端 / 静态页面
 - [ ] Electron 桌面端
 - [ ] GKGuard C2 本地代理或 CampusVision C1 服务
-- [ ] CampusCar / UE 占位合同
-- [ ] 文档 / Release notes
+- [ ] CampusCar / UE 占位接口规范
+- [ ] 文档 / 发布说明
 - [ ] GitHub Actions / 发布流程
 
 ## 验证
@@ -41,7 +41,7 @@
 - [ ] GKGuard C2 frontend / static UI
 - [ ] Electron desktop app
 - [ ] GKGuard C2 local proxy or CampusVision C1 service
-- [ ] CampusCar / UE placeholder contract
+- [ ] CampusCar / UE placeholder interface specification
 - [ ] Docs / Release notes
 - [ ] GitHub Actions / release flow
 

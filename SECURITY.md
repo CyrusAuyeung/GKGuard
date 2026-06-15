@@ -15,8 +15,8 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 
 | 版本 | 状态 |
 |---|---|
-| v0.1.18 | 当前演示版本，接受安全修复 |
-| v0.1.9 - v0.1.17 | 已被 v0.1.18 替代；建议升级到最新版 |
+| v0.1.19 | 当前演示版本，接受安全修复 |
+| v0.1.9 - v0.1.18 | 已被 v0.1.19 替代；建议升级到最新版 |
 | v0.1.8 及更早 | 历史演示版本，仅按需要补充说明 |
 
 ## 如何报告安全问题
@@ -29,7 +29,7 @@ GKGuard 涉及校园安防演示、人脸检索、轨迹展示和服务器连接
 2. 提供最小必要信息：影响范围、复现步骤、受影响文件或接口、建议修复方向。
 3. 如必须提供截图或日志，先脱敏并移除人脸、学号、手机号、token、IP 以外的敏感细节。
 
-如果问题已经公开暴露，请先删除敏感内容，再通知维护者清理历史、Release 附件或日志。
+如果问题已经公开暴露，请先删除敏感内容，再通知维护者清理历史、GitHub Release 附件或日志。
 
 ## 高风险内容
 
@@ -63,8 +63,8 @@ Currently maintained versions:
 
 | Version | Status |
 |---|---|
-| v0.1.18 | Current demo version, accepts security fixes |
-| v0.1.9 - v0.1.17 | Superseded by v0.1.18; upgrade to the latest release |
+| v0.1.19 | Current demo version, accepts security fixes |
+| v0.1.9 - v0.1.18 | Superseded by v0.1.19; upgrade to the latest release |
 | v0.1.8 and earlier | Historical demo versions, documentation updates only as needed |
 
 ## Reporting A Security Issue
@@ -77,7 +77,7 @@ Recommended process:
 2. Provide only necessary information: impact, reproduction steps, affected files or endpoints, and suggested remediation.
 3. If screenshots or logs are necessary, redact faces, student IDs, phone numbers, tokens, and sensitive details beyond the minimum needed.
 
-If sensitive content was already exposed publicly, remove it first, then notify maintainers to clean history, Release assets, or logs as needed.
+If sensitive content was already exposed publicly, remove it first, then notify maintainers to clean history, Release files, or logs as needed.
 
 ## High-Risk Content
 

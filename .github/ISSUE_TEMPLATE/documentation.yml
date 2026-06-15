@@ -27,4 +27,4 @@ body:
       options:
         - label: Chinese section should be updated. / 需要更新中文部分。
         - label: English section should be updated. / 需要更新 English 部分。
-        - label: This affects current-state docs, not historical Release notes. / 影响当前状态文档，不是历史 Release notes。
+        - label: This affects current-state docs, not historical Release notes. / 影响当前状态文档，不是历史发布说明。

@@ -7,12 +7,12 @@
 
 # CampusVision C1 / GKGuard C2 集成说明
 
-本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、mock fallback 和 CampusCar/UE 占位合同。当前 `v0.1.19` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、CampusVision C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、响应式宽屏布局、上传图与 C1 关键帧完整显示、细节修正后的线性功能图标、品牌图标资产、应用内更新安装和重新上传入口：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
+本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.19` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、CampusVision C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、响应式宽屏布局、上传图与 C1 关键帧完整显示、细节修正后的线性功能图标、品牌图标文件、应用内更新安装和重新上传入口：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
 
 ## 职责边界
 
 - CampusVision C1（`services/campusvision-c1/`）：视频上传、抽帧、人脸 embedding、人物库、以图搜人、轨迹输出和媒体帧访问。
-- GKGuard C2（`backend/`、`desktop/`）：检索工作台、结果与路线展示、事件研判、证据打包、审计日志、CampusCar/UE 占位合同和 CampusVision C1 代理。
+- GKGuard C2（`backend/`、`desktop/`）：检索工作台、结果与路线展示、事件研判、证据打包、审计日志、CampusCar/UE 占位接口规范和 CampusVision C1 代理。
 
 ## CampusVision C1 源码与运行数据
 
@@ -96,12 +96,12 @@ C1_BASE_URL -> health check -> image search -> normalize result -> C2 view model
 
 # CampusVision C1 / GKGuard C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder contracts. As of `v0.1.19`, the real GKGuard C2-to-CampusVision C1 search path is included, and the desktop app adds SSH-tunnel priority, connection retry after CampusVision C1 503, an embedded SSH password prompt, connection progress, responsive wide-window layout, complete display for uploaded images and C1 keyframes, refined linear UI icons, brand icon assets, in-app update installation, and a return-to-upload action: the GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder interface specifications. As of `v0.1.19`, the real GKGuard C2-to-CampusVision C1 search path is included, and the desktop app adds SSH-tunnel priority, connection retry after CampusVision C1 503, an embedded SSH password prompt, connection progress, responsive wide-window layout, complete display for uploaded images and C1 keyframes, refined linear UI icons, brand icon assets, in-app update installation, and a return-to-upload action: the GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 
 - CampusVision C1 (`services/campusvision-c1/`): video upload, frame sampling, face embeddings, person indexing, image search, trajectory output, and media frame access.
-- GKGuard C2 (`backend/`, `desktop/`): search workbench, result and route UI, event investigation, evidence packaging, audit logs, CampusCar/UE placeholder contracts, and the CampusVision C1 proxy.
+- GKGuard C2 (`backend/`, `desktop/`): search workbench, result and route UI, event investigation, evidence packaging, audit logs, CampusCar/UE placeholder interface specifications, and the CampusVision C1 proxy.
 
 ## CampusVision C1 Source And Runtime Data
 
