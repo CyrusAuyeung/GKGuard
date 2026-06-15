@@ -21,7 +21,7 @@ CampusVision C1 适配器默认本机隧道地址：
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版 `v0.1.19` 还内置候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，优先使用本机 SSH 隧道。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内提示输入服务器密码、显示连接进度并建立 SSH 隧道。真实检索遇到 CampusVision C1 502/503/504 时，适配器会尝试下一个候选地址。本版保持上传、检查更新、路线、导出和信息提示图标细节修正，保持路线页 `重新上传` 为最左侧操作，统一桌面 CampusVision C1 密码窗口文案，并让上传图、结果缩略图和关键帧在响应式桌面布局中完整显示。
+安装版 `v0.1.20` 还内置候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，优先使用本机 SSH 隧道。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内提示输入服务器密码、显示连接进度并建立 SSH 隧道。真实检索遇到 CampusVision C1 502/503/504 时，适配器会尝试下一个候选地址。本版继续保持路线页 `重新上传` 为最左侧操作，并让上传图、C1 人脸裁剪缩略图和关键帧在响应式桌面布局中完整显示；桌面端还会检测当前端口上的 `/demo` 静态资源版本，避免复用旧后台导致新版壳体加载旧页面资源。
 
 GKGuard C2 前端只访问 GKGuard C2 API。真实 CampusVision C1 检索通过 GKGuard C2 的 `/c1/...` 代理完成；旧版模拟 API 继续保留用于离线演示和非 CampusVision C1 流程。
 
@@ -291,7 +291,7 @@ Default local CampusVision C1 tunnel URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged `v0.1.19` app also has built-in candidates `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, preferring the local SSH tunnel. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app, shows connection progress, and creates the SSH tunnel. When real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL. This version keeps the refined upload, update, route, export, and information icons, keeps the route-screen `重新上传` action as the leftmost control, standardizes the desktop CampusVision C1 password-window wording, and renders uploaded images, result thumbnails, and keyframes fully inside the responsive desktop layout.
+The packaged `v0.1.20` app also has built-in candidates `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, preferring the local SSH tunnel. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app, shows connection progress, and creates the SSH tunnel. When real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL. This version keeps the route-screen `重新上传` action as the leftmost control and renders uploaded images, C1 face-crop thumbnails, and keyframes fully inside the responsive desktop layout. The desktop app also checks the static asset version served by `/demo` on the active port, so a stale backend cannot make a newer shell load older page resources.
 
 The GKGuard C2 frontend calls GKGuard C2 APIs only. Real CampusVision C1 search is exposed through GKGuard C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-CampusVision C1 workflows.
 
