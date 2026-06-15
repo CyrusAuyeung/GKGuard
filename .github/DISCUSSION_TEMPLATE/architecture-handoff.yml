@@ -17,7 +17,7 @@ body:
         - label: GKGuard C2 frontend / GKGuard C2 前端
         - label: Electron desktop app / Electron 桌面端
         - label: CampusVision C1 service / CampusVision C1 服务
-        - label: CampusCar / UE / control team
+        - label: CampusCar / UE / Group B embedded control
         - label: Docs / Release / maintenance
   - type: textarea
     id: background
@@ -35,4 +35,4 @@ body:
       label: Security and data boundary / 安全与数据边界
       options:
         - label: This does not expose real media, personal data, server passwords, tokens, or private keys. / 不暴露真实媒体、个人信息、服务器密码、token 或私钥。
-        - label: If this changes behavior, related docs and Release notes will be updated. / 如改变行为，会同步相关文档和 Release notes。
+        - label: If this changes behavior, related docs and Release notes will be updated. / 如改变行为，会同步相关文档和发布说明。

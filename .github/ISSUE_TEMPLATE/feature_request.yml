@@ -40,4 +40,4 @@ body:
       options:
         - label: This does not require committing real media or private data. / 不需要提交真实媒体或隐私数据。
         - label: If it touches CampusVision C1/CampusCar/UE, the external service boundary is described. / 如涉及 CampusVision C1/CampusCar/UE，已说明外部服务边界。
-        - label: If it affects releases, docs and release notes will be updated. / 如影响发布，会同步文档和 Release notes。
+        - label: If it affects releases, docs and release notes will be updated. / 如影响发布，会同步文档和发布说明。

@@ -7,36 +7,36 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、mock fallback、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.19` 状态下，仓库包含 GKGuard C2 后端、三界面人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、响应式宽屏布局、完整显示上传图和 C1 关键帧的媒体展示、经过细节修正的线性功能图标、品牌图标资产、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
+GKGuard 是校园安防 AI 检索项目中的 C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、本地模拟回退、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.19` 状态下，仓库包含 GKGuard C2 后端、三屏人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、响应式宽屏布局、完整显示上传图和 C1 关键帧的媒体展示、经过细节修正的线性功能图标、品牌图标文件、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
 
 ## 仓库版本
 
 - 当前最新版本：`v0.1.19`。
 - 桌面安装包：GitHub Release 中包含 Windows 安装包、`.blockmap` 和 `latest.yml`。
 - 代码形态：仓库同时保留可本地运行的 FastAPI 后端、静态前端、Electron 桌面壳和导入的 CampusVision C1 源码。
-- 文档形态：仓库内维护中英双语 README、API 合同、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和治理文档。
+- 文档形态：仓库内维护中英双语 README、API 规范、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和治理文档。
 
 ## 仓库内容
 
 当前仓库包含以下主要模块：
 
-- GKGuard C2 FastAPI 后端：健康检查、人员/车辆 mock API、事件处置、审计、CampusVision C1 代理和 CampusCar/UE 占位接口。
+- GKGuard C2 FastAPI 后端：健康检查、人员/车辆模拟 API、事件处置、审计、CampusVision C1 代理和 CampusCar/UE 占位接口。
 - GKGuard C2 静态前端：人脸检索、检索结果、人物路线图三屏流程，支持上传、重新上传、结果查看、路线查看、响应式窗口宽度和导出入口。
 - GKGuard C2 本地代理层：在 GKGuard C2 后端内探测 CampusVision C1 服务候选地址，检查 `/openapi.json` 与 `/health`，转发以图搜人请求，改写媒体 URL，并把 CampusVision C1 响应归一化为 GKGuard C2 视图模型。
 - Electron 桌面壳：启动内置 GKGuard C2 后端、显示启动页、加载演示页、内嵌 CampusVision C1 SSH 密码窗口、连接进度和应用内更新。
-- 发布工程：GitHub Actions 自动构建 Windows 安装包，生成 Release notes，并上传安装包和 Electron 自动更新元数据。
-- 文档与治理：双语 README、API 合同、CampusVision C1 / GKGuard C2 集成说明、自动连接说明、演示脚本、数据字典、发布说明、安全/隐私/贡献/支持声明。
+- 发布工程：GitHub Actions 自动构建 Windows 安装包，生成发布说明，并上传安装包和 Electron 自动更新元数据。
+- 文档与治理：双语 README、API 规范、CampusVision C1 / GKGuard C2 集成说明、自动连接说明、演示脚本、数据字典、发布说明、安全/隐私/贡献/支持声明。
 
 ## 仓库边界
 
 - 不包含真实 CampusCar 控制、ROS2 节点、UE 运行时或底盘控制逻辑。
 - 不包含真实 CampusVision C1 运行数据、真实视频、真实查询图片、SQLite 数据库、模型缓存或服务器 `.env`。
 - 不把服务器密码、SSH 私钥、token 或 API key 写入仓库、配置文件或日志。
-- 离线或无校园网/VPN/SSH 隧道环境下，真实 CampusVision C1 检索不可用；此时 GKGuard C2 前端使用 mock fallback 展示工作台流程。
+- 离线或无校园网/VPN/SSH 隧道环境下，真实 CampusVision C1 检索不可用；此时 GKGuard C2 前端使用本地模拟回退展示工作台流程。
 
 ## 当前状态
 
-- GKGuard C2 后端位于 `backend/`，提供 FastAPI API、静态演示页、CampusVision C1 代理、mock fallback、审计和 CampusCar/UE 占位接口。
+- GKGuard C2 后端位于 `backend/`，提供 FastAPI API、静态演示页、CampusVision C1 代理、本地模拟回退、审计和 CampusCar/UE 占位接口。
 - GKGuard C2 前端位于 `backend/app/static/`，当前主流程为 `人脸检索`、`人脸检索结果`、`人物路线图` 三个界面；页面宽度会随桌面窗口扩展，支持 `680x640` 小窗口下无横向溢出；上传页和结果页会优先完整显示用户上传的目标照片，记录列表与详情区完整展示 C1 关键帧，结果页和路线页都可一键返回重新上传，路线页工具栏将 `重新上传` 固定在最左侧。
 - Electron 桌面壳位于 `desktop/`，GitHub Actions 可构建 Windows 安装包；安装版打开后会优先建立通向 CampusVision C1 的 SSH 隧道，并在软件内提示输入服务器密码与连接进度；真实检索遇到 C1 503 时也会打开同一个内嵌连接窗口并重试；桌面模式右上角提供 `检查更新` 入口，可在应用内下载新版并重启安装。
 - CampusVision C1 源码位于 `services/campusvision-c1/`，负责视频上传、抽帧、人脸 embedding、人物库、以图搜人和轨迹输出。
@@ -56,11 +56,11 @@ Windows Desktop App (Electron)
        -> custom URLs from environment or c1-connection.json
 
 External integration boundary:
-  -> /car-tasks/... placeholder contracts
+  -> /car-tasks/... placeholder interface specification
   -> external CampusCar / ROS2 / UE adapter service
 ```
 
-GKGuard C2 前端只访问 GKGuard C2 后端。真实 CampusVision C1 检索、C1 媒体帧、CampusCar/UE 占位能力都通过 C2 后端合同暴露，避免前端直接依赖多个外部服务。
+GKGuard C2 前端只访问 GKGuard C2 后端。真实 CampusVision C1 检索、C1 媒体帧、CampusCar/UE 占位能力都通过 C2 后端接口暴露，避免前端直接依赖多个外部服务。
 
 ## 项目结构
 
@@ -103,9 +103,9 @@ services/
 - [docs/c1_c2_integration.md](docs/c1_c2_integration.md)：CampusVision C1 与 GKGuard C2 的职责边界、字段映射和联调清单。
 - [docs/c1_auto_connection.md](docs/c1_auto_connection.md)：CampusVision C1 候选地址、SSH 隧道和内嵌密码窗口策略。
 - [docs/demo_script.md](docs/demo_script.md)：安装版和本地开发版演示流程。
-- [docs/data_dictionary.md](docs/data_dictionary.md)：mock 数据、CampusVision C1 检索结果和 CampusCar/UE 占位字段。
-- [docs/campuscar_ue_integration.md](docs/campuscar_ue_integration.md)：CampusCar、ROS2、UE Bridge 的当前占位合同。
-- [docs/releases/](docs/releases/)：各版本双语 Release notes。
+- [docs/data_dictionary.md](docs/data_dictionary.md)：模拟数据、CampusVision C1 检索结果和 CampusCar/UE 占位字段。
+- [docs/campuscar_ue_integration.md](docs/campuscar_ue_integration.md)：CampusCar、ROS2、UE Bridge 的当前占位接口规范。
+- [docs/releases/](docs/releases/)：各版本双语发布说明。
 
 ## 仓库治理与使用声明
 
@@ -116,7 +116,7 @@ services/
 - [CONTRIBUTING.md](CONTRIBUTING.md)：贡献流程、验证命令和文档规范。
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)：项目协作行为准则。
 - [SUPPORT.md](SUPPORT.md)：问题反馈入口和支持边界。
-- [GOVERNANCE.md](GOVERNANCE.md)：CampusVision C1、GKGuard C2、CampusCar/UE 和文档维护职责。
+- [GOVERNANCE.md](GOVERNANCE.md)：A组机械结构、B组嵌入式控制、C组算法感知的模块维护职责。
 
 ## CampusVision C1 / GKGuard C2 接入
 
@@ -151,14 +151,14 @@ CampusVision C1 真实检索需要 `FACE_ENGINE=insightface`。如果 `/api/v1/p
 
 ## CampusCar / UE 占位
 
-当前 GKGuard C2 只保留稳定的 CampusCar/UE 集成占位合同，不打包 UE 运行时，也不在桌面 app 内运行 ROS2 节点。
+当前 GKGuard C2 只保留稳定的 CampusCar/UE 占位接口规范，不打包 UE 运行时，也不在桌面应用内运行 ROS2 节点。
 
 占位接口：
 
-- `POST /car-tasks/mock-dispatch`：创建模拟现场复核任务，并返回 `bridge_contract`。
-- `GET /car-tasks/ue-bridge-status`：返回 rosbridge、UE 测试 app 和预期 topic 的占位状态。
+- `POST /car-tasks/mock-dispatch`：创建模拟现场复核任务，并返回 `bridge_contract`，用于 C组算法感知与 B组嵌入式控制后续对接。
+- `GET /car-tasks/ue-bridge-status`：返回 rosbridge、UE 测试应用和预期话题的占位状态。
 
-预期外部 topic：
+预期外部话题：
 
 - `/U2RTopic_Command`：GKGuard C2 或适配器下发命令意图。
 - `/R2UTopic_Pos`：车辆或 UE 位姿反馈。
@@ -184,7 +184,7 @@ http://127.0.0.1:8002/demo
 http://127.0.0.1:8002/docs
 ```
 
-未连接 CampusVision C1 服务时，演示页仍可通过本地 mock fallback 运行。
+未连接 CampusVision C1 服务时，演示页仍可通过本地模拟回退运行。
 
 ## 运行桌面端
 
@@ -196,9 +196,9 @@ http://127.0.0.1:8002/docs
 
 网络边界：
 
-- 离线或非校园网环境：可以正常打开软件，使用本地 mock fallback 演示三屏人脸检索壳体、路线图和占位数据。
+- 离线或非校园网环境：可以正常打开软件，使用本地模拟回退演示三屏人脸检索壳体、路线图和占位数据。
 - 校园网、VPN 或 SSH 隧道可用时：可以连接服务器上的真实 CampusVision C1 服务，执行真实视频/人脸检索并显示 CampusVision C1 关键帧和轨迹。
-- 如果不在校园网且没有到 CampusVision C1 服务所在服务器的 VPN/隧道，真实 CampusVision C1 检索不可用，但软件本身仍可打开并演示 mock 流程。
+- 如果不在校园网且没有到 CampusVision C1 服务所在服务器的 VPN/隧道，真实 CampusVision C1 检索不可用，但软件本身仍可打开并演示本地模拟流程。
 
 ```powershell
 python -m pip install -r backend/requirements.txt
@@ -225,9 +225,9 @@ git tag -a v0.1.x -m "GKGuard v0.1.x"
 git push origin v0.1.x
 ```
 
-tag 推送后，workflow 会安装 Python 和 Node.js 22、运行后端测试、构建 Electron Windows 安装包、生成 Release 说明，并把安装包和更新元数据附到 GitHub Release。
+版本标签推送后，发布工作流会安装 Python 和 Node.js 22、运行后端测试、构建 Electron Windows 安装包、生成发布说明，并把安装包和更新元数据附到 GitHub Release。
 
-如果 `docs/releases/v0.1.x.md` 存在，workflow 会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 Release 正文。
+如果 `docs/releases/v0.1.x.md` 存在，发布工作流会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 GitHub Release 正文。
 
 本地只做冒烟打包时可运行：
 
@@ -257,7 +257,7 @@ npm run dist
 git diff --check
 ```
 
-并检查 README、相关 docs 文件和 Release notes 是否保持中英双语同步。
+并检查 README、相关 docs 文件和发布说明是否保持中英双语同步。
 
 ## 后端测试
 
@@ -270,14 +270,14 @@ python -m pytest
 
 主演示流程：
 
-1. 启动 CampusVision C1 服务和 GKGuard C2 后端，或只启动 GKGuard C2 后端使用 mock fallback。
+1. 启动 CampusVision C1 服务和 GKGuard C2 后端，或只启动 GKGuard C2 后端使用本地模拟回退。
 2. 打开 `/demo`。
 3. 上传目标人脸图片。
 4. 点击 `开始检索`。
 5. 在结果页确认数据来源为 `C1 CampusVision` 或 `本地模拟`。
 6. 点击 `查看人物路线图` 查看轨迹、时间线和摘要。
 
-保留的旧 mock API 如 `GET /search/persons?student_id=S2026001`、`POST /search/image`、`GET /persons/P001/timeline` 仍可用于 API 级演示。
+保留的旧版模拟 API 如 `GET /search/persons?student_id=S2026001`、`POST /search/image`、`GET /persons/P001/timeline` 仍可用于 API 级演示。
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -294,7 +294,7 @@ GKGuard is the C2 workbench for the campus security AI search project: it owns t
 - Latest version: `v0.1.19`.
 - Desktop installer: GitHub Releases contain the Windows installer, `.blockmap`, and `latest.yml`.
 - Code shape: the repository keeps the locally runnable FastAPI backend, static frontend, Electron desktop shell, and imported CampusVision C1 source.
-- Documentation shape: the repository maintains bilingual README, API contract, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and governance documents.
+- Documentation shape: the repository maintains bilingual README, API specification, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and governance documents.
 
 ## Repository Contents
 
@@ -307,7 +307,7 @@ This repository currently covers:
 - GKGuard C2 local proxy layer: inside the GKGuard C2 backend, probes CampusVision C1 service candidate URLs, checks `/openapi.json` and `/health`, forwards image-search requests, rewrites media URLs, and normalizes CampusVision C1 responses into GKGuard C2 view models.
 - Electron desktop shell: bundled GKGuard C2 backend startup, loading page, demo page loading, embedded CampusVision C1 SSH password window, connection progress, and in-app updates.
 - Release engineering: GitHub Actions builds the Windows installer, generates Release notes, and uploads the installer plus Electron update metadata.
-- Documentation and governance: bilingual README, API contract, CampusVision C1 / GKGuard C2 integration notes, auto-connection guide, demo script, data dictionary, release notes, and security/privacy/contribution/support statements.
+- Documentation and governance: bilingual README, API specification, CampusVision C1 / GKGuard C2 integration notes, auto-connection guide, demo script, data dictionary, release notes, and security/privacy/contribution/support statements.
 
 ## Repository Boundary
 
@@ -338,11 +338,11 @@ Windows Desktop App (Electron)
        -> custom URLs from environment or c1-connection.json
 
 External integration boundary:
-  -> /car-tasks/... placeholder contracts
+  -> /car-tasks/... placeholder interface specifications
   -> external CampusCar / ROS2 / UE adapter service
 ```
 
-The GKGuard C2 frontend calls only the GKGuard C2 backend. Real CampusVision C1 search, C1 media frames, and CampusCar/UE placeholder capabilities are exposed through C2 backend contracts so the frontend does not directly depend on multiple external services.
+The GKGuard C2 frontend calls only the GKGuard C2 backend. Real CampusVision C1 search, C1 media frames, and CampusCar/UE placeholder capabilities are exposed through C2 backend API specifications so the frontend does not directly depend on multiple external services.
 
 ## Project Structure
 
@@ -386,7 +386,7 @@ services/
 - [docs/c1_auto_connection.md](docs/c1_auto_connection.md): CampusVision C1 candidate URLs, SSH tunnel, and embedded password prompt strategy.
 - [docs/demo_script.md](docs/demo_script.md): packaged-app and local-development demo flows.
 - [docs/data_dictionary.md](docs/data_dictionary.md): mock data, CampusVision C1 search results, and CampusCar/UE placeholder fields.
-- [docs/campuscar_ue_integration.md](docs/campuscar_ue_integration.md): current placeholder contract for CampusCar, ROS2, and UE Bridge.
+- [docs/campuscar_ue_integration.md](docs/campuscar_ue_integration.md): current placeholder interface specification for CampusCar, ROS2, and UE Bridge.
 - [docs/releases/](docs/releases/): bilingual Release notes for each version.
 
 ## Repository Governance And Usage
@@ -433,7 +433,7 @@ See [docs/c1_auto_connection.md](docs/c1_auto_connection.md) for automatic conne
 
 ## CampusCar / UE Placeholder
 
-GKGuard C2 keeps a stable CampusCar/UE integration contract only. It does not package the UE runtime and does not run ROS2 nodes inside the desktop app.
+GKGuard C2 keeps a stable CampusCar/UE interface specification only. It does not package the UE runtime and does not run ROS2 nodes inside the desktop app.
 
 Placeholder endpoints:
 
