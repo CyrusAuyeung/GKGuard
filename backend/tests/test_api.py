@@ -31,6 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
+    assert "/static/styles.css?v=responsive1" in response.text
+    assert "/static/app.js?v=responsive1" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -57,10 +59,17 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
     assert ".mini-face img" in style
+    assert ".scene-frame" in style
+    assert "min-width: 0" in style
+    assert "width: calc(100vw" in style
+    assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
+    assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain" in style
     assert ".desktop-update" in style
     assert ".ui-icon" in style
     assert "stroke: currentColor" in style
     assert "background-image: url(\"/static/icons/search-action.png\")" not in style
+    assert ".mini-face img { width: 100%; height: 100%; object-fit: cover" not in style
+    assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover" not in style
 
     page_response = client.get("/demo")
     assert page_response.status_code == 200
@@ -94,6 +103,8 @@ def test_desktop_update_bridge_wired() -> None:
     assert "preload.js" in main_script
     assert "APP_ICON_PATH" in main_script
     assert "app-mark.ico" in main_script
+    assert "minWidth: 680" in main_script
+    assert "minHeight: 640" in main_script
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
     assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
