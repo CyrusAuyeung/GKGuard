@@ -61,6 +61,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
     style = style_response.text
+    normalized_style = style.replace("\r\n", "\n")
     assert ".portrait-frame img" in style
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
@@ -78,9 +79,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".map-label.is-near-right" in style
     assert ".map-label.is-near-bottom" in style
     assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in style
-    assert ".upload-drop {\n    gap: 8px;" in style
+    assert ".upload-drop {\n    gap: 8px;" in normalized_style
     assert "min-height: 176px" in style
-    assert ".button-cluster {\n    display: grid;" in style
+    assert ".button-cluster {\n    display: grid;" in normalized_style
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in style
     assert "height: clamp(320px, calc(100vh - 500px), 560px)" in style
     assert "#routeTimelineRows { display: grid; gap: 6px; max-height: 224px" in style
