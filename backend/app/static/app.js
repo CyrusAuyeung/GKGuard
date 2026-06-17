@@ -26,6 +26,10 @@ const elements = {
   routePointCount: document.querySelector("#routePointCount"),
   routeStart: document.querySelector("#routeStart"),
   routeEnd: document.querySelector("#routeEnd"),
+  routeOverviewPointCount: document.querySelector("#routeOverviewPointCount"),
+  routeOverviewStart: document.querySelector("#routeOverviewStart"),
+  routeOverviewEnd: document.querySelector("#routeOverviewEnd"),
+  routeOverviewDuration: document.querySelector("#routeOverviewDuration"),
   summaryDuration: document.querySelector("#summaryDuration"),
   summaryCameraCount: document.querySelector("#summaryCameraCount"),
   summaryFrameCount: document.querySelector("#summaryFrameCount"),
@@ -444,10 +448,15 @@ function renderRouteTimeline() {
   const cameras = new Set(records.map((record) => record.cameraId || record.camera).filter(Boolean));
   const sortedSeconds = routePoints.map((point) => parseTimeSeconds(point.time)).filter((value) => value !== null).sort((left, right) => left - right);
   const duration = sortedSeconds.length > 1 ? sortedSeconds[sortedSeconds.length - 1] - sortedSeconds[0] : null;
+  const durationLabel = formatDuration(duration);
   elements.routePointCount.textContent = String(routePoints.length);
   elements.routeStart.textContent = startPoint?.location || "--";
   elements.routeEnd.textContent = endPoint?.location || "--";
-  elements.summaryDuration.textContent = formatDuration(duration);
+  elements.routeOverviewPointCount.textContent = String(routePoints.length);
+  elements.routeOverviewStart.textContent = startPoint?.location || "--";
+  elements.routeOverviewEnd.textContent = endPoint?.location || "--";
+  elements.routeOverviewDuration.textContent = durationLabel;
+  elements.summaryDuration.textContent = durationLabel;
   elements.summaryCameraCount.textContent = `${Math.max(cameras.size, 1)}路`;
   elements.summaryFrameCount.textContent = String(records.length);
   elements.summaryFinalSimilarity.textContent = formatPercent(records[0]?.similarity);

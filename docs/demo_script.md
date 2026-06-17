@@ -83,7 +83,7 @@ CampusVision C1 已连接时期望结果：
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
-- 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、时间线和摘要。
+- 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、地图上方摘要、时间线和轨迹摘要。
 
 CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 
@@ -270,7 +270,7 @@ Expected result with CampusVision C1 connected:
 - Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
-- `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data.
+- `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data, with a top route overview, timeline, and summary.
 
 Expected result without CampusVision C1, after a CampusVision C1 failure, or without an uploaded image:
 

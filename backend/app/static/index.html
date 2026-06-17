@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=uipolish1" />
+    <link rel="stylesheet" href="/static/styles.css?v=uipolish2" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -191,16 +191,19 @@
 
         <div class="workbench route-workbench">
           <aside class="side-panel route-side">
-            <h2>人物照片</h2>
-            <div id="routePortrait" class="portrait-frame target-frame"><span class="portrait-art"></span></div>
-            <hr />
-            <h2>关联记录</h2>
-            <div id="routeRecordList" class="record-list compact-list"></div>
-            <dl class="route-stats">
-              <div><dt>轨迹点数：</dt><dd id="routePointCount">6</dd></div>
-              <div><dt>起点：</dt><dd id="routeStart">校门口</dd></div>
-              <div><dt>终点：</dt><dd id="routeEnd">C2 教学楼南门</dd></div>
-            </dl>
+            <div class="route-person-card">
+              <h2>人物照片</h2>
+              <div id="routePortrait" class="portrait-frame target-frame"><span class="portrait-art"></span></div>
+              <dl class="route-stats">
+                <div><dt>轨迹点数：</dt><dd id="routePointCount">6</dd></div>
+                <div><dt>起点：</dt><dd id="routeStart">校门口</dd></div>
+                <div><dt>终点：</dt><dd id="routeEnd">C2 教学楼南门</dd></div>
+              </dl>
+            </div>
+            <div class="route-records-section">
+              <h2>关联记录</h2>
+              <div id="routeRecordList" class="record-list compact-list route-record-list"></div>
+            </div>
           </aside>
 
           <section class="map-panel">
@@ -213,6 +216,13 @@
                 <button id="fullRouteBtn" class="primary-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>定位时间线</button>
               </div>
             </div>
+
+            <dl class="route-overview" aria-label="路线摘要">
+              <div><dt>轨迹点</dt><dd id="routeOverviewPointCount">6</dd></div>
+              <div><dt>起点</dt><dd id="routeOverviewStart">校门口</dd></div>
+              <div><dt>终点</dt><dd id="routeOverviewEnd">C2 教学楼南门</dd></div>
+              <div><dt>总时长</dt><dd id="routeOverviewDuration">6小时35分</dd></div>
+            </dl>
 
             <div id="campusRouteMap" class="campus-illustration" aria-label="目标人物路线图"></div>
 
@@ -238,6 +248,6 @@
     </main>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="/static/app.js?v=uipolish1" defer></script>
+    <script src="/static/app.js?v=uipolish2" defer></script>
   </body>
 </html>

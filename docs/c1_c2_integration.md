@@ -7,7 +7,7 @@
 
 # CampusVision C1 / GKGuard C2 集成说明
 
-本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.20` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、CampusVision C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、响应式宽屏布局、上传图、CampusVision C1 人脸裁剪缩略图与 CampusVision C1 关键帧完整显示、旧后台资源复用保护、细节修正后的线性功能图标、品牌图标文件、应用内更新安装和重新上传入口：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
+本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.20` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路，并在桌面端加入优先 SSH 隧道、CampusVision C1 503 后连接重试、内嵌 SSH 密码窗口、连接进度提示、响应式宽屏布局、上传图、CampusVision C1 人脸裁剪缩略图、CampusVision C1 关键帧完整显示、路线页地图摘要、旧后台资源复用保护、细节修正后的线性功能图标、品牌图标文件、应用内更新安装和重新上传入口：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
 
 ## 职责边界
 

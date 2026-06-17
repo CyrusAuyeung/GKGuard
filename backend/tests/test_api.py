@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=uipolish1" in response.text
-    assert "/static/app.js?v=uipolish1" in response.text
+    assert "/static/styles.css?v=uipolish2" in response.text
+    assert "/static/app.js?v=uipolish2" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -68,6 +68,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "grid-auto-flow: column" in style
     assert ".detail-toolbar" in style
     assert "position: sticky" in style
+    assert ".route-overview" in style
+    assert "height: clamp(320px, calc(100vh - 500px), 560px)" in style
+    assert "#routeTimelineRows { display: grid; gap: 6px; max-height: 224px" in style
+    assert ".route-record-list" in style
     assert "grid-template-columns: 96px minmax(0, 1fr)" in style
     assert ".mini-face { position: relative; overflow: hidden; width: 96px; height: 60px" in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
@@ -97,6 +101,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "导出记录" in page
     assert "定位记录列表" in page
     assert "定位时间线" in page
+    assert "routeOverviewPointCount" in page
+    assert "routeOverviewDuration" in page
     assert "导出截图" not in page
     assert "查看全部结果" not in page
     assert "查看完整轨迹" not in page
@@ -122,7 +128,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"uipolish1\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"uipolish2\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
