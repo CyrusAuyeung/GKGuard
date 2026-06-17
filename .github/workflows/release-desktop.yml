@@ -37,8 +37,20 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci
 
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+
       - name: Run backend tests
         run: npm run test:backend
+
+      - name: Check frontend and desktop syntax
+        run: |
+          node --check backend/app/static/app.js
+          node --check desktop/main.js
+          node --check desktop/preload.js
+
+      - name: Run browser E2E tests
+        run: npm run test:e2e
 
       - name: Build bundled backend
         run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static;app/static" --add-data "backend/data;data" backend/desktop_server.py

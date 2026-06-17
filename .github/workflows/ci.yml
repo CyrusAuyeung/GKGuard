@@ -44,11 +44,20 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci
 
+      - name: Install Playwright browser
+        run: npx playwright install chromium
+
       - name: Check Electron main process syntax
         run: node --check desktop/main.js
 
       - name: Check Electron preload syntax
         run: node --check desktop/preload.js
+
+      - name: Check frontend script syntax
+        run: node --check backend/app/static/app.js
+
+      - name: Run browser E2E tests
+        run: npm run test:e2e
 
       - name: Audit desktop dependencies
         run: npm audit --audit-level=low

@@ -47,6 +47,15 @@ const elements = {
   toastTitle: document.querySelector("#toastTitle"),
   toastMessage: document.querySelector("#toastMessage"),
   toastIconUse: document.querySelector("#toastIconUse"),
+  mediaViewer: document.querySelector("#mediaViewer"),
+  mediaViewerClose: document.querySelector("#mediaViewerClose"),
+  mediaViewerTitle: document.querySelector("#mediaViewerTitle"),
+  mediaViewerSubtitle: document.querySelector("#mediaViewerSubtitle"),
+  mediaViewerFrame: document.querySelector("#mediaViewerFrame"),
+  mediaViewerTime: document.querySelector("#mediaViewerTime"),
+  mediaViewerLocation: document.querySelector("#mediaViewerLocation"),
+  mediaViewerCamera: document.querySelector("#mediaViewerCamera"),
+  mediaViewerSimilarity: document.querySelector("#mediaViewerSimilarity"),
 };
 
 const records = [
@@ -85,6 +94,7 @@ let matchedPersonImageUrl = "";
 let uploadedFile = null;
 let activeSource = "mock";
 let toastTimer = null;
+let lastFocusedElement = null;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -202,6 +212,15 @@ function recordThumbMarkup(record) {
     return `<span class="mini-face has-thumb"><img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
   }
   return '<span class="mini-face" aria-hidden="true"></span>';
+}
+
+function emptyStateMarkup(title, detail) {
+  return `
+    <div class="empty-state" role="status">
+      <strong>${escapeHtml(title)}</strong>
+      <span>${escapeHtml(detail)}</span>
+    </div>
+  `;
 }
 
 function bindRecordThumbnailFallbacks() {
@@ -329,8 +348,17 @@ async function connectC1AfterFailure(error) {
 }
 
 function renderRecordLists() {
+  if (!records.length) {
+    const html = emptyStateMarkup("暂无检索记录", "请重新上传图片或检查 CampusVision C1 服务状态。");
+    elements.resultRecordList.innerHTML = html;
+    elements.routeRecordList.innerHTML = html;
+    if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
+    if (elements.resultCountBadge) elements.resultCountBadge.textContent = "0 条";
+    return;
+  }
+
   const html = records.map((record, index) => `
-    <button class="record-card ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-index="${index}">
+    <button class="record-card ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-index="${index}" aria-pressed="${index === selectedRecordIndex ? "true" : "false"}">
       ${recordThumbMarkup(record)}
       <span>
         <strong>${escapeHtml(record.title)}</strong>
@@ -350,6 +378,8 @@ function renderRecordLists() {
       selectedRecordIndex = Number(button.dataset.index || 0);
       renderRecordLists();
       renderSelectedRecord();
+      renderRouteMap();
+      renderRouteTimeline();
     });
   });
 }
@@ -458,6 +488,17 @@ async function initDesktopUpdateEntry() {
 
 function renderSelectedRecord() {
   const record = records[selectedRecordIndex];
+  if (!record) {
+    elements.recordTitle.textContent = "暂无记录";
+    elements.recordScene.className = "camera-scene is-empty";
+    elements.recordScene.innerHTML = '<span class="scene-time">--</span><div class="empty-state"><strong>暂无关键帧</strong><span>当前没有可展示的检索结果。</span></div>';
+    elements.timeBubble.textContent = "--:--:--";
+    elements.trackProgress.style.left = "0%";
+    elements.timeBubble.style.left = "0%";
+    elements.recordInfo.innerHTML = emptyStateMarkup("暂无相关信息", "请重新检索或检查 CampusVision C1 返回内容。");
+    renderRouteCurrentSummary();
+    return;
+  }
   elements.recordTitle.textContent = record.title;
   elements.recordScene.className = `camera-scene ${record.frameUrl ? "has-frame" : record.sceneClass}`;
   elements.recordScene.querySelectorAll(".scene-frame").forEach((node) => node.remove());
@@ -469,6 +510,9 @@ function renderSelectedRecord() {
     elements.recordScene.prepend(image);
   }
   elements.recordScene.querySelector(".scene-time").innerHTML = record.fullTime.replace(" ", "&nbsp;&nbsp;");
+  elements.recordScene.setAttribute("tabindex", "0");
+  elements.recordScene.setAttribute("role", "button");
+  elements.recordScene.setAttribute("aria-label", `${record.title} 关键帧预览`);
   elements.timeBubble.textContent = record.time;
   elements.trackProgress.style.left = `${record.progress}%`;
   elements.timeBubble.style.left = `${record.progress}%`;
@@ -485,7 +529,13 @@ function renderSelectedRecord() {
 
 function renderRouteCurrentSummary() {
   const record = records[selectedRecordIndex] || records[0];
-  if (!record) return;
+  if (!record) {
+    if (elements.routeCurrentRecord) elements.routeCurrentRecord.textContent = "--";
+    if (elements.routeCurrentTime) elements.routeCurrentTime.textContent = "--";
+    if (elements.routeCurrentLocation) elements.routeCurrentLocation.textContent = "--";
+    if (elements.routeCurrentSimilarity) elements.routeCurrentSimilarity.textContent = "--";
+    return;
+  }
   if (elements.routeCurrentRecord) {
     elements.routeCurrentRecord.textContent = `${record.title} · ${record.cameraId || record.camera || "--"}`;
   }
@@ -494,7 +544,30 @@ function renderRouteCurrentSummary() {
   if (elements.routeCurrentSimilarity) elements.routeCurrentSimilarity.textContent = formatPercent(record.similarity);
 }
 
+function selectRouteRecord(index, shouldAnnounce = true) {
+  if (!records.length) return;
+  selectedRecordIndex = Math.max(0, Math.min(Number(index) || 0, records.length - 1));
+  renderRecordLists();
+  renderSelectedRecord();
+  renderRouteMap();
+  renderRouteTimeline();
+  if (shouldAnnounce) {
+    const record = records[selectedRecordIndex];
+    showToast(`已定位到 ${record.title}：${record.location}`, { tone: "info", title: "已定位轨迹点" });
+  }
+}
+
+function bindRoutePointInteractions() {
+  document.querySelectorAll("[data-route-index]").forEach((button) => {
+    button.addEventListener("click", () => selectRouteRecord(button.dataset.routeIndex));
+  });
+}
+
 function renderRouteMap() {
+  if (!routePoints.length) {
+    elements.campusRouteMap.innerHTML = emptyStateMarkup("暂无路线", "当前检索结果没有可用轨迹点。");
+    return;
+  }
   const linePoints = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
   const mapLabelClass = (point) => [
     "map-label",
@@ -509,8 +582,8 @@ function renderRouteMap() {
       <polyline points="${linePoints}" fill="none" stroke="rgba(36,111,245,.16)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
       <polyline points="${linePoints}" fill="none" stroke="#246ff5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline>
     </svg>
-    ${routePoints.map((point) => `
-      <span class="map-point ${point.kind || ""}" style="left:${point.x}%;top:${point.y}%">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</span>
+    ${routePoints.map((point, index) => `
+      <button class="map-point ${point.kind || ""} ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-route-index="${index}" style="left:${point.x}%;top:${point.y}%" aria-label="定位到${escapeHtml(point.location)}">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</button>
       <span class="${mapLabelClass(point)}" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
     `).join("")}
     <div class="map-legend">
@@ -520,16 +593,18 @@ function renderRouteMap() {
       <span><i class="camera-dot"></i>摄像头</span>
     </div>
   `;
+  bindRoutePointInteractions();
 }
 
 function renderRouteTimeline() {
-  elements.routeTimelineRows.innerHTML = routePoints.map((point) => `
-    <div class="timeline-row">
+  elements.routeTimelineRows.innerHTML = routePoints.length ? routePoints.map((point, index) => `
+    <button class="timeline-row ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-route-index="${index}">
       <b>${point.id}</b>
       <span>${escapeHtml(point.time)}</span>
       <strong>${escapeHtml(point.location)}</strong>
-    </div>
-  `).join("");
+    </button>
+  `).join("") : emptyStateMarkup("暂无时间线", "当前检索结果没有可用轨迹点。");
+  bindRoutePointInteractions();
 
   const startPoint = routePoints[0];
   const endPoint = routePoints[routePoints.length - 1];
@@ -548,6 +623,42 @@ function renderRouteTimeline() {
   elements.summaryCameraCount.textContent = `${Math.max(cameras.size, 1)}路`;
   elements.summaryFrameCount.textContent = String(records.length);
   elements.summaryFinalSimilarity.textContent = formatPercent(records[0]?.similarity);
+}
+
+function openMediaViewer(record = records[selectedRecordIndex]) {
+  if (!record || !elements.mediaViewer) return;
+  lastFocusedElement = document.activeElement;
+  elements.mediaViewerTitle.textContent = `${record.title} 关键帧`;
+  elements.mediaViewerSubtitle.textContent = sourceLabel();
+  elements.mediaViewerTime.textContent = record.fullTime || record.time || "--";
+  elements.mediaViewerLocation.textContent = record.location || "--";
+  elements.mediaViewerCamera.textContent = record.camera || record.cameraId || "--";
+  elements.mediaViewerSimilarity.textContent = formatPercent(record.similarity);
+  if (record.frameUrl) {
+    elements.mediaViewerFrame.innerHTML = `<img src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" />`;
+  } else {
+    elements.mediaViewerFrame.innerHTML = `
+      <div class="camera-scene media-viewer-mock ${escapeHtml(record.sceneClass || "scene-1")}">
+        <span class="scene-time">${escapeHtml(record.fullTime || record.time || "--")}</span>
+        <span class="building-door"></span>
+        <span class="scene-tree tree-left"></span>
+        <span class="scene-tree tree-right"></span>
+        <span class="walking-person"></span>
+        <span class="camera-sign">C2<br />模拟</span>
+      </div>
+    `;
+  }
+  elements.mediaViewer.hidden = false;
+  elements.mediaViewer.classList.add("is-visible");
+  elements.mediaViewerClose?.focus();
+}
+
+function closeMediaViewer() {
+  if (!elements.mediaViewer) return;
+  elements.mediaViewer.classList.remove("is-visible");
+  elements.mediaViewer.hidden = true;
+  elements.mediaViewerFrame.innerHTML = "";
+  lastFocusedElement?.focus?.();
 }
 
 async function startSearch() {
@@ -631,6 +742,22 @@ function bindEvents() {
     showToast(`已定位到 ${routePoints.length} 个轨迹点的时间线。`, { tone: "info", title: "已定位时间线" });
   });
   document.querySelector("#playBtn").addEventListener("click", () => showToast("关键帧时间线已定位到当前记录。", { tone: "info", title: "时间线已定位" }));
+  elements.recordScene.addEventListener("click", () => openMediaViewer());
+  elements.recordScene.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      openMediaViewer();
+    }
+  });
+  elements.mediaViewerClose?.addEventListener("click", closeMediaViewer);
+  elements.mediaViewer?.addEventListener("click", (event) => {
+    if (event.target === elements.mediaViewer) closeMediaViewer();
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && elements.mediaViewer?.classList.contains("is-visible")) {
+      closeMediaViewer();
+    }
+  });
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
     downloadText(`GKGuard-${record.title}.json`, JSON.stringify(record, null, 2));
