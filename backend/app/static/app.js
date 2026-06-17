@@ -459,6 +459,13 @@ function renderSelectedRecord() {
 
 function renderRouteMap() {
   const linePoints = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const mapLabelClass = (point) => [
+    "map-label",
+    point.x >= 74 ? "is-near-right" : "",
+    point.x <= 18 ? "is-near-left" : "",
+    point.y >= 76 ? "is-near-bottom" : "",
+    point.y <= 16 ? "is-near-top" : "",
+  ].filter(Boolean).join(" ");
   elements.campusRouteMap.innerHTML = `
     ${buildings.map((building) => `<span class="map-building" style="left:${building.x}%;top:${building.y}%;width:${building.w}%;height:${building.h}%">${escapeHtml(building.name)}</span>`).join("")}
     <svg class="route-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -467,7 +474,7 @@ function renderRouteMap() {
     </svg>
     ${routePoints.map((point) => `
       <span class="map-point ${point.kind || ""}" style="left:${point.x}%;top:${point.y}%">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</span>
-      <span class="map-label" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
+      <span class="${mapLabelClass(point)}" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
     `).join("")}
     <div class="map-legend">
       <span><i class="start-dot">起</i>起点</span>

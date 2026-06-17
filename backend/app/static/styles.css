@@ -441,7 +441,25 @@ input, select {
 .map-point { position: absolute; display: grid; place-items: center; width: 28px; height: 28px; transform: translate(-50%, -50%); border: 3px solid #fff; border-radius: 50%; color: #fff; background: var(--primary); box-shadow: 0 8px 16px rgba(36,111,245,.30); font-weight: 900; }
 .map-point.start { width: 34px; height: 34px; background: var(--green); }
 .map-point.end { width: 34px; height: 34px; background: var(--red); }
-.map-label { position: absolute; transform: translate(14px, -14px); padding: 7px 10px; border-radius: 5px; color: #1f2f44; background: rgba(255,255,255,.92); box-shadow: 0 6px 14px rgba(31,49,78,.13); font-weight: 800; white-space: nowrap; }
+.map-label {
+  --label-x: 14px;
+  --label-y: -14px;
+  position: absolute;
+  max-width: min(176px, calc(100% - 28px));
+  transform: translate(var(--label-x), var(--label-y));
+  padding: 7px 10px;
+  overflow: hidden;
+  border-radius: 5px;
+  color: #1f2f44;
+  background: rgba(255,255,255,.92);
+  box-shadow: 0 6px 14px rgba(31,49,78,.13);
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.map-label.is-near-right { --label-x: calc(-100% - 14px); }
+.map-label.is-near-bottom { --label-y: calc(-100% - 14px); }
+.map-label.is-near-top { --label-y: 14px; }
 .map-legend { position: absolute; right: 18px; bottom: 18px; display: grid; gap: 8px; padding: 12px 14px; border-radius: 7px; background: rgba(255,255,255,.92); box-shadow: var(--soft-shadow); }
 .map-legend span { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 8px; color: #41526b; font-size: 13px; }
 .map-legend i { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; color: #fff; background: var(--primary); font-style: normal; font-size: 12px; font-weight: 900; }
@@ -681,6 +699,30 @@ input, select {
   .camera-scene,
   .campus-illustration {
     height: 292px;
+  }
+  .map-label {
+    max-width: min(132px, calc(100% - 18px));
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+  .map-legend {
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    padding: 8px;
+  }
+  .map-legend span {
+    grid-template-columns: 18px minmax(0, 1fr);
+    gap: 5px;
+    min-width: 0;
+    font-size: 11px;
+  }
+  .map-legend i {
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
   }
   #routeTimelineRows { max-height: 172px; }
 }

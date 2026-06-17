@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=uipolish3" in response.text
-    assert "/static/app.js?v=uipolish3" in response.text
+    assert "/static/styles.css?v=uipolish4" in response.text
+    assert "/static/app.js?v=uipolish4" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -55,6 +55,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "installUpdate" in script
     assert "onUpdateEvent" in script
     assert "function resetSearchInput" in script
+    assert "function renderRouteMap" in script
+    assert "mapLabelClass" in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
@@ -73,6 +75,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".detail-toolbar" in style
     assert "position: sticky" in style
     assert ".route-overview" in style
+    assert ".map-label.is-near-right" in style
+    assert ".map-label.is-near-bottom" in style
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in style
     assert "height: clamp(320px, calc(100vh - 500px), 560px)" in style
     assert "#routeTimelineRows { display: grid; gap: 6px; max-height: 224px" in style
     assert ".route-record-list" in style
@@ -140,7 +145,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"uipolish3\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"uipolish4\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
