@@ -159,6 +159,13 @@ def test_desktop_update_bridge_wired() -> None:
     assert "startEmbeddedSshTunnel" in main_script
     assert "promptForSshPassword" in main_script
     assert "ssh-password.html" in main_script
+    assert "width: 560" in main_script
+    assert "height: 640" in main_script
+    assert "recoverable: true" in main_script
+    assert "setTimeout(() => done(result), 420)" in main_script
+    assert "connecting = false" in main_script
+    assert "lastProgressPercent" in main_script
+    assert "Math.max(12, lastProgressPercent)" in main_script
     assert "new SshClient" in main_script
     assert "forwardOut" in main_script
     assert "contextBridge.exposeInMainWorld(\"gkguardDesktop\"" in preload_script
@@ -174,6 +181,12 @@ def test_desktop_update_bridge_wired() -> None:
     password_page = (ROOT_DIR / "desktop" / "ssh-password.html").read_text(encoding="utf-8")
     assert "服务器密码" in password_page
     assert "connection-icon" in password_page
+    assert "connection-card" in password_page
+    assert "connection-steps" in password_page
+    assert "连接失败时请检查" in password_page
+    assert "密码只用于本次 SSH 连接，不会保存到 GKGuard、配置文件、日志或仓库" in password_page
+    assert "重新连接" in password_page
+    assert "当前预览环境无法建立 SSH 连接" in password_page
     assert "submitSshPassword" in password_page
     assert "cancelSshPassword" in password_page
     assert "progressBar" in password_page
