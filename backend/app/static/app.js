@@ -30,6 +30,10 @@ const elements = {
   routeOverviewStart: document.querySelector("#routeOverviewStart"),
   routeOverviewEnd: document.querySelector("#routeOverviewEnd"),
   routeOverviewDuration: document.querySelector("#routeOverviewDuration"),
+  routeCurrentRecord: document.querySelector("#routeCurrentRecord"),
+  routeCurrentTime: document.querySelector("#routeCurrentTime"),
+  routeCurrentLocation: document.querySelector("#routeCurrentLocation"),
+  routeCurrentSimilarity: document.querySelector("#routeCurrentSimilarity"),
   summaryDuration: document.querySelector("#summaryDuration"),
   summaryCameraCount: document.querySelector("#summaryCameraCount"),
   summaryFrameCount: document.querySelector("#summaryFrameCount"),
@@ -122,6 +126,10 @@ function switchScreen(name) {
     screen?.classList.toggle("is-active", key === name);
   });
 
+  if (!elements.toastMessage?.textContent?.trim()) {
+    hideToast();
+  }
+
   const resetScroll = () => {
     window.scrollTo(0, 0);
     document.scrollingElement?.scrollTo(0, 0);
@@ -139,21 +147,40 @@ const feedbackConfig = {
   loading: { title: "处理中", icon: "#icon-update", timeout: 0 },
 };
 
+function hideToast() {
+  if (!elements.toast) return;
+  window.clearTimeout(toastTimer);
+  elements.toast.className = "toast toast-info";
+  elements.toast.classList.remove("is-visible");
+  elements.toast.hidden = true;
+  elements.toast.setAttribute("role", "status");
+  elements.toast.setAttribute("aria-live", "polite");
+  if (elements.toastTitle) elements.toastTitle.textContent = "状态提示";
+  if (elements.toastMessage) elements.toastMessage.textContent = "";
+  if (elements.toastIconUse) elements.toastIconUse.setAttribute("href", "#icon-info");
+}
+
 function showToast(message, options = {}) {
   if (!elements.toast) return;
+  const normalizedMessage = String(message ?? "").trim();
+  if (!normalizedMessage) {
+    hideToast();
+    return;
+  }
   const tone = feedbackConfig[options.tone] ? options.tone : "info";
   const config = feedbackConfig[tone];
+  elements.toast.hidden = false;
   elements.toast.className = `toast toast-${tone}${tone === "loading" ? " is-loading" : ""}`;
   elements.toast.setAttribute("role", tone === "error" ? "alert" : "status");
   elements.toast.setAttribute("aria-live", tone === "error" ? "assertive" : "polite");
   if (elements.toastTitle) elements.toastTitle.textContent = options.title || config.title;
-  if (elements.toastMessage) elements.toastMessage.textContent = message;
+  if (elements.toastMessage) elements.toastMessage.textContent = normalizedMessage;
   if (elements.toastIconUse) elements.toastIconUse.setAttribute("href", options.icon || config.icon);
   elements.toast.classList.add("is-visible");
   window.clearTimeout(toastTimer);
   const timeout = Number.isFinite(options.timeout) ? options.timeout : config.timeout;
   if (timeout > 0) {
-    toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), timeout);
+    toastTimer = window.setTimeout(hideToast, timeout);
   }
 }
 
@@ -455,6 +482,18 @@ function renderSelectedRecord() {
     <div class="info-item"><span>摄像头：</span><strong>${escapeHtml(record.camera)}</strong></div>
     <div class="info-item"><span>数据来源：</span><strong>${sourceLabel()}</strong></div>
   `;
+  renderRouteCurrentSummary();
+}
+
+function renderRouteCurrentSummary() {
+  const record = records[selectedRecordIndex] || records[0];
+  if (!record) return;
+  if (elements.routeCurrentRecord) {
+    elements.routeCurrentRecord.textContent = `${record.title} · ${record.cameraId || record.camera || "--"}`;
+  }
+  if (elements.routeCurrentTime) elements.routeCurrentTime.textContent = record.time || "--";
+  if (elements.routeCurrentLocation) elements.routeCurrentLocation.textContent = record.location || "--";
+  if (elements.routeCurrentSimilarity) elements.routeCurrentSimilarity.textContent = formatPercent(record.similarity);
 }
 
 function renderRouteMap() {
@@ -608,3 +647,4 @@ renderRouteMap();
 renderRouteTimeline();
 bindEvents();
 initDesktopUpdateEntry();
+hideToast();

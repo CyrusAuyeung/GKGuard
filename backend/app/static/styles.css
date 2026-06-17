@@ -248,6 +248,7 @@ input, select {
 }
 .target-panel { grid-area: target; }
 .record-panel {
+  position: relative;
   grid-area: records;
   padding: 14px 16px 16px;
   background: #fff;
@@ -321,13 +322,52 @@ input, select {
 .back-icon { width: 18px; height: 18px; }
 
 .record-list { display: grid; gap: 10px; margin-top: 12px; }
+.record-panel::before,
+.route-records-section::before {
+  content: attr(data-scroll-hint);
+  position: absolute;
+  right: 16px;
+  top: 13px;
+  z-index: 2;
+  padding: 3px 8px;
+  border: 1px solid #d8e5f7;
+  border-radius: 999px;
+  color: #4d6fa7;
+  background: rgba(248, 251, 255, .92);
+  font-size: 11px;
+  font-weight: 800;
+}
+.record-panel::after,
+.route-records-section::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 47px;
+  bottom: 14px;
+  z-index: 1;
+  width: 42px;
+  border-radius: 0 7px 7px 0;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, .96));
+  pointer-events: none;
+}
+.route-records-section {
+  position: relative;
+}
+.route-records-section::before,
+.route-records-section::after {
+  display: none;
+}
 .result-record-strip {
   grid-auto-flow: column;
   grid-auto-columns: minmax(218px, 1fr);
   grid-template-columns: none;
   overflow-x: auto;
   padding: 2px 2px 8px;
+  scroll-padding-inline: 2px 42px;
   scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #b7c9e4 transparent;
+  scrollbar-width: thin;
 }
 .record-card {
   display: grid;
@@ -468,6 +508,46 @@ input, select {
 .map-legend .camera-dot { border-radius: 4px; background: #8291a6; }
 
 .route-bottom { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 16px; margin-top: 14px; }
+.route-current-card {
+  display: none;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #edf2f8;
+  border-radius: 7px;
+  background: #f8fbff;
+}
+.route-current-card h3 {
+  margin: 0 0 10px;
+  padding-left: 10px;
+  border-left: 4px solid var(--primary);
+  font-size: 15px;
+  line-height: 1.25;
+}
+.route-current-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.route-current-grid div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid #edf2f8;
+  border-radius: 6px;
+  background: #fff;
+}
+.route-current-grid span {
+  color: #64758d;
+  font-size: 12px;
+}
+.route-current-grid strong {
+  overflow: hidden;
+  color: #263850;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #routeTimelineRows { display: grid; gap: 6px; max-height: 224px; margin-top: 12px; overflow: auto; padding-right: 4px; }
 .timeline-row,
 .summary-rows div { display: grid; align-items: center; min-height: 32px; padding: 0 14px; border: 1px solid #edf2f8; border-radius: 6px; background: #f9fbff; }
@@ -508,6 +588,7 @@ input, select {
   pointer-events: none;
   transition: opacity .18s ease, transform .18s ease;
 }
+.toast[hidden] { display: none; }
 .toast.is-visible { opacity: 1; transform: translate(-50%, 0); }
 .toast-mark {
   display: grid;
@@ -587,6 +668,14 @@ input, select {
   .detail-panel { grid-area: auto; }
   .route-workbench .map-panel { order: -1; }
   .route-workbench .side-panel { order: 1; }
+  .map-panel {
+    display: grid;
+  }
+  .map-panel > .detail-toolbar { order: 1; }
+  .route-overview { order: 2; }
+  .route-current-card { order: 3; }
+  .campus-illustration { order: 4; }
+  .route-bottom { order: 5; }
   .route-side {
     grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
     align-items: start;
@@ -615,7 +704,18 @@ input, select {
     grid-template-columns: none;
     overflow-x: auto;
     padding-bottom: 6px;
+    scroll-padding-inline: 2px 42px;
     scroll-snap-type: x proximity;
+    overscroll-behavior-inline: contain;
+    scrollbar-color: #b7c9e4 transparent;
+    scrollbar-width: thin;
+  }
+  .route-records-section::before,
+  .route-records-section::after {
+    display: block;
+  }
+  .route-current-card {
+    display: grid;
   }
   .target-panel {
     display: grid;
@@ -694,11 +794,14 @@ input, select {
   }
   .button-cluster .outline-action,
   .button-cluster .primary-action {
+    min-height: 42px;
     min-width: 0;
     width: 100%;
     padding: 0 8px;
     gap: 6px;
     font-size: 12px;
+    line-height: 1.14;
+    white-space: normal;
   }
   .route-side,
   .route-person-card {
@@ -731,6 +834,60 @@ input, select {
   .campus-illustration {
     height: 292px;
   }
+  .scene-time {
+    left: 12px;
+    top: 12px;
+    font-size: 12px;
+  }
+  .building-door {
+    left: 18px;
+    bottom: 68px;
+    width: 150px;
+    height: 184px;
+  }
+  .building-door::before { left: 58px; }
+  .building-door::after {
+    left: 14px;
+    top: 92px;
+    width: 98px;
+  }
+  .scene-tree {
+    width: 118px;
+    height: 136px;
+  }
+  .tree-left {
+    right: 126px;
+    top: 4px;
+  }
+  .tree-right {
+    right: 8px;
+    top: 4px;
+  }
+  .tree-left::after,
+  .tree-right::after {
+    left: 56px;
+    top: 72px;
+    height: 142px;
+    border-left-width: 6px;
+  }
+  .walking-person {
+    left: min(62%, 242px);
+    bottom: 70px;
+    transform: scale(.72);
+    transform-origin: bottom center;
+  }
+  .camera-sign {
+    right: 18px;
+    top: 28px;
+    width: 42px;
+    height: 52px;
+    font-size: 12px;
+  }
+  .map-building {
+    min-width: 56px;
+    min-height: 32px;
+    font-size: 11px;
+  }
   .map-label {
     max-width: min(132px, calc(100% - 18px));
     padding: 6px 8px;
@@ -756,4 +913,13 @@ input, select {
     font-size: 10px;
   }
   #routeTimelineRows { max-height: 172px; }
+  .route-current-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .route-current-card {
+    padding: 10px;
+  }
+  .route-current-grid div {
+    padding: 8px 9px;
+  }
 }
