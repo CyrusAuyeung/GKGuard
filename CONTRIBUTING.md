@@ -167,7 +167,7 @@ git switch -c docs/contributing-guide
 - `docs/contributing-guide`
 - `fix/result-image-layout`
 - `feature/c1-real-data`
-- `release/v0.1.21-prep`
+- `release/vX.Y.Z-prep`
 - `codex/ui-polish`
 
 如果是 Codex 协助完成的任务，优先使用 `codex/...` 分支。
@@ -299,7 +299,7 @@ git commit -m "Update contributing guide"
 - `Fix result image layout`
 - `Update collaboration documentation`
 - `Add CampusVision C1 connection retry notes`
-- `Prepare v0.1.21 release`
+- `Prepare vX.Y.Z release`
 
 ## 推送分支
 
@@ -640,7 +640,7 @@ Use short branch names that describe the purpose:
 - `docs/contributing-guide`
 - `fix/result-image-layout`
 - `feature/c1-real-data`
-- `release/v0.1.21-prep`
+- `release/vX.Y.Z-prep`
 - `codex/ui-polish`
 
 Use `codex/...` branches for Codex-assisted work.
@@ -772,7 +772,7 @@ Good commit messages are short and specific:
 - `Fix result image layout`
 - `Update collaboration documentation`
 - `Add CampusVision C1 connection retry notes`
-- `Prepare v0.1.21 release`
+- `Prepare vX.Y.Z release`
 
 ## Push The Branch
 

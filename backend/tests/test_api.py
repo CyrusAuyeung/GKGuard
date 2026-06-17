@@ -52,6 +52,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "showToast(message, options = {})" in script
     assert "function hideToast" in script
     assert "normalizedMessage" in script
+    assert "hideToast();\n\n  const resetScroll" in script.replace("\r\n", "\n")
+    assert "let resultToast = null" in script
     assert "renderRouteCurrentSummary" in script
     assert "function setButtonBusy" in script
     assert "checkForUpdates" in script
