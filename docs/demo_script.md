@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.20` 推荐流程：
+安装版 `v0.1.21` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.20.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.21.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -201,9 +201,9 @@ Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the 
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.20`:
+Recommended packaged-app flow for `v0.1.21`:
 
-1. Download and install `GKGuard-Setup-0.1.20.exe`.
+1. Download and install `GKGuard-Setup-0.1.21.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.

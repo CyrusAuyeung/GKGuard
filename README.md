@@ -7,11 +7,11 @@
 
 # GKGuard C2 AI 搜索演示
 
-GKGuard 是校园安防 AI 检索项目中的 GKGuard C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、本地模拟回退、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.20` 状态下，仓库包含 GKGuard C2 后端、三屏人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、响应式宽屏布局、完整显示上传图、CampusVision C1 人脸裁剪缩略图和 CampusVision C1 关键帧的媒体展示、移动端上传页和操作按钮密度优化、窄屏路线图标签边缘避让和紧凑图例、旧后台资源复用保护、经过细节修正的线性功能图标、品牌图标文件、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
+GKGuard 是校园安防 AI 检索项目中的 GKGuard C2 工作台：负责桌面界面、本地后端、检索结果展示、路线可视化、本地模拟回退、审计和外部服务代理。CampusVision C1 是独立的视频检索服务：负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。当前 `v0.1.21` 状态下，仓库包含 GKGuard C2 后端、三屏人脸检索前端、Electron 桌面壳、CampusVision C1 自动连接/内嵌 SSH 密码窗口和连接进度、响应式宽屏布局、完整显示上传图、CampusVision C1 人脸裁剪缩略图和 CampusVision C1 关键帧的媒体展示、移动端上传页和操作按钮密度优化、窄屏路线图标签边缘避让和紧凑图例、统一状态提示、旧后台资源复用保护、经过细节修正的线性功能图标、品牌图标文件、软件内下载并重启安装的更新入口，以及作为独立模块导入的 CampusVision C1 服务源码。
 
 ## 仓库版本
 
-- 当前最新版本：`v0.1.20`。
+- 当前最新版本：`v0.1.21`。
 - 桌面安装包：GitHub Release 中包含 Windows 安装包、`.blockmap` 和 `latest.yml`。
 - 代码形态：仓库同时保留可本地运行的 FastAPI 后端、静态前端、Electron 桌面壳和导入的 CampusVision C1 源码。
 - 文档形态：仓库内维护中英双语 README、API 规范、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和管理文档。
@@ -261,7 +261,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.1.20` 的基线结果：后端测试 `25 passed`，Electron 主进程语法检查通过，桌面后端入口编译通过，`git diff --check` 通过；GitHub Actions CI 工作流覆盖 PR 基础检查，发布工作流会生成 Windows 安装包和 Electron 自动更新元数据。
+当前 `v0.1.21` 的基线结果：后端测试 `25 passed`，Electron 主进程和 preload 语法检查通过，桌面后端入口编译通过，`npm audit --audit-level=low` 无漏洞，`git diff --check` 通过；浏览器回归覆盖 `1280x720`、`680x640` 和 `390x720` 视口下的上传、检索结果、人物路线图、定位和重新上传流程；GitHub Actions CI 工作流覆盖 PR 基础检查，发布工作流会生成 Windows 安装包和 Electron 自动更新元数据。
 
 只修改文档时，可至少执行：
 
@@ -299,11 +299,11 @@ python -m pytest
 
 # GKGuard C2 AI Search Demo
 
-GKGuard is the GKGuard C2 workbench for the campus security AI search project: it owns the desktop UI, local backend, result presentation, route visualization, mock fallback, audit features, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output. As of `v0.1.20`, this repository contains the GKGuard C2 backend, the three-screen face-search frontend, the Electron desktop shell, CampusVision C1 auto-connection with an embedded SSH password prompt and connection progress, responsive wide-window layout, full-display media handling for uploaded targets, CampusVision C1 face-crop thumbnails, CampusVision C1 keyframes, mobile upload/action density improvements, narrow-screen route-map label edge avoidance with a compact legend, stale-backend asset reuse protection, polished linear UI icons, brand icon assets, an in-app update flow that downloads and restarts to install updates, and the imported CampusVision C1 service source as a separate module.
+GKGuard is the GKGuard C2 workbench for the campus security AI search project: it owns the desktop UI, local backend, result presentation, route visualization, mock fallback, audit features, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output. As of `v0.1.21`, this repository contains the GKGuard C2 backend, the three-screen face-search frontend, the Electron desktop shell, CampusVision C1 auto-connection with an embedded SSH password prompt and connection progress, responsive wide-window layout, full-display media handling for uploaded targets, CampusVision C1 face-crop thumbnails, CampusVision C1 keyframes, mobile upload/action density improvements, narrow-screen route-map label edge avoidance with a compact legend, unified status feedback, stale-backend asset reuse protection, polished linear UI icons, brand icon assets, an in-app update flow that downloads and restarts to install updates, and the imported CampusVision C1 service source as a separate module.
 
 ## Repository Version
 
-- Latest version: `v0.1.20`.
+- Latest version: `v0.1.21`.
 - Desktop installer: GitHub Releases contain the Windows installer, `.blockmap`, and `latest.yml`.
 - Code shape: the repository keeps the locally runnable FastAPI backend, static frontend, Electron desktop shell, and imported CampusVision C1 source.
 - Documentation shape: the repository maintains bilingual README, API specification, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and management documents.
@@ -555,7 +555,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.1.20` baseline: backend tests pass with `25 passed`, Electron main-process syntax checks pass, the desktop backend entrypoint compiles, and `git diff --check` passes. The GitHub Actions CI workflow covers PR checks, and the Release workflow produces the Windows installer and Electron auto-update metadata.
+Current `v0.1.21` baseline: backend tests pass with `25 passed`, Electron main-process and preload syntax checks pass, the desktop backend entrypoint compiles, `npm audit --audit-level=low` reports no vulnerabilities, and `git diff --check` passes. Browser regression covers the upload, result, route-map, locate, and re-upload flow at `1280x720`, `680x640`, and `390x720`. The GitHub Actions CI workflow covers PR checks, and the Release workflow produces the Windows installer and Electron auto-update metadata.
 
 For documentation-only changes, run at least:
 
