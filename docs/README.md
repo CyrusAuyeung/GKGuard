@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.21` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.22` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -21,7 +21,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.21.md](releases/v0.1.21.md)：当前最新版本说明。
+- [releases/v0.1.22.md](releases/v0.1.22.md)：当前最新版本说明，记录移动端 UI 精修、空 toast 修复和静态资源版本命名。
 - [releases/](releases/)：历史版本发布记录。
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
 - 发布后需要核对 GitHub Release 正文、安装包、`.blockmap` 和 `latest.yml`。
@@ -54,7 +54,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.21`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.22`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -68,7 +68,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.21.md](releases/v0.1.21.md): latest release notes.
+- [releases/v0.1.22.md](releases/v0.1.22.md): latest release notes covering mobile UI polish, empty-toast cleanup, and static asset version naming.
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.
 - After publishing, verify the GitHub Release body, installer, `.blockmap`, and `latest.yml`.

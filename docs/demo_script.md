@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.21` 推荐流程：
+安装版 `v0.1.22` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.21.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.22.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -23,7 +23,7 @@
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 8. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`。
-9. 在最大化窗口、常规桌面窗口和 `680x640` 小窗口下检查页面无横向滚动，上传图、结果缩略图和关键帧不被裁切。
+9. 在最大化窗口、常规桌面窗口、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图和关键帧不被裁切；结果页和路线页按钮保持双列触控高度，记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
@@ -201,9 +201,9 @@ Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the 
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.21`:
+Recommended packaged-app flow for `v0.1.22`:
 
-1. Download and install `GKGuard-Setup-0.1.21.exe`.
+1. Download and install `GKGuard-Setup-0.1.22.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -211,7 +211,7 @@ Recommended packaged-app flow for `v0.1.21`:
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 8. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`.
-9. Check maximized, regular desktop, and `680x640` small-window layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, and keyframes.
+9. Check maximized, regular desktop, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, and keyframes. Result and route action buttons should keep two-column touch-height layout, record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
 
 GKGuard does not store, read, or log the SSH password.
 

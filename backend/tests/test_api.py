@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=uipolish5" in response.text
-    assert "/static/app.js?v=uipolish5" in response.text
+    assert "/static/styles.css?v=v0.1.22-ui" in response.text
+    assert "/static/app.js?v=v0.1.22-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -50,6 +50,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "feedbackConfig" in script
     assert "loading: { title" in script
     assert "showToast(message, options = {})" in script
+    assert "function hideToast" in script
+    assert "normalizedMessage" in script
+    assert "renderRouteCurrentSummary" in script
     assert "function setButtonBusy" in script
     assert "checkForUpdates" in script
     assert "installUpdate" in script
@@ -83,6 +86,14 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "min-height: 176px" in style
     assert ".button-cluster {\n    display: grid;" in normalized_style
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in style
+    assert ".record-panel::before" in style
+    assert "content: attr(data-scroll-hint)" in style
+    assert ".route-current-card" in style
+    assert ".route-current-card { order: 3; }" in style
+    assert ".toast[hidden] { display: none; }" in style
+    assert "min-height: 42px" in style
+    assert "left: min(62%, 242px)" in style
+    assert "min-width: 56px" in style
     assert "height: clamp(320px, calc(100vh - 500px), 560px)" in style
     assert "#routeTimelineRows { display: grid; gap: 6px; max-height: 224px" in style
     assert ".route-record-list" in style
@@ -125,6 +136,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "定位时间线" in page
     assert "routeOverviewPointCount" in page
     assert "routeOverviewDuration" in page
+    assert "data-scroll-hint=\"横向滑动\"" in page
+    assert "routeCurrentRecord" in page
+    assert "routeCurrentSimilarity" in page
+    assert 'id="toast" class="toast toast-info" role="status" aria-live="polite" aria-atomic="true" hidden' in page
     assert "导出截图" not in page
     assert "查看全部结果" not in page
     assert "查看完整轨迹" not in page
@@ -150,7 +165,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"uipolish5\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.22-ui\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
