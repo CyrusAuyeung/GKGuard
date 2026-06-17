@@ -14,6 +14,8 @@ const elements = {
   routePortrait: document.querySelector("#routePortrait"),
   resultRecordList: document.querySelector("#resultRecordList"),
   routeRecordList: document.querySelector("#routeRecordList"),
+  resultSourceBadge: document.querySelector("#resultSourceBadge"),
+  resultCountBadge: document.querySelector("#resultCountBadge"),
   recordTitle: document.querySelector("#recordTitle"),
   recordScene: document.querySelector("#recordScene"),
   recordInfo: document.querySelector("#recordInfo"),
@@ -24,6 +26,10 @@ const elements = {
   routePointCount: document.querySelector("#routePointCount"),
   routeStart: document.querySelector("#routeStart"),
   routeEnd: document.querySelector("#routeEnd"),
+  routeOverviewPointCount: document.querySelector("#routeOverviewPointCount"),
+  routeOverviewStart: document.querySelector("#routeOverviewStart"),
+  routeOverviewEnd: document.querySelector("#routeOverviewEnd"),
+  routeOverviewDuration: document.querySelector("#routeOverviewDuration"),
   summaryDuration: document.querySelector("#summaryDuration"),
   summaryCameraCount: document.querySelector("#summaryCameraCount"),
   summaryFrameCount: document.querySelector("#summaryFrameCount"),
@@ -34,6 +40,9 @@ const elements = {
   newSearchBtn: document.querySelector("#newSearchBtn"),
   routeNewSearchBtn: document.querySelector("#routeNewSearchBtn"),
   toast: document.querySelector("#toast"),
+  toastTitle: document.querySelector("#toastTitle"),
+  toastMessage: document.querySelector("#toastMessage"),
+  toastIconUse: document.querySelector("#toastIconUse"),
 };
 
 const records = [
@@ -88,6 +97,10 @@ function formatPercent(value) {
   return `${Math.round(number * 100)}%`;
 }
 
+function sourceLabel() {
+  return activeSource === "c1" ? "CampusVision C1" : "本地模拟";
+}
+
 function parseTimeSeconds(value) {
   const match = String(value || "").match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
   if (!match) return null;
@@ -118,12 +131,38 @@ function switchScreen(name) {
   window.setTimeout(resetScroll, 80);
 }
 
-function showToast(message) {
+const feedbackConfig = {
+  info: { title: "状态提示", icon: "#icon-info", timeout: 2600 },
+  success: { title: "操作完成", icon: "#icon-info", timeout: 2600 },
+  warning: { title: "需要注意", icon: "#icon-info", timeout: 3600 },
+  error: { title: "操作失败", icon: "#icon-info", timeout: 4600 },
+  loading: { title: "处理中", icon: "#icon-update", timeout: 0 },
+};
+
+function showToast(message, options = {}) {
   if (!elements.toast) return;
-  elements.toast.textContent = message;
+  const tone = feedbackConfig[options.tone] ? options.tone : "info";
+  const config = feedbackConfig[tone];
+  elements.toast.className = `toast toast-${tone}${tone === "loading" ? " is-loading" : ""}`;
+  elements.toast.setAttribute("role", tone === "error" ? "alert" : "status");
+  elements.toast.setAttribute("aria-live", tone === "error" ? "assertive" : "polite");
+  if (elements.toastTitle) elements.toastTitle.textContent = options.title || config.title;
+  if (elements.toastMessage) elements.toastMessage.textContent = message;
+  if (elements.toastIconUse) elements.toastIconUse.setAttribute("href", options.icon || config.icon);
   elements.toast.classList.add("is-visible");
   window.clearTimeout(toastTimer);
-  toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), 2200);
+  const timeout = Number.isFinite(options.timeout) ? options.timeout : config.timeout;
+  if (timeout > 0) {
+    toastTimer = window.setTimeout(() => elements.toast.classList.remove("is-visible"), timeout);
+  }
+}
+
+function setButtonBusy(button, busy, busyLabel, idleLabel) {
+  if (!button) return;
+  button.disabled = busy;
+  button.dataset.state = busy ? "busy" : "idle";
+  button.setAttribute("aria-busy", busy ? "true" : "false");
+  button.innerHTML = `<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>${busy ? busyLabel : idleLabel}`;
 }
 
 function portraitMarkup() {
@@ -160,7 +199,7 @@ function syncPortraits() {
 function loadImage(file) {
   if (!file) return;
   if (!file.type.startsWith("image/")) {
-    showToast("请选择 JPG 或 PNG 图片。");
+    showToast("请选择 JPG 或 PNG 图片。", { tone: "warning", title: "图片格式不支持" });
     return;
   }
   const reader = new FileReader();
@@ -170,7 +209,7 @@ function loadImage(file) {
     matchedPersonImageUrl = "";
     elements.uploadHint.textContent = `${file.name} 已就绪`;
     syncPortraits();
-    showToast("目标照片已加载。");
+    showToast("目标照片已加载。", { tone: "success", title: "图片已就绪" });
   });
   reader.readAsDataURL(file);
 }
@@ -195,7 +234,7 @@ function resetSearchInput() {
   renderRouteMap();
   renderRouteTimeline();
   switchScreen("search");
-  showToast("已返回上传页，可选择新的目标照片。");
+  showToast("已返回上传页，可选择新的目标照片。", { tone: "info", title: "已重置检索" });
 }
 
 function applyC1Result(result) {
@@ -254,13 +293,13 @@ async function connectC1AfterFailure(error) {
     return false;
   }
 
-  showToast("C1 暂不可用，请在软件内输入服务器密码。");
-  const result = await desktopBridge.connectC1(error?.message || "C1 服务当前不可用").catch(() => null);
+  showToast("CampusVision C1 暂不可用，请在软件内输入服务器密码。", { tone: "warning", title: "需要连接 CampusVision C1", timeout: 0 });
+  const result = await desktopBridge.connectC1(error?.message || "CampusVision C1 服务当前不可用").catch(() => null);
   if (result?.connected) {
-    showToast(result.prompted ? "C1 已连接，正在重新检索。" : "C1 已可用，正在重新检索。");
+    showToast(result.prompted ? "CampusVision C1 已连接，正在重新检索。" : "CampusVision C1 已可用，正在重新检索。", { tone: "success", title: "连接已恢复" });
     return true;
   }
-  showToast("仍未检测到 C1，将使用本地模拟。请确认服务器密码和校园网连接。");
+  showToast("仍未检测到 CampusVision C1，将使用本地模拟。请确认服务器密码和校园网连接。", { tone: "warning", title: "已切换本地模拟", timeout: 4600 });
   return false;
 }
 
@@ -277,6 +316,8 @@ function renderRecordLists() {
   `).join("");
   elements.resultRecordList.innerHTML = html;
   elements.routeRecordList.innerHTML = html;
+  if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
+  if (elements.resultCountBadge) elements.resultCountBadge.textContent = `${records.length} 条`;
   bindRecordThumbnailFallbacks();
 
   document.querySelectorAll(".record-card").forEach((button) => {
@@ -288,10 +329,12 @@ function renderRecordLists() {
   });
 }
 
-function setUpdateStatus(label, disabled = false) {
+function setUpdateStatus(label, disabled = false, state = "idle") {
   if (!elements.checkUpdateBtn || !elements.updateStatus) return;
   elements.updateStatus.textContent = label;
   elements.checkUpdateBtn.disabled = disabled;
+  elements.checkUpdateBtn.dataset.state = state;
+  elements.checkUpdateBtn.setAttribute("aria-busy", state === "busy" ? "true" : "false");
 }
 
 async function initDesktopUpdateEntry() {
@@ -312,61 +355,74 @@ async function initDesktopUpdateEntry() {
   desktopBridge.onUpdateEvent?.((event) => {
     if (event?.type === "download-progress") {
       updateStage = "downloading";
-      setUpdateStatus(`下载中 ${event.percent}%`, true);
+      setUpdateStatus(`下载中 ${event.percent}%`, true, "busy");
     }
     if (event?.type === "update-downloaded") {
       updateStage = "downloaded";
-      setUpdateStatus("重启安装");
-      showToast("新版已在应用内下载完成，点击即可重启安装。");
+      setUpdateStatus("重启安装", false, "success");
+      showToast("新版已在应用内下载完成，点击即可重启安装。", { tone: "success", title: "更新已下载" });
     }
     if (event?.type === "error") {
       updateStage = "idle";
-      setUpdateStatus("检查更新");
-      showToast(`更新失败：${event.message}`);
+      setUpdateStatus("检查更新", false, "danger");
+      showToast(`更新失败：${event.message}`, { tone: "error", title: "更新失败" });
     }
   });
 
   elements.checkUpdateBtn.addEventListener("click", async () => {
     if (updateStage === "downloaded") {
-      setUpdateStatus("正在重启...", true);
-      await desktopBridge.installUpdate?.();
+      setUpdateStatus("正在重启...", true, "busy");
+      showToast("正在重启并安装新版。", { tone: "loading", title: "准备安装" });
+      try {
+        await desktopBridge.installUpdate?.();
+      } catch (error) {
+        setUpdateStatus("重启安装", false, "danger");
+        showToast(`重启安装失败：${error.message}`, { tone: "error", title: "安装失败" });
+      }
       return;
     }
 
     if (latestUpdate?.updateAvailable && updateStage === "available") {
-      setUpdateStatus("开始下载...", true);
-      const downloadResult = await desktopBridge.downloadUpdate();
-      if (downloadResult?.embedded === false) {
-        updateStage = "idle";
-        setUpdateStatus("检查更新");
-        elements.checkUpdateBtn.disabled = false;
-        showToast("已打开 GitHub Release。正式安装版会在应用内更新。");
-        return;
+      setUpdateStatus("开始下载...", true, "busy");
+      try {
+        const downloadResult = await desktopBridge.downloadUpdate();
+        if (downloadResult?.embedded === false) {
+          updateStage = "idle";
+          setUpdateStatus("检查更新");
+          elements.checkUpdateBtn.disabled = false;
+          showToast("已打开 GitHub Release。正式安装版会在应用内更新。", { tone: "info", title: "已打开发布页" });
+          return;
+        }
+        if (updateStage !== "downloaded") {
+          updateStage = "downloading";
+          setUpdateStatus("下载中...", true, "busy");
+        }
+        showToast("新版正在应用内下载。", { tone: "loading", title: "下载更新中" });
+      } catch (error) {
+        updateStage = "available";
+        setUpdateStatus(latestUpdate?.latestVersion ? `应用内更新 ${latestUpdate.latestVersion}` : "重新下载", false, "danger");
+        showToast(`下载更新失败：${error.message}`, { tone: "error", title: "下载失败" });
       }
-      if (updateStage !== "downloaded") {
-        updateStage = "downloading";
-        setUpdateStatus("下载中...", true);
-      }
-      showToast("新版正在应用内下载。");
       return;
     }
 
-    setUpdateStatus("检查中...", true);
+    setUpdateStatus("检查中...", true, "busy");
+    showToast("正在检查 GitHub Release 最新版本。", { tone: "loading", title: "检查更新中" });
     try {
       latestUpdate = await desktopBridge.checkForUpdates();
       if (latestUpdate.updateAvailable) {
         updateStage = latestUpdate.downloaded ? "downloaded" : "available";
-        setUpdateStatus(updateStage === "downloaded" ? "重启安装" : `应用内更新 ${latestUpdate.latestVersion}`);
-        showToast(updateStage === "downloaded" ? "新版已下载完成，点击即可重启安装。" : `发现新版 ${latestUpdate.latestVersion}，再次点击将在应用内下载。`);
+        setUpdateStatus(updateStage === "downloaded" ? "重启安装" : `应用内更新 ${latestUpdate.latestVersion}`, false, updateStage === "downloaded" ? "success" : "available");
+        showToast(updateStage === "downloaded" ? "新版已下载完成，点击即可重启安装。" : `发现新版 ${latestUpdate.latestVersion}，再次点击将在应用内下载。`, { tone: "success", title: updateStage === "downloaded" ? "更新已下载" : "发现新版" });
       } else {
         updateStage = "idle";
-        setUpdateStatus("已是最新版", true);
-        showToast(`当前已是最新版本 ${latestUpdate.currentVersion}。`);
+        setUpdateStatus("已是最新版", true, "success");
+        showToast(`当前已是最新版本 ${latestUpdate.currentVersion}。`, { tone: "success", title: "无需更新" });
         window.setTimeout(() => setUpdateStatus(`检查更新 v${latestUpdate.currentVersion}`), 2400);
       }
     } catch (error) {
-      setUpdateStatus("检查更新");
-      showToast(`检查更新失败：${error.message}`);
+      setUpdateStatus("检查更新", false, "danger");
+      showToast(`检查更新失败：${error.message}`, { tone: "error", title: "检查更新失败" });
     } finally {
       if (updateStage !== "downloading" && (!latestUpdate || latestUpdate.updateAvailable)) {
         elements.checkUpdateBtn.disabled = false;
@@ -397,12 +453,19 @@ function renderSelectedRecord() {
     <div class="info-item"><span>位置：</span><strong>${escapeHtml(record.location)}</strong></div>
     <div class="info-item"><span>说明：</span><strong>${escapeHtml(record.note)}</strong></div>
     <div class="info-item"><span>摄像头：</span><strong>${escapeHtml(record.camera)}</strong></div>
-    <div class="info-item"><span>数据来源：</span><strong>${activeSource === "c1" ? "C1 CampusVision" : "本地模拟"}</strong></div>
+    <div class="info-item"><span>数据来源：</span><strong>${sourceLabel()}</strong></div>
   `;
 }
 
 function renderRouteMap() {
   const linePoints = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const mapLabelClass = (point) => [
+    "map-label",
+    point.x >= 74 ? "is-near-right" : "",
+    point.x <= 18 ? "is-near-left" : "",
+    point.y >= 76 ? "is-near-bottom" : "",
+    point.y <= 16 ? "is-near-top" : "",
+  ].filter(Boolean).join(" ");
   elements.campusRouteMap.innerHTML = `
     ${buildings.map((building) => `<span class="map-building" style="left:${building.x}%;top:${building.y}%;width:${building.w}%;height:${building.h}%">${escapeHtml(building.name)}</span>`).join("")}
     <svg class="route-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -411,7 +474,7 @@ function renderRouteMap() {
     </svg>
     ${routePoints.map((point) => `
       <span class="map-point ${point.kind || ""}" style="left:${point.x}%;top:${point.y}%">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</span>
-      <span class="map-label" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
+      <span class="${mapLabelClass(point)}" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
     `).join("")}
     <div class="map-legend">
       <span><i class="start-dot">起</i>起点</span>
@@ -436,44 +499,48 @@ function renderRouteTimeline() {
   const cameras = new Set(records.map((record) => record.cameraId || record.camera).filter(Boolean));
   const sortedSeconds = routePoints.map((point) => parseTimeSeconds(point.time)).filter((value) => value !== null).sort((left, right) => left - right);
   const duration = sortedSeconds.length > 1 ? sortedSeconds[sortedSeconds.length - 1] - sortedSeconds[0] : null;
+  const durationLabel = formatDuration(duration);
   elements.routePointCount.textContent = String(routePoints.length);
   elements.routeStart.textContent = startPoint?.location || "--";
   elements.routeEnd.textContent = endPoint?.location || "--";
-  elements.summaryDuration.textContent = formatDuration(duration);
+  elements.routeOverviewPointCount.textContent = String(routePoints.length);
+  elements.routeOverviewStart.textContent = startPoint?.location || "--";
+  elements.routeOverviewEnd.textContent = endPoint?.location || "--";
+  elements.routeOverviewDuration.textContent = durationLabel;
+  elements.summaryDuration.textContent = durationLabel;
   elements.summaryCameraCount.textContent = `${Math.max(cameras.size, 1)}路`;
   elements.summaryFrameCount.textContent = String(records.length);
   elements.summaryFinalSimilarity.textContent = formatPercent(records[0]?.similarity);
 }
 
 async function startSearch() {
-  elements.startSearchBtn.disabled = true;
-  elements.startSearchBtn.innerHTML = '<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>检索中...';
-  showToast(uploadedFile ? "正在调用 C1 检索服务。" : "未上传图片，使用本地模拟数据。");
+  setButtonBusy(elements.startSearchBtn, true, "检索中...", "开始检索");
+  showToast(uploadedFile ? "正在调用 CampusVision C1 检索服务。" : "未上传图片，使用本地模拟数据。", { tone: "loading", title: uploadedFile ? "检索中" : "准备本地模拟" });
   try {
     if (uploadedFile) {
       const result = await fetchC1Search();
       applyC1Result(result);
-      showToast(`C1 返回 ${records.length} 条关联记录。`);
+      showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`, { tone: "success", title: "检索完成" });
     } else {
       resetToMockData();
+      showToast(`已加载 ${records.length} 条本地模拟记录。`, { tone: "info", title: "本地模拟已就绪" });
     }
   } catch (error) {
     if (uploadedFile && await connectC1AfterFailure(error)) {
       try {
         const retryResult = await fetchC1Search();
         applyC1Result(retryResult);
-        showToast(`C1 返回 ${records.length} 条关联记录。`);
+        showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`, { tone: "success", title: "重试检索完成" });
       } catch (retryError) {
         resetToMockData();
-        showToast(`${retryError.message}，已回退本地模拟。`);
+        showToast(`${retryError.message}，已回退本地模拟。`, { tone: "warning", title: "已使用本地模拟", timeout: 4600 });
       }
     } else {
       resetToMockData();
-      showToast(`${error.message}，已回退本地模拟。`);
+      showToast(`${error.message}，已回退本地模拟。`, { tone: "warning", title: "已使用本地模拟", timeout: 4600 });
     }
   } finally {
-    elements.startSearchBtn.disabled = false;
-    elements.startSearchBtn.innerHTML = '<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>开始检索';
+    setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
     selectedRecordIndex = 0;
     renderRecordLists();
     renderSelectedRecord();
@@ -511,19 +578,26 @@ function bindEvents() {
   elements.startSearchBtn.addEventListener("click", startSearch);
   elements.newSearchBtn?.addEventListener("click", resetSearchInput);
   elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
-  document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。"); });
+  document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。", { tone: "info", title: "已切换视图" }); });
   document.querySelector("#backToResultBtn").addEventListener("click", () => switchScreen("result"));
-  document.querySelector("#showAllBtn").addEventListener("click", () => showToast(`当前已显示全部 ${records.length} 条检索结果。`));
-  document.querySelector("#fullRouteBtn").addEventListener("click", () => showToast(`完整 ${routePoints.length} 个轨迹点已展开。`));
-  document.querySelector("#playBtn").addEventListener("click", () => showToast("关键帧时间线已定位到当前记录。"));
+  document.querySelector("#showAllBtn").addEventListener("click", () => {
+    elements.resultRecordList?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+    elements.resultRecordList?.querySelector(".record-card.is-active")?.focus();
+    showToast(`已定位到 ${records.length} 条检索记录。`, { tone: "info", title: "已定位记录列表" });
+  });
+  document.querySelector("#fullRouteBtn").addEventListener("click", () => {
+    document.querySelector(".timeline-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showToast(`已定位到 ${routePoints.length} 个轨迹点的时间线。`, { tone: "info", title: "已定位时间线" });
+  });
+  document.querySelector("#playBtn").addEventListener("click", () => showToast("关键帧时间线已定位到当前记录。", { tone: "info", title: "时间线已定位" }));
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
-    downloadText(`GKGuard-${record.title}.txt`, JSON.stringify(record, null, 2));
-    showToast("截图信息已导出。实际截图导出可接入桌面端捕获能力。");
+    downloadText(`GKGuard-${record.title}.json`, JSON.stringify(record, null, 2));
+    showToast("记录数据已导出。", { tone: "success", title: "导出完成" });
   });
   document.querySelector("#exportRouteBtn").addEventListener("click", () => {
     downloadText("GKGuard-route.json", JSON.stringify({ routePoints, records }, null, 2));
-    showToast("路线图数据已导出。");
+    showToast("路线图数据已导出。", { tone: "success", title: "导出完成" });
   });
 }
 

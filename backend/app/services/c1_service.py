@@ -187,7 +187,7 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
         "camera": match.get("camera_name") or camera_id,
         "cameraId": camera_id,
         "similarity": score,
-        "note": "来自 C1 CampusVision 的真实检索结果",
+        "note": "来自 CampusVision C1 的真实检索结果",
         "sceneClass": f"scene-{((index - 1) % 5) + 1}",
         "progress": min(92, max(8, 8 + index * 13)),
         "frameUrl": frame_url,

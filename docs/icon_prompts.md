@@ -1,8 +1,8 @@
 # GKGuard Icon Prompts
 
-> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.1.20` 前端功能小图标以页面内 SVG sprite 为准，品牌/启动/安装包图标使用仓库中的 PNG/ICO 资产。
+> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.1.21` 前端功能小图标以页面内 SVG sprite 为准，品牌/启动/安装包图标使用仓库中的 PNG/ICO 资产。
 >
-> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.1.20`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/installer icons use repository PNG/ICO assets.
+> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.1.21`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/installer icons use repository PNG/ICO assets.
 
 ## 通用风格 / Shared Style
 
@@ -92,7 +92,7 @@ Create a back-to-results icon: a left arrow beside a compact results list with t
 
 ## 7. 路线图 / Route Map
 
-用途：“查看人物路线图”“查看完整轨迹”按钮 `route-small-icon`。
+用途：“查看人物路线图”“定位时间线”按钮 `route-small-icon`。
 
 ```text
 Create a route map icon: three location dots connected by a smooth path line, with the final dot slightly emphasized. The path should feel like a campus route trace, clean and easy to read in a small button.
@@ -102,7 +102,7 @@ Create a route map icon: three location dots connected by a smooth path line, wi
 
 ## 8. 导出 / Export Download
 
-用途：“导出截图”“导出路线图”按钮 `download-icon`。
+用途：“导出记录”“导出路线图”按钮 `download-icon`。
 
 ```text
 Create an export download icon: a downward arrow entering a tray, with a subtle document/image outline behind it. Make it read as exporting evidence or report material from the app.

@@ -7,7 +7,7 @@ body:
     id: release
     attributes:
       label: Release / 版本
-      placeholder: v0.1.20
+      placeholder: v0.1.21
     validations:
       required: true
   - type: dropdown

@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=resultlayout3" in response.text
-    assert "/static/app.js?v=resultlayout3" in response.text
+    assert "/static/styles.css?v=uipolish5" in response.text
+    assert "/static/app.js?v=uipolish5" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -47,14 +47,21 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "uploadedImageUrl || matchedPersonImageUrl" in script
     assert "uploadedImageUrl = result.person.representativeFaceUrl" not in script
     assert "initDesktopUpdateEntry" in script
+    assert "feedbackConfig" in script
+    assert "loading: { title" in script
+    assert "showToast(message, options = {})" in script
+    assert "function setButtonBusy" in script
     assert "checkForUpdates" in script
     assert "installUpdate" in script
     assert "onUpdateEvent" in script
     assert "function resetSearchInput" in script
+    assert "function renderRouteMap" in script
+    assert "mapLabelClass" in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
     style = style_response.text
+    normalized_style = style.replace("\r\n", "\n")
     assert ".portrait-frame img" in style
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
@@ -63,13 +70,33 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "min-width: 0" in style
     assert "width: calc(100vw" in style
     assert ".result-screen," in style
-    assert "grid-template-columns: clamp(300px, 18vw, 360px) minmax(0, 1fr)" in style
+    assert "grid-template-areas:" in style
+    assert ".result-record-strip" in style
+    assert "grid-auto-flow: column" in style
+    assert ".detail-toolbar" in style
+    assert "position: sticky" in style
+    assert ".route-overview" in style
+    assert ".map-label.is-near-right" in style
+    assert ".map-label.is-near-bottom" in style
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr))" in style
+    assert ".upload-drop {\n    gap: 8px;" in normalized_style
+    assert "min-height: 176px" in style
+    assert ".button-cluster {\n    display: grid;" in normalized_style
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in style
+    assert "height: clamp(320px, calc(100vh - 500px), 560px)" in style
+    assert "#routeTimelineRows { display: grid; gap: 6px; max-height: 224px" in style
+    assert ".route-record-list" in style
     assert "grid-template-columns: 96px minmax(0, 1fr)" in style
     assert ".mini-face { position: relative; overflow: hidden; width: 96px; height: 60px" in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
     assert "background: #eef4ff" in style
     assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain" in style
     assert ".desktop-update" in style
+    assert ".toast-success" in style
+    assert ".toast-warning" in style
+    assert ".toast-error" in style
+    assert ".toast-loading" in style
+    assert "[data-state=\"busy\"]" in style
     assert ".ui-icon" in style
     assert "stroke: currentColor" in style
     assert "background-image: url(\"/static/icons/search-action.png\")" not in style
@@ -88,6 +115,19 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "icon-export" in page
     assert "icon-update" in page
     assert "icon-info" in page
+    assert "resultSourceBadge" in page
+    assert "resultCountBadge" in page
+    assert "toastTitle" in page
+    assert "toastMessage" in page
+    assert "toastIconUse" in page
+    assert "导出记录" in page
+    assert "定位记录列表" in page
+    assert "定位时间线" in page
+    assert "routeOverviewPointCount" in page
+    assert "routeOverviewDuration" in page
+    assert "导出截图" not in page
+    assert "查看全部结果" not in page
+    assert "查看完整轨迹" not in page
     assert page.index('id="routeNewSearchBtn"') < page.index('id="backToResultBtn"')
     assert page.index('id="backToResultBtn"') < page.index('id="exportRouteBtn"')
     assert page.index('id="exportRouteBtn"') < page.index('id="fullRouteBtn"')
@@ -110,7 +150,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"resultlayout3\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"uipolish5\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
@@ -129,6 +169,13 @@ def test_desktop_update_bridge_wired() -> None:
     assert "startEmbeddedSshTunnel" in main_script
     assert "promptForSshPassword" in main_script
     assert "ssh-password.html" in main_script
+    assert "width: 560" in main_script
+    assert "height: 640" in main_script
+    assert "recoverable: true" in main_script
+    assert "setTimeout(() => done(result), 420)" in main_script
+    assert "connecting = false" in main_script
+    assert "lastProgressPercent" in main_script
+    assert "Math.max(12, lastProgressPercent)" in main_script
     assert "new SshClient" in main_script
     assert "forwardOut" in main_script
     assert "contextBridge.exposeInMainWorld(\"gkguardDesktop\"" in preload_script
@@ -144,6 +191,12 @@ def test_desktop_update_bridge_wired() -> None:
     password_page = (ROOT_DIR / "desktop" / "ssh-password.html").read_text(encoding="utf-8")
     assert "服务器密码" in password_page
     assert "connection-icon" in password_page
+    assert "connection-card" in password_page
+    assert "connection-steps" in password_page
+    assert "连接失败时请检查" in password_page
+    assert "密码只用于本次 SSH 连接，不会保存到 GKGuard、配置文件、日志或仓库" in password_page
+    assert "重新连接" in password_page
+    assert "当前预览环境无法建立 SSH 连接" in password_page
     assert "submitSshPassword" in password_page
     assert "cancelSshPassword" in password_page
     assert "progressBar" in password_page
@@ -264,7 +317,7 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
                     "camera": "cam02",
                     "cameraId": "cam02",
                     "similarity": 0.88,
-                    "note": "来自 C1 CampusVision 的真实检索结果",
+                    "note": "来自 CampusVision C1 的真实检索结果",
                     "sceneClass": "scene-1",
                     "progress": 21,
                     "frameUrl": "/c1/media/frame/face-1",

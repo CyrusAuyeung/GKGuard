@@ -10,7 +10,7 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "resultlayout3";
+const STATIC_ASSET_VERSION = "uipolish5";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
@@ -434,8 +434,8 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
 function promptForSshPassword(tunnel, reason, connectWithPassword) {
   return new Promise((resolve) => {
     const modal = new BrowserWindow({
-      width: 520,
-      height: 470,
+      width: 560,
+      height: 640,
       parent: mainWindow,
       modal: true,
       resizable: false,
@@ -454,7 +454,13 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
     });
 
     let resolved = false;
+    let connecting = false;
+    let lastProgressPercent = 0;
     const sendProgress = (payload) => {
+      const percent = Number(payload?.percent);
+      if (Number.isFinite(percent)) {
+        lastProgressPercent = Math.max(0, Math.min(100, percent));
+      }
       if (!modal.isDestroyed()) {
         modal.webContents.send("gkguard:ssh-connect-progress", payload);
       }
@@ -471,19 +477,24 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
 
     const submitHandler = async (event, password) => {
       if (event.sender === modal.webContents) {
-        const submittedPassword = typeof password === "string" ? password : "";
-        if (!submittedPassword) {
-          done({ connected: false, cancelled: true });
+        if (connecting) {
           return;
         }
+        const submittedPassword = typeof password === "string" ? password : "";
+        if (!submittedPassword) {
+          sendProgress({ percent: 0, message: "请输入服务器密码。", busy: false, failed: true, recoverable: true });
+          return;
+        }
+        connecting = true;
+        lastProgressPercent = 12;
         sendProgress({ percent: 12, message: "已收到密码，正在连接...", busy: true });
         try {
           const result = await connectWithPassword(submittedPassword, sendProgress);
           sendProgress({ percent: 100, message: result.verified ? "CampusVision C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
-          done(result);
+          setTimeout(() => done(result), 420);
         } catch (error) {
-          sendProgress({ percent: 100, message: `连接失败：${error.message}`, busy: false, failed: true });
-          done({ connected: false, error });
+          connecting = false;
+          sendProgress({ percent: Math.max(12, lastProgressPercent), message: `连接失败：${error.message}`, busy: false, failed: true, recoverable: true });
         }
       }
     };

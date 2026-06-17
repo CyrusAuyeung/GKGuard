@@ -13,11 +13,11 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.20` 推荐流程：
+安装版 `v0.1.21` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.20.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.21.exe`。
 2. 打开 GKGuard。
-3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口输入服务器密码，并观察连接进度条。
+3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
 5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
@@ -83,7 +83,8 @@ CampusVision C1 已连接时期望结果：
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
-- 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、时间线和摘要。
+- 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、地图上方摘要、时间线和轨迹摘要。
+- 检索、CampusVision C1 回退、定位、导出和更新入口会显示统一状态提示，按处理中、完成、注意和失败区分反馈。
 
 CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 
@@ -200,11 +201,11 @@ Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the 
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.20`:
+Recommended packaged-app flow for `v0.1.21`:
 
-1. Download and install `GKGuard-Setup-0.1.20.exe`.
+1. Download and install `GKGuard-Setup-0.1.21.exe`.
 2. Open GKGuard.
-3. The app checks the local SSH tunnel first; if it is not connected, enter the server password in the embedded “连接 CampusVision C1 服务” window and watch the connection progress.
+3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
@@ -270,7 +271,8 @@ Expected result with CampusVision C1 connected:
 - Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
-- `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data.
+- `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data, with a top route overview, timeline, and summary.
+- Search, CampusVision C1 fallback, navigation, export, and update actions use unified status feedback for loading, success, warning, and failure states.
 
 Expected result without CampusVision C1, after a CampusVision C1 failure, or without an uploaded image:
 
