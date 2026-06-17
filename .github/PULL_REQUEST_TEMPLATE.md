@@ -16,6 +16,7 @@
 
 ## 验证
 
+- [ ] PR 标题使用 `type(scope): summary`，且未包含 `[codex]`、`[copilot]`、`[ai]` 或 `AI:` 等工具来源前缀
 - [ ] GitHub Actions CI 通过
 - [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`
@@ -55,6 +56,7 @@
 
 ## Validation
 
+- [ ] PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`
 - [ ] GitHub Actions CI passed
 - [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`

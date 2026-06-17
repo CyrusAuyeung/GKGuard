@@ -172,6 +172,34 @@ git switch -c docs/contributing-guide
 
 如果是 Codex 协助完成的任务，优先使用 `codex/...` 分支。
 
+## PR 标题规范
+
+PR 标题使用通用的 Conventional Commits 风格：
+
+```text
+type(scope): summary
+```
+
+标题应描述实际变更，不写工具来源或执行者来源。不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 这类前缀；如果需要说明由 AI agent 协助完成，可以写在 PR 正文或评论里。
+
+常用 `type`：
+
+- `feat`：新增用户可见能力。
+- `fix`：修复缺陷。
+- `docs`：文档或模板。
+- `ci`：GitHub Actions、检查或发布流水线。
+- `test`：自动化测试或 E2E。
+- `chore`：依赖、配置或维护性变更。
+
+常用 `scope`：`ui`、`backend`、`desktop`、`c1`、`project`、`release`、`deps`、`docs`。
+
+示例：
+
+- `fix(ui): improve responsive media layout`
+- `docs(project): document Roadmap field requirements`
+- `ci(release): update action runtimes`
+- `test(ui): add browser E2E workflow for v0.1.23`
+
 ## 修改前确认边界
 
 开始写代码或文档前，先确认这次改动属于哪一类：
@@ -327,7 +355,7 @@ git push -u origin docs/contributing-guide
 
 - base branch 是 `main`。
 - compare branch 是你的工作分支。
-- PR 标题能说明目的。
+- PR 标题使用 `type(scope): summary`，能说明实际变更，且不包含 `[codex]` 等工具来源前缀。
 - PR 正文保留并填写自动模板。
 - 验证结果写清楚。
 - 敏感数据检查已完成。
@@ -463,6 +491,7 @@ git push
 - 没有提交真实数据或凭据。
 - 已运行与改动相关的测试。
 - 文档已经按需同步。
+- PR 标题使用 `type(scope): summary`，且不包含 `[codex]` 等工具来源前缀。
 - PR 正文保留并填写了自动模板。
 - 如果只改文档，已说明代码测试不适用。
 - Issue 或 PR 已按需设置标签并加入 GKGuard Roadmap Project。
@@ -484,8 +513,9 @@ git push
 4. 不要直接在 main 上进行非琐碎改动。功能、配置、CI、发布、UI、CampusVision C1 / GKGuard C2 接入、真实数据接入或多文档同步改动，应新建短期分支并通过 Pull Request 合并。
 5. main 是稳定基线，受保护规则约束。PR 合并前需要 Verify CI 通过、审查完成、对话解决，并使用 squash merge。
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
-7. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
-8. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
+7. PR 标题必须使用 `type(scope): summary`，例如 `fix(ui): improve responsive media layout` 或 `docs(project): document Roadmap field requirements`。标题描述实际变更，不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀；如需说明 AI agent 参与，应写在 PR 正文或评论中。
+8. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
+9. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
 
 实现与验证：
 9. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
@@ -663,6 +693,34 @@ Use short branch names that describe the purpose:
 
 Use `codex/...` branches for Codex-assisted work.
 
+## Pull Request Title Format
+
+PR titles use the common Conventional Commits style:
+
+```text
+type(scope): summary
+```
+
+The title should describe the actual change, not the tool or author source. Do not use prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
+
+Common `type` values:
+
+- `feat`: user-visible capability.
+- `fix`: bug fix.
+- `docs`: documentation or templates.
+- `ci`: GitHub Actions, checks, or release pipeline.
+- `test`: automated tests or E2E.
+- `chore`: dependencies, configuration, or maintenance.
+
+Common `scope` values: `ui`, `backend`, `desktop`, `c1`, `project`, `release`, `deps`, `docs`.
+
+Examples:
+
+- `fix(ui): improve responsive media layout`
+- `docs(project): document Roadmap field requirements`
+- `ci(release): update action runtimes`
+- `test(ui): add browser E2E workflow for v0.1.23`
+
 ## Check The Scope Before Editing
 
 Identify the affected area before editing:
@@ -816,7 +874,7 @@ Confirm:
 
 - Base branch is `main`.
 - Compare branch is your work branch.
-- The PR title explains the purpose.
+- The PR title uses `type(scope): summary`, explains the actual change, and does not include tool-source prefixes such as `[codex]`.
 - The automatic PR template is kept and filled in.
 - Validation results are included.
 - Sensitive-data checks are completed.
@@ -939,6 +997,7 @@ Before opening a Pull Request:
 - No real data or credentials are committed.
 - Relevant tests or checks have been run.
 - Documentation is synchronized where needed.
+- The PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`.
 - The automatic PR template is kept and filled in.
 - Documentation-only changes explain why code tests are not applicable.
 - Labels and the GKGuard Roadmap Project item are set where possible.
@@ -960,8 +1019,9 @@ Branches and PRs:
 4. Do not make non-trivial changes directly on main. Feature, configuration, CI, release, UI, CampusVision C1 / GKGuard C2 integration, real-data integration, or multi-document synchronization changes should use a short-lived branch and Pull Request.
 5. main is the stable protected baseline. Before merge, a PR needs the Verify CI check to pass, review completion, resolved conversations, and squash merge.
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
-7. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
-8. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
+7. PR titles must use `type(scope): summary`, for example `fix(ui): improve responsive media layout` or `docs(project): document Roadmap field requirements`. Titles describe the actual change and must not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
+8. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
+9. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
 
 Implementation and validation:
 9. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
