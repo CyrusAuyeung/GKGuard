@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=resultlayout3" in response.text
-    assert "/static/app.js?v=resultlayout3" in response.text
+    assert "/static/styles.css?v=uipolish1" in response.text
+    assert "/static/app.js?v=uipolish1" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -63,7 +63,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "min-width: 0" in style
     assert "width: calc(100vw" in style
     assert ".result-screen," in style
-    assert "grid-template-columns: clamp(300px, 18vw, 360px) minmax(0, 1fr)" in style
+    assert "grid-template-areas:" in style
+    assert ".result-record-strip" in style
+    assert "grid-auto-flow: column" in style
+    assert ".detail-toolbar" in style
+    assert "position: sticky" in style
     assert "grid-template-columns: 96px minmax(0, 1fr)" in style
     assert ".mini-face { position: relative; overflow: hidden; width: 96px; height: 60px" in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
@@ -88,6 +92,14 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "icon-export" in page
     assert "icon-update" in page
     assert "icon-info" in page
+    assert "resultSourceBadge" in page
+    assert "resultCountBadge" in page
+    assert "导出记录" in page
+    assert "定位记录列表" in page
+    assert "定位时间线" in page
+    assert "导出截图" not in page
+    assert "查看全部结果" not in page
+    assert "查看完整轨迹" not in page
     assert page.index('id="routeNewSearchBtn"') < page.index('id="backToResultBtn"')
     assert page.index('id="backToResultBtn"') < page.index('id="exportRouteBtn"')
     assert page.index('id="exportRouteBtn"') < page.index('id="fullRouteBtn"')
@@ -110,7 +122,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"resultlayout3\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"uipolish1\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
@@ -264,7 +276,7 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
                     "camera": "cam02",
                     "cameraId": "cam02",
                     "similarity": 0.88,
-                    "note": "来自 C1 CampusVision 的真实检索结果",
+                    "note": "来自 CampusVision C1 的真实检索结果",
                     "sceneClass": "scene-1",
                     "progress": 21,
                     "frameUrl": "/c1/media/frame/face-1",

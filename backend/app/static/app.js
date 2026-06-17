@@ -14,6 +14,8 @@ const elements = {
   routePortrait: document.querySelector("#routePortrait"),
   resultRecordList: document.querySelector("#resultRecordList"),
   routeRecordList: document.querySelector("#routeRecordList"),
+  resultSourceBadge: document.querySelector("#resultSourceBadge"),
+  resultCountBadge: document.querySelector("#resultCountBadge"),
   recordTitle: document.querySelector("#recordTitle"),
   recordScene: document.querySelector("#recordScene"),
   recordInfo: document.querySelector("#recordInfo"),
@@ -86,6 +88,10 @@ function formatPercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "--";
   return `${Math.round(number * 100)}%`;
+}
+
+function sourceLabel() {
+  return activeSource === "c1" ? "CampusVision C1" : "本地模拟";
 }
 
 function parseTimeSeconds(value) {
@@ -254,13 +260,13 @@ async function connectC1AfterFailure(error) {
     return false;
   }
 
-  showToast("C1 暂不可用，请在软件内输入服务器密码。");
-  const result = await desktopBridge.connectC1(error?.message || "C1 服务当前不可用").catch(() => null);
+  showToast("CampusVision C1 暂不可用，请在软件内输入服务器密码。");
+  const result = await desktopBridge.connectC1(error?.message || "CampusVision C1 服务当前不可用").catch(() => null);
   if (result?.connected) {
-    showToast(result.prompted ? "C1 已连接，正在重新检索。" : "C1 已可用，正在重新检索。");
+    showToast(result.prompted ? "CampusVision C1 已连接，正在重新检索。" : "CampusVision C1 已可用，正在重新检索。");
     return true;
   }
-  showToast("仍未检测到 C1，将使用本地模拟。请确认服务器密码和校园网连接。");
+  showToast("仍未检测到 CampusVision C1，将使用本地模拟。请确认服务器密码和校园网连接。");
   return false;
 }
 
@@ -277,6 +283,8 @@ function renderRecordLists() {
   `).join("");
   elements.resultRecordList.innerHTML = html;
   elements.routeRecordList.innerHTML = html;
+  if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
+  if (elements.resultCountBadge) elements.resultCountBadge.textContent = `${records.length} 条`;
   bindRecordThumbnailFallbacks();
 
   document.querySelectorAll(".record-card").forEach((button) => {
@@ -397,7 +405,7 @@ function renderSelectedRecord() {
     <div class="info-item"><span>位置：</span><strong>${escapeHtml(record.location)}</strong></div>
     <div class="info-item"><span>说明：</span><strong>${escapeHtml(record.note)}</strong></div>
     <div class="info-item"><span>摄像头：</span><strong>${escapeHtml(record.camera)}</strong></div>
-    <div class="info-item"><span>数据来源：</span><strong>${activeSource === "c1" ? "C1 CampusVision" : "本地模拟"}</strong></div>
+    <div class="info-item"><span>数据来源：</span><strong>${sourceLabel()}</strong></div>
   `;
 }
 
@@ -448,12 +456,12 @@ function renderRouteTimeline() {
 async function startSearch() {
   elements.startSearchBtn.disabled = true;
   elements.startSearchBtn.innerHTML = '<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>检索中...';
-  showToast(uploadedFile ? "正在调用 C1 检索服务。" : "未上传图片，使用本地模拟数据。");
+  showToast(uploadedFile ? "正在调用 CampusVision C1 检索服务。" : "未上传图片，使用本地模拟数据。");
   try {
     if (uploadedFile) {
       const result = await fetchC1Search();
       applyC1Result(result);
-      showToast(`C1 返回 ${records.length} 条关联记录。`);
+      showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`);
     } else {
       resetToMockData();
     }
@@ -462,7 +470,7 @@ async function startSearch() {
       try {
         const retryResult = await fetchC1Search();
         applyC1Result(retryResult);
-        showToast(`C1 返回 ${records.length} 条关联记录。`);
+        showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`);
       } catch (retryError) {
         resetToMockData();
         showToast(`${retryError.message}，已回退本地模拟。`);
@@ -513,13 +521,20 @@ function bindEvents() {
   elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。"); });
   document.querySelector("#backToResultBtn").addEventListener("click", () => switchScreen("result"));
-  document.querySelector("#showAllBtn").addEventListener("click", () => showToast(`当前已显示全部 ${records.length} 条检索结果。`));
-  document.querySelector("#fullRouteBtn").addEventListener("click", () => showToast(`完整 ${routePoints.length} 个轨迹点已展开。`));
+  document.querySelector("#showAllBtn").addEventListener("click", () => {
+    elements.resultRecordList?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+    elements.resultRecordList?.querySelector(".record-card.is-active")?.focus();
+    showToast(`已定位到 ${records.length} 条检索记录。`);
+  });
+  document.querySelector("#fullRouteBtn").addEventListener("click", () => {
+    document.querySelector(".timeline-table")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showToast(`已定位到 ${routePoints.length} 个轨迹点的时间线。`);
+  });
   document.querySelector("#playBtn").addEventListener("click", () => showToast("关键帧时间线已定位到当前记录。"));
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
-    downloadText(`GKGuard-${record.title}.txt`, JSON.stringify(record, null, 2));
-    showToast("截图信息已导出。实际截图导出可接入桌面端捕获能力。");
+    downloadText(`GKGuard-${record.title}.json`, JSON.stringify(record, null, 2));
+    showToast("记录数据已导出。");
   });
   document.querySelector("#exportRouteBtn").addEventListener("click", () => {
     downloadText("GKGuard-route.json", JSON.stringify({ routePoints, records }, null, 2));

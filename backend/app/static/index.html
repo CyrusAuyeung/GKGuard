@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=resultlayout3" />
+    <link rel="stylesheet" href="/static/styles.css?v=uipolish1" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -132,13 +132,19 @@
         </header>
 
         <div class="workbench result-workbench">
-          <aside class="side-panel">
+          <aside class="side-panel target-panel">
             <h2>人物照片</h2>
             <div id="resultPortrait" class="portrait-frame target-frame"><span class="portrait-art"></span></div>
-            <hr />
-            <h2>检索记录</h2>
-            <div id="resultRecordList" class="record-list"></div>
+            <dl class="result-summary">
+              <div><dt>数据来源：</dt><dd id="resultSourceBadge">本地模拟</dd></div>
+              <div><dt>命中记录：</dt><dd id="resultCountBadge">5 条</dd></div>
+            </dl>
           </aside>
+
+          <section class="record-panel" aria-label="检索记录">
+            <h2>检索记录</h2>
+            <div id="resultRecordList" class="record-list result-record-strip"></div>
+          </section>
 
           <section class="detail-panel">
             <div class="detail-toolbar">
@@ -146,8 +152,8 @@
               <div class="button-cluster">
                 <button id="newSearchBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-upload"></use></svg>重新上传</button>
                 <button id="openRouteBtn" class="outline-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>查看人物路线图</button>
-                <button id="exportFrameBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出截图</button>
-                <button id="showAllBtn" class="primary-action" type="button">查看全部结果</button>
+                <button id="exportFrameBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出记录</button>
+                <button id="showAllBtn" class="primary-action" type="button">定位记录列表</button>
               </div>
             </div>
 
@@ -204,7 +210,7 @@
                 <button id="routeNewSearchBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-upload"></use></svg>重新上传</button>
                 <button id="backToResultBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-results"></use></svg>返回检索结果</button>
                 <button id="exportRouteBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出路线图</button>
-                <button id="fullRouteBtn" class="primary-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>查看完整轨迹</button>
+                <button id="fullRouteBtn" class="primary-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>定位时间线</button>
               </div>
             </div>
 
@@ -232,6 +238,6 @@
     </main>
 
     <div id="toast" class="toast" role="status"></div>
-    <script src="/static/app.js?v=resultlayout3" defer></script>
+    <script src="/static/app.js?v=uipolish1" defer></script>
   </body>
 </html>
