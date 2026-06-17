@@ -17,10 +17,12 @@
 ## 验证
 
 - [ ] GitHub Actions CI 通过
+- [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`
 - [ ] `node --check desktop/preload.js`
 - [ ] `python -m pytest backend`
 - [ ] `python -m py_compile backend/desktop_server.py`
+- [ ] `npm run test:e2e`
 - [ ] `npm audit --audit-level=low`
 - [ ] 手动打开 `/demo`
 - [ ] 检查 `/c1/status`
@@ -54,10 +56,12 @@
 ## Validation
 
 - [ ] GitHub Actions CI passed
+- [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`
 - [ ] `node --check desktop/preload.js`
 - [ ] `python -m pytest backend`
 - [ ] `python -m py_compile backend/desktop_server.py`
+- [ ] `npm run test:e2e`
 - [ ] `npm audit --audit-level=low`
 - [ ] Manually opened `/demo`
 - [ ] Checked `/c1/status`

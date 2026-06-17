@@ -28,11 +28,12 @@ def test_demo_page_available() -> None:
     assert "人脸检索结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
+    assert "mediaViewer" in response.text
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.22-ui" in response.text
-    assert "/static/app.js?v=v0.1.22-ui" in response.text
+    assert "/static/styles.css?v=v0.1.23-ui" in response.text
+    assert "/static/app.js?v=v0.1.23-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -62,6 +63,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "function resetSearchInput" in script
     assert "function renderRouteMap" in script
     assert "mapLabelClass" in script
+    assert "function openMediaViewer" in script
+    assert "function closeMediaViewer" in script
+    assert "function selectRouteRecord" in script
+    assert "function emptyStateMarkup" in script
+    assert "data-route-index" in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
@@ -93,6 +99,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".route-current-card" in style
     assert ".route-current-card { order: 3; }" in style
     assert ".toast[hidden] { display: none; }" in style
+    assert ".media-viewer" in style
+    assert ".media-viewer-frame img" in style
+    assert ".empty-state" in style
+    assert ".map-point.is-active" in style
+    assert ".timeline-row.is-active" in style
     assert "min-height: 42px" in style
     assert "left: min(62%, 242px)" in style
     assert "min-width: 56px" in style
@@ -141,6 +152,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "data-scroll-hint=\"横向滑动\"" in page
     assert "routeCurrentRecord" in page
     assert "routeCurrentSimilarity" in page
+    assert "mediaViewerTitle" in page
+    assert "mediaViewerFrame" in page
     assert 'id="toast" class="toast toast-info" role="status" aria-live="polite" aria-atomic="true" hidden' in page
     assert "导出截图" not in page
     assert "查看全部结果" not in page
@@ -167,7 +180,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.22-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.23-ui\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script

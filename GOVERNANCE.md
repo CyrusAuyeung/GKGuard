@@ -31,7 +31,7 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 - `Protect main` 规则集保护默认分支 `main`，用于保持当前稳定基线可运行、可发布、可回退。
 - 常规功能、配置、发布和文档协作改动应从 `codex/...` 或其他短期分支提交 Pull Request。
 - Pull Request 合并前需要至少一次审查通过；新的提交会使旧审查失效，最后一次推送后仍需审查确认，并且所有对话必须解决。
-- 必需状态检查为 `.github/workflows/ci.yml` 中的 `Verify`；该检查覆盖后端测试、Electron 语法检查、桌面后端入口编译和 npm 安全审计。
+- 必需状态检查为 `.github/workflows/ci.yml` 中的 `Verify`；该检查覆盖后端测试、前端脚本语法检查、Electron 语法检查、桌面后端入口编译、浏览器 E2E 回归和 npm 安全审计。
 - `main` 禁止删除和强制推送；仓库合并策略使用 squash merge，并在合并后删除源分支。
 - Issue 和 Pull Request 使用 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并放入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪 Backlog、Ready、In progress、Review、Done 状态。
 - GKGuard Roadmap item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`；日期字段用于 Roadmap 展示，`Timeline order` 用于同日内按真实先后排序。
@@ -88,7 +88,7 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 - The `Protect main` ruleset protects the default branch `main` so the current stable baseline remains runnable, releasable, and rollback-safe.
 - Normal feature, configuration, release, and documentation collaboration changes should open a Pull Request from `codex/...` or another short-lived branch.
 - Pull Requests require at least one approval before merge. New commits dismiss stale approvals, the last push still needs review confirmation, and all conversations must be resolved.
-- The required status check is `Verify` from `.github/workflows/ci.yml`; it covers backend tests, Electron syntax checks, desktop backend entrypoint compilation, and npm security audit.
+- The required status check is `Verify` from `.github/workflows/ci.yml`; it covers backend tests, frontend script syntax checks, Electron syntax checks, desktop backend entrypoint compilation, browser E2E regression, and npm security audit.
 - Deleting or force-pushing `main` is blocked. The repository merge policy uses squash merge and deletes merged head branches.
 - Issues and Pull Requests use `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and are tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project through Backlog, Ready, In progress, Review, and Done.
 - GKGuard Roadmap items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`; date fields power the Roadmap view, and `Timeline order` preserves the real order for same-day items.

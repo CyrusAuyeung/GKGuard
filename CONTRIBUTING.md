@@ -242,12 +242,14 @@ http://10.4.167.122:8000
 
 ```powershell
 npm install
+npx playwright install chromium
 npm run desktop
 ```
 
-桌面端语法检查：
+前端与桌面端语法检查：
 
 ```powershell
+node --check backend/app/static/app.js
 node --check desktop/main.js
 node --check desktop/preload.js
 ```
@@ -263,6 +265,14 @@ npm 安全检查：
 ```powershell
 npm audit --audit-level=low
 ```
+
+浏览器 E2E 回归：
+
+```powershell
+npm run test:e2e
+```
+
+`npm run test:e2e` 会自动启动本地 GKGuard C2 后端，并用 Chromium 覆盖 `1280x720`、`680x640` 和 `390x720` 视口下的主流程。
 
 只修改文档时，至少运行：
 
@@ -323,6 +333,14 @@ git push -u origin docs/contributing-guide
 - 敏感数据检查已完成。
 
 PR 创建后，根据实际情况设置标签并加入 GKGuard Roadmap Project。如果没有权限，通知维护者补充。
+
+维护者或 AI agent 可以用仓库脚本半自动补齐 Roadmap 字段：
+
+```powershell
+.\scripts\Update-RoadmapItem.ps1 -Url https://github.com/CyrusAuyeung/GKGuard/pull/123 -Status "Review" -Area "Frontend" -Type "Polish" -Priority "Medium" -Blocked "No" -StartDate 2026-06-17 -TimelineOrder 22 -TargetVersion "post-v0.1.23"
+```
+
+脚本会读取 GKGuard Roadmap 的当前字段和选项，把 PR 或 Issue 加入 Project，填写字段，并再次确认 item 出现在 Project 主列表中。`Timeline order` 仍需要维护者按真实时间顺序确认。
 
 ## CI 和审查
 
@@ -467,13 +485,13 @@ git push
 5. main 是稳定基线，受保护规则约束。PR 合并前需要 Verify CI 通过、审查完成、对话解决，并使用 squash merge。
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
 7. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
-8. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
+8. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
 
 实现与验证：
 9. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
 10. 提交前只暂存本次任务相关文件，避免混入无关改动。不要使用破坏性 Git 命令重置用户改动。
 11. 根据改动运行必要检查。文档-only 至少运行 git diff --check；代码或桌面相关改动按 PR 模板运行相应测试，并在 PR 中写明验证结果。
-12. 如果改动涉及 UI，除静态语法检查外，还应尽可能实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
+12. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
 
 文档同步：
 13. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md 和对应 Release note。
@@ -715,12 +733,14 @@ Use Node.js `22.12.0` or later for local desktop development and packaging. The 
 
 ```powershell
 npm install
+npx playwright install chromium
 npm run desktop
 ```
 
-Electron syntax checks:
+Frontend and Electron syntax checks:
 
 ```powershell
+node --check backend/app/static/app.js
 node --check desktop/main.js
 node --check desktop/preload.js
 ```
@@ -736,6 +756,14 @@ npm security audit:
 ```powershell
 npm audit --audit-level=low
 ```
+
+Browser E2E regression:
+
+```powershell
+npm run test:e2e
+```
+
+`npm run test:e2e` starts the local GKGuard C2 backend automatically and runs the main Chromium flow at `1280x720`, `680x640`, and `390x720`.
 
 Documentation-only changes:
 
@@ -794,6 +822,14 @@ Confirm:
 - Sensitive-data checks are completed.
 
 Then set labels and add the PR to the GKGuard Roadmap Project when you have permission. If not, ask a maintainer to do it.
+
+Maintainers or AI agents can use the repository helper to fill Roadmap fields semi-automatically:
+
+```powershell
+.\scripts\Update-RoadmapItem.ps1 -Url https://github.com/CyrusAuyeung/GKGuard/pull/123 -Status "Review" -Area "Frontend" -Type "Polish" -Priority "Medium" -Blocked "No" -StartDate 2026-06-17 -TimelineOrder 22 -TargetVersion "post-v0.1.23"
+```
+
+The script reads the current GKGuard Roadmap fields and options, adds the PR or Issue to the Project, fills fields, and confirms that the item appears in the Project main item list. Maintainers still need to confirm `Timeline order`, dates, and target version from the real work history.
 
 ## CI And Review
 
@@ -925,13 +961,13 @@ Branches and PRs:
 5. main is the stable protected baseline. Before merge, a PR needs the Verify CI check to pass, review completion, resolved conversations, and squash merge.
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
 7. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
-8. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
+8. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
 
 Implementation and validation:
 9. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
 10. Stage only files related to the current task. Avoid mixing unrelated changes. Do not use destructive Git commands to reset user work.
 11. Run the checks relevant to the change. Documentation-only changes should at least run git diff --check. Code or desktop changes should run the checks listed in the PR template and report validation results in the PR.
-12. If a change affects UI, verify the rendered page or desktop app when possible, including layout, image display, interaction states, and different window sizes.
+12. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes.
 
 Documentation synchronization:
 13. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, and the matching Release note.

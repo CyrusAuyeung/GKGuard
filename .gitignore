@@ -17,4 +17,6 @@ backend-dist/
 node_modules/
 release/
 npm-debug.log*
+playwright-report/
+test-results/
 初期材料/

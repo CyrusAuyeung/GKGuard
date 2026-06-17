@@ -1,6 +1,6 @@
 {
   "name": "gkguard-desktop",
-  "version": "0.1.22",
+  "version": "0.1.23",
   "description": "GKGuard campus security AI dashboard desktop shell.",
   "main": "desktop/main.js",
   "author": "GKGuard Team",
@@ -10,9 +10,11 @@
     "desktop:dev": "electron . --devtools",
     "pack": "electron-builder --win --x64 --dir",
     "dist": "electron-builder --win --x64 --publish never",
-    "test:backend": "cd backend && python -m pytest"
+    "test:backend": "cd backend && python -m pytest",
+    "test:e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "electron": "^42.4.0",
     "electron-builder": "^26.15.3"
   },
