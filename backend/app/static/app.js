@@ -126,9 +126,7 @@ function switchScreen(name) {
     screen?.classList.toggle("is-active", key === name);
   });
 
-  if (!elements.toastMessage?.textContent?.trim()) {
-    hideToast();
-  }
+  hideToast();
 
   const resetScroll = () => {
     window.scrollTo(0, 0);
@@ -555,28 +553,29 @@ function renderRouteTimeline() {
 async function startSearch() {
   setButtonBusy(elements.startSearchBtn, true, "检索中...", "开始检索");
   showToast(uploadedFile ? "正在调用 CampusVision C1 检索服务。" : "未上传图片，使用本地模拟数据。", { tone: "loading", title: uploadedFile ? "检索中" : "准备本地模拟" });
+  let resultToast = null;
   try {
     if (uploadedFile) {
       const result = await fetchC1Search();
       applyC1Result(result);
-      showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`, { tone: "success", title: "检索完成" });
+      resultToast = { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "检索完成" } };
     } else {
       resetToMockData();
-      showToast(`已加载 ${records.length} 条本地模拟记录。`, { tone: "info", title: "本地模拟已就绪" });
+      resultToast = { message: `已加载 ${records.length} 条本地模拟记录。`, options: { tone: "info", title: "本地模拟已就绪" } };
     }
   } catch (error) {
     if (uploadedFile && await connectC1AfterFailure(error)) {
       try {
         const retryResult = await fetchC1Search();
         applyC1Result(retryResult);
-        showToast(`CampusVision C1 返回 ${records.length} 条关联记录。`, { tone: "success", title: "重试检索完成" });
+        resultToast = { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "重试检索完成" } };
       } catch (retryError) {
         resetToMockData();
-        showToast(`${retryError.message}，已回退本地模拟。`, { tone: "warning", title: "已使用本地模拟", timeout: 4600 });
+        resultToast = { message: `${retryError.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
       }
     } else {
       resetToMockData();
-      showToast(`${error.message}，已回退本地模拟。`, { tone: "warning", title: "已使用本地模拟", timeout: 4600 });
+      resultToast = { message: `${error.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
     }
   } finally {
     setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
@@ -586,6 +585,9 @@ async function startSearch() {
     renderRouteMap();
     renderRouteTimeline();
     switchScreen("result");
+    if (resultToast) {
+      showToast(resultToast.message, resultToast.options);
+    }
   }
 }
 
