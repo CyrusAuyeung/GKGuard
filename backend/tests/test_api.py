@@ -31,8 +31,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=uipolish2" in response.text
-    assert "/static/app.js?v=uipolish2" in response.text
+    assert "/static/styles.css?v=uipolish3" in response.text
+    assert "/static/app.js?v=uipolish3" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -47,6 +47,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "uploadedImageUrl || matchedPersonImageUrl" in script
     assert "uploadedImageUrl = result.person.representativeFaceUrl" not in script
     assert "initDesktopUpdateEntry" in script
+    assert "feedbackConfig" in script
+    assert "loading: { title" in script
+    assert "showToast(message, options = {})" in script
+    assert "function setButtonBusy" in script
     assert "checkForUpdates" in script
     assert "installUpdate" in script
     assert "onUpdateEvent" in script
@@ -78,6 +82,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "background: #eef4ff" in style
     assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain" in style
     assert ".desktop-update" in style
+    assert ".toast-success" in style
+    assert ".toast-warning" in style
+    assert ".toast-error" in style
+    assert ".toast-loading" in style
+    assert "[data-state=\"busy\"]" in style
     assert ".ui-icon" in style
     assert "stroke: currentColor" in style
     assert "background-image: url(\"/static/icons/search-action.png\")" not in style
@@ -98,6 +107,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "icon-info" in page
     assert "resultSourceBadge" in page
     assert "resultCountBadge" in page
+    assert "toastTitle" in page
+    assert "toastMessage" in page
+    assert "toastIconUse" in page
     assert "导出记录" in page
     assert "定位记录列表" in page
     assert "定位时间线" in page
@@ -128,7 +140,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"uipolish2\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"uipolish3\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script

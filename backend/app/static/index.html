@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=uipolish2" />
+    <link rel="stylesheet" href="/static/styles.css?v=uipolish3" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -247,7 +247,13 @@
       </section>
     </main>
 
-    <div id="toast" class="toast" role="status"></div>
-    <script src="/static/app.js?v=uipolish2" defer></script>
+    <div id="toast" class="toast toast-info" role="status" aria-live="polite" aria-atomic="true">
+      <span class="toast-mark" aria-hidden="true"><svg class="ui-icon toast-icon"><use id="toastIconUse" href="#icon-info"></use></svg></span>
+      <span class="toast-copy">
+        <strong id="toastTitle" class="toast-title">状态提示</strong>
+        <span id="toastMessage" class="toast-message"></span>
+      </span>
+    </div>
+    <script src="/static/app.js?v=uipolish3" defer></script>
   </body>
 </html>
