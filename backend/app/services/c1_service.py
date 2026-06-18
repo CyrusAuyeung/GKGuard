@@ -155,42 +155,122 @@ def _absolute_media_url(path: str | None) -> str | None:
     return "/c1/media/" + path.removeprefix("/api/v1/media/")
 
 
-def _normalize_bbox(box: dict[str, Any] | None) -> dict[str, Any] | None:
-    if not isinstance(box, dict):
-        return None
+def _number(value: Any) -> float | None:
     try:
-        x1 = float(box.get("x1", 0))
-        y1 = float(box.get("y1", 0))
-        x2 = float(box.get("x2", x1))
-        y2 = float(box.get("y2", y1))
+        return float(value)
     except (TypeError, ValueError):
         return None
-    width = float(box.get("width", x2 - x1) or (x2 - x1))
-    height = float(box.get("height", y2 - y1) or (y2 - y1))
+
+
+def _first_number(*values: Any) -> float | None:
+    for value in values:
+        number = _number(value)
+        if number is not None:
+            return number
+    return None
+
+
+def _normalize_bbox(
+    box: dict[str, Any] | list[Any] | tuple[Any, ...] | None,
+    image_width: Any = None,
+    image_height: Any = None,
+) -> dict[str, Any] | None:
+    if isinstance(box, (list, tuple)) and len(box) >= 4:
+        box = {"x1": box[0], "y1": box[1], "x2": box[2], "y2": box[3]}
+    if not isinstance(box, dict):
+        return None
+
+    if isinstance(box.get("bbox"), (dict, list, tuple)):
+        return _normalize_bbox(box.get("bbox"), image_width=image_width, image_height=image_height)
+
+    image_width = _first_number(image_width, box.get("image_width"), box.get("frame_width"), box.get("width_px"))
+    image_height = _first_number(image_height, box.get("image_height"), box.get("frame_height"), box.get("height_px"))
+
+    x1 = _first_number(box.get("x1"), box.get("left"), box.get("x"))
+    y1 = _first_number(box.get("y1"), box.get("top"), box.get("y"))
+    x2 = _first_number(box.get("x2"), box.get("right"))
+    y2 = _first_number(box.get("y2"), box.get("bottom"))
+    width = _first_number(box.get("width"), box.get("w"))
+    height = _first_number(box.get("height"), box.get("h"))
+
+    if x1 is None or y1 is None:
+        return None
+    if x2 is None and width is not None:
+        x2 = x1 + width
+    if y2 is None and height is not None:
+        y2 = y1 + height
+    if x2 is None or y2 is None:
+        return None
+
+    width = width if width is not None else x2 - x1
+    height = height if height is not None else y2 - y1
+
+    values = [x1, y1, x2, y2, width, height]
+    looks_normalized = all(0 <= value <= 1 for value in values if value is not None)
+    if looks_normalized:
+        left_pct = x1 * 100
+        top_pct = y1 * 100
+        width_pct = width * 100
+        height_pct = height * 100
+        if image_width and image_height:
+            x1 *= image_width
+            x2 *= image_width
+            width *= image_width
+            y1 *= image_height
+            y2 *= image_height
+            height *= image_height
+    else:
+        left_pct = _first_number(box.get("leftPct"), box.get("left_pct"), box.get("left_percent"))
+        top_pct = _first_number(box.get("topPct"), box.get("top_pct"), box.get("top_percent"))
+        width_pct = _first_number(box.get("widthPct"), box.get("width_pct"), box.get("width_percent"))
+        height_pct = _first_number(box.get("heightPct"), box.get("height_pct"), box.get("height_percent"))
+        if left_pct is None and image_width:
+            left_pct = x1 / image_width * 100
+        if top_pct is None and image_height:
+            top_pct = y1 / image_height * 100
+        if width_pct is None and image_width:
+            width_pct = width / image_width * 100
+        if height_pct is None and image_height:
+            height_pct = height / image_height * 100
+
+    if left_pct is None:
+        left_pct = _first_number(box.get("leftPct"), box.get("left_pct"), box.get("left_percent"))
+    if top_pct is None:
+        top_pct = _first_number(box.get("topPct"), box.get("top_pct"), box.get("top_percent"))
+    if width_pct is None:
+        width_pct = _first_number(box.get("widthPct"), box.get("width_pct"), box.get("width_percent"))
+    if height_pct is None:
+        height_pct = _first_number(box.get("heightPct"), box.get("height_pct"), box.get("height_percent"))
+
+    if width <= 0 or height <= 0:
+        return None
+
     payload: dict[str, Any] = {
-        "x1": x1,
-        "y1": y1,
-        "x2": x2,
-        "y2": y2,
-        "width": width,
-        "height": height,
+        "x1": round(x1, 4),
+        "y1": round(y1, 4),
+        "x2": round(x2, 4),
+        "y2": round(y2, 4),
+        "width": round(width, 4),
+        "height": round(height, 4),
     }
-    for source_key, target_key in (
-        ("leftPct", "leftPct"),
-        ("topPct", "topPct"),
-        ("widthPct", "widthPct"),
-        ("heightPct", "heightPct"),
-        ("score", "score"),
+    for target_key, value in (
+        ("leftPct", left_pct),
+        ("topPct", top_pct),
+        ("widthPct", width_pct),
+        ("heightPct", height_pct),
+        ("score", _first_number(box.get("score"), box.get("det_score"), box.get("confidence"))),
     ):
-        if source_key in box:
-            try:
-                payload[target_key] = float(box[source_key])
-            except (TypeError, ValueError):
-                pass
+        if value is not None:
+            payload[target_key] = round(value, 4)
     return payload
 
 
 def _query_face_from_item(item: dict[str, Any]) -> dict[str, Any]:
+    bbox = _normalize_bbox(
+        item.get("bbox") or item.get("face_box"),
+        image_width=item.get("image_width"),
+        image_height=item.get("image_height"),
+    )
     return {
         "index": item.get("index"),
         "imageIndex": item.get("image_index"),
@@ -198,7 +278,7 @@ def _query_face_from_item(item: dict[str, Any]) -> dict[str, Any]:
         "score": item.get("score"),
         "imageWidth": item.get("image_width"),
         "imageHeight": item.get("image_height"),
-        "bbox": _normalize_bbox(item.get("bbox")),
+        "bbox": bbox,
     }
 
 
@@ -225,7 +305,12 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
     frame_url = _absolute_media_url(match.get("frame_url") or match.get("best_frame_url"))
     face_id = match.get("face_id") or match.get("best_face_id") or f"c1-{index}"
     face_url = _absolute_media_url(match.get("face_url") or match.get("face_crop_url") or f"/api/v1/media/face/{face_id}")
-    face_box = _normalize_bbox(match.get("bbox") or match.get("face_box") or (match.get("best_match") or {}).get("bbox"))
+    raw_box = match.get("bbox") or match.get("face_box") or (match.get("best_match") or {}).get("bbox")
+    face_box = _normalize_bbox(
+        raw_box,
+        image_width=match.get("image_width") or match.get("frame_width"),
+        image_height=match.get("image_height") or match.get("frame_height"),
+    )
     return {
         "id": index,
         "title": f"记录{index}",

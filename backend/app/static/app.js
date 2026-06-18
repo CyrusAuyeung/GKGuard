@@ -208,7 +208,7 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
 }
 
 function targetPortraitMarkup() {
-  const portraitUrl = selectedQueryFaceImageUrl || uploadedImageUrl || matchedPersonImageUrl;
+  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
   if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
@@ -227,6 +227,8 @@ function faceBoxMarkup(face, options = {}) {
     <span class="${classes}" role="button" tabindex="0" data-query-face-box data-query-face-index="${escapeHtml(face.index)}"
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
       data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
+      data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
+      data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
       style="left:${box.leftPct}%; top:${box.topPct}%; width:${box.widthPct}%; height:${box.heightPct}%"
       aria-label="选择第 ${Number(face.index) + 1} 张人脸，检测置信度 ${escapeHtml(label)}">
       <span>${escapeHtml(label)}</span>
@@ -257,7 +259,9 @@ function frameFaceBoxMarkup(record) {
   return `
     <span class="face-box result-face-box" data-frame-face-box
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
-      data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}">
+      data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
+      data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
+      data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}">
       <span>${escapeHtml(formatPercent(record.similarity))}</span>
     </span>
   `;
@@ -300,13 +304,21 @@ function positionFrameFaceBoxes(root = document) {
         const y1 = Number(box.dataset.y1);
         const boxWidth = Number(box.dataset.width);
         const boxHeight = Number(box.dataset.height);
-        if (![x1, y1, boxWidth, boxHeight].every(Number.isFinite)) return;
-        const left = offsetX + (x1 / image.naturalWidth) * renderedWidth;
-        const top = offsetY + (y1 / image.naturalHeight) * renderedHeight;
+        const leftPct = Number(box.dataset.leftPct);
+        const topPct = Number(box.dataset.topPct);
+        const widthPct = Number(box.dataset.widthPct);
+        const heightPct = Number(box.dataset.heightPct);
+        const hasPctBox = [leftPct, topPct, widthPct, heightPct].every(Number.isFinite);
+        const hasPixelBox = [x1, y1, boxWidth, boxHeight].every(Number.isFinite);
+        if (!hasPctBox && !hasPixelBox) return;
+        const left = hasPctBox ? offsetX + (leftPct / 100) * renderedWidth : offsetX + (x1 / image.naturalWidth) * renderedWidth;
+        const top = hasPctBox ? offsetY + (topPct / 100) * renderedHeight : offsetY + (y1 / image.naturalHeight) * renderedHeight;
+        const width = hasPctBox ? (widthPct / 100) * renderedWidth : (boxWidth / image.naturalWidth) * renderedWidth;
+        const height = hasPctBox ? (heightPct / 100) * renderedHeight : (boxHeight / image.naturalHeight) * renderedHeight;
         box.style.left = `${left}px`;
         box.style.top = `${top}px`;
-        box.style.width = `${(boxWidth / image.naturalWidth) * renderedWidth}px`;
-        box.style.height = `${(boxHeight / image.naturalHeight) * renderedHeight}px`;
+        box.style.width = `${width}px`;
+        box.style.height = `${height}px`;
         box.classList.toggle("is-label-inside", top < 30);
       });
     };
@@ -357,12 +369,21 @@ async function cropUploadedFace(face) {
   if (!uploadedImageUrl || !face?.bbox) return "";
   const image = await loadBrowserImage(uploadedImageUrl);
   const box = face.bbox;
-  const padX = Math.max(8, Number(box.width || 0) * 0.18);
-  const padY = Math.max(8, Number(box.height || 0) * 0.22);
-  const x = Math.max(0, Number(box.x1 || 0) - padX);
-  const y = Math.max(0, Number(box.y1 || 0) - padY);
-  const width = Math.min(image.naturalWidth - x, Number(box.width || 0) + padX * 2);
-  const height = Math.min(image.naturalHeight - y, Number(box.height || 0) + padY * 2);
+  const leftPct = Number(box.leftPct);
+  const topPct = Number(box.topPct);
+  const widthPct = Number(box.widthPct);
+  const heightPct = Number(box.heightPct);
+  const hasPctBox = [leftPct, topPct, widthPct, heightPct].every(Number.isFinite);
+  const rawX = hasPctBox ? (leftPct / 100) * image.naturalWidth : Number(box.x1 || 0);
+  const rawY = hasPctBox ? (topPct / 100) * image.naturalHeight : Number(box.y1 || 0);
+  const rawWidth = hasPctBox ? (widthPct / 100) * image.naturalWidth : Number(box.width || 0);
+  const rawHeight = hasPctBox ? (heightPct / 100) * image.naturalHeight : Number(box.height || 0);
+  const padX = Math.max(8, rawWidth * 0.18);
+  const padY = Math.max(8, rawHeight * 0.22);
+  const x = Math.max(0, rawX - padX);
+  const y = Math.max(0, rawY - padY);
+  const width = Math.min(image.naturalWidth - x, rawWidth + padX * 2);
+  const height = Math.min(image.naturalHeight - y, rawHeight + padY * 2);
   if (width <= 0 || height <= 0) return "";
 
   const canvas = document.createElement("canvas");
@@ -391,6 +412,32 @@ async function selectQueryFace(index, options = {}) {
     showToast(`已选择第 ${selectedQueryFaceIndex + 1} 张人脸作为检索目标。`, { tone: "success", title: "目标已确认" });
   }
   return true;
+}
+
+function queryFaceIndexFromPoint(event) {
+  const boxes = Array.from(elements.uploadDrop.querySelectorAll("[data-query-face-index]"));
+  const hits = boxes
+    .map((box) => {
+      const rect = box.getBoundingClientRect();
+      const contains = event.clientX >= rect.left
+        && event.clientX <= rect.right
+        && event.clientY >= rect.top
+        && event.clientY <= rect.bottom;
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      return {
+        index: box.dataset.queryFaceIndex,
+        contains,
+        area: rect.width * rect.height,
+        distance: Math.hypot(event.clientX - centerX, event.clientY - centerY),
+      };
+    })
+    .filter((item) => item.contains);
+  if (hits.length) {
+    hits.sort((left, right) => left.area - right.area || left.distance - right.distance);
+    return hits[0].index;
+  }
+  return event.target.closest("[data-query-face-index]")?.dataset.queryFaceIndex;
 }
 
 function setSearchIdleLabel(label = "开始检索") {
@@ -477,8 +524,8 @@ function loadImage(file) {
     syncPortraits();
     showToast("目标照片已加载，正在检测人脸。", { tone: "loading", title: "图片已就绪" });
     prepareQueryFaces({ autoSearchSingle: true }).catch((error) => {
-      showToast(`${error.message}。点击开始检索时将尝试连接 CampusVision C1。`, { tone: "warning", title: "人脸检测暂不可用", timeout: 5200 });
-      setSearchIdleLabel("开始检索");
+      showToast(`${error.message}。请重试检测或检查 CampusVision C1 连接。`, { tone: "warning", title: "人脸检测暂不可用", timeout: 5200 });
+      setSearchIdleLabel("重新检测人脸");
     });
   });
   reader.readAsDataURL(file);
@@ -509,7 +556,7 @@ function resetSearchInput() {
   showToast("已返回上传页，可选择新的目标照片。", { tone: "info", title: "已重置检索" });
 }
 
-function applyC1Result(result) {
+async function applyC1Result(result) {
   if (!result?.records?.length) {
     throw new Error(result?.warning || "C1 没有返回匹配记录");
   }
@@ -539,13 +586,23 @@ function applyC1Result(result) {
     kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
   })));
 
-  if (result.person?.representativeFaceUrl) {
-    matchedPersonImageUrl = result.person.representativeFaceUrl;
-    syncPortraits();
+  if (Array.isArray(result.queryFaces) && result.queryFaces.length) {
+    queryFaces = result.queryFaces;
+    queryFaceDetectionComplete = true;
   }
-  if (result.selectedQueryFace && selectedQueryFaceIndex === null) {
+  if (result.selectedQueryFace && !queryFaces.some((face) => Number(face.index) === Number(result.selectedQueryFace.index))) {
+    queryFaces.push(result.selectedQueryFace);
+  }
+  if (result.selectedQueryFace) {
     selectedQueryFaceIndex = Number(result.selectedQueryFace.index);
   }
+  if (selectedQueryFaceIndex !== null && !selectedQueryFaceImageUrl) {
+    await selectQueryFace(selectedQueryFaceIndex, { silent: true });
+  }
+  if (result.person?.representativeFaceUrl) {
+    matchedPersonImageUrl = result.person.representativeFaceUrl;
+  }
+  syncPortraits();
 
   activeSource = "c1";
 }
@@ -908,7 +965,7 @@ async function startSearch() {
     const faceState = await prepareQueryFaces({ autoSearchSingle: false });
     if (faceState === "needs-selection" || faceState === "no-face") return faceState;
     const result = await fetchC1Search();
-    applyC1Result(result);
+    await applyC1Result(result);
     return "searched";
   }
 
@@ -936,10 +993,10 @@ async function startSearch() {
           ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选记录。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
           : { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "重试检索完成" } };
       } catch (retryError) {
-        resetToMockData();
-        shouldShowResults = true;
-        resultToast = { message: `${retryError.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
+        resultToast = { message: `${retryError.message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
       }
+    } else if (uploadedFile) {
+      resultToast = { message: `${error.message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
     } else {
       resetToMockData();
       shouldShowResults = true;
@@ -948,6 +1005,9 @@ async function startSearch() {
   } finally {
     setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
     searchInProgress = false;
+    if (uploadedFile && queryFaceDetectionComplete && !queryFaces.length) {
+      setSearchIdleLabel("重新上传后检索");
+    }
     if (queryFaces.length > 1 && selectedQueryFaceIndex === null) {
       setSearchIdleLabel("选择人脸后检索");
     }
@@ -982,10 +1042,10 @@ function downloadText(filename, content) {
 
 function bindEvents() {
   elements.uploadDrop.addEventListener("click", async (event) => {
-    const faceTarget = event.target.closest("[data-query-face-index]");
-    if (faceTarget) {
+    const faceIndex = queryFaceIndexFromPoint(event);
+    if (faceIndex !== undefined) {
       event.preventDefault();
-      await selectQueryFace(faceTarget.dataset.queryFaceIndex);
+      await selectQueryFace(faceIndex);
       setSearchIdleLabel("确认选择并检索");
       return;
     }

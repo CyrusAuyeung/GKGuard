@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from app.core.config import settings
+
 
 def _normalize(vec: np.ndarray) -> np.ndarray:
     vec = vec.astype("float32").reshape(-1)
@@ -45,8 +47,9 @@ class InsightFaceEngine:
             providers = ["CPUExecutionProvider"]
 
         ctx_id = 0 if "CUDAExecutionProvider" in providers else -1
+        det_size = max(640, int(settings.insightface_det_size or 1280))
         self.app = FaceAnalysis(name="buffalo_l", providers=providers)
-        self.app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+        self.app.prepare(ctx_id=ctx_id, det_size=(det_size, det_size))
 
     def _faces(self, image_bgr: np.ndarray):
         if image_bgr is None:

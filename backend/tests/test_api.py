@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.24-ui" in response.text
-    assert "/static/app.js?v=v0.1.24-ui" in response.text
+    assert "/static/styles.css?v=v0.1.25-ui" in response.text
+    assert "/static/app.js?v=v0.1.25-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -45,8 +45,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "record.thumbnailUrl || record.faceUrl || record.frameUrl" in script
     assert "record.frameUrl" in script
     assert "matchedPersonImageUrl" in script
-    assert "uploadedImageUrl || matchedPersonImageUrl" in script
-    assert "selectedQueryFaceImageUrl || uploadedImageUrl || matchedPersonImageUrl" in script
+    assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
     assert "function prepareQueryFaces" in script
     assert 'fetch("/c1/query-faces"' in script
     assert "query_face_index" in script
@@ -95,7 +94,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".result-screen," in style
     assert "grid-template-areas:" in style
     assert ".result-record-strip" in style
+    assert "grid-auto-flow: row" in style
     assert "grid-auto-flow: column" in style
+    assert "max-height: clamp(240px, calc(100vh - 430px), 520px)" in style
     assert ".detail-toolbar" in style
     assert "position: sticky" in style
     assert ".route-overview" in style
@@ -194,7 +195,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.24-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.25-ui\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
@@ -481,6 +482,32 @@ def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
     assert record["faceUrl"] == "/c1/media/face/face-1"
     assert record["faceBox"]["width"] == 30
     assert record["faceBox"]["score"] == 0.97
+
+
+def test_c1_record_mapping_accepts_normalized_face_box(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    record = c1_service._record_from_match(
+        {
+            "face_id": "face-normalized",
+            "frame_url": "/api/v1/media/frame/face-normalized",
+            "captured_at": "2026-06-14T10:00:00",
+            "camera_id": "cam02",
+            "score": 0.91,
+            "frame_width": 200,
+            "frame_height": 100,
+            "bbox": {"x1": 0.25, "y1": 0.2, "x2": 0.55, "y2": 0.7, "score": 0.97},
+        },
+        1,
+    )
+
+    assert record["faceBox"]["x1"] == 50
+    assert record["faceBox"]["y1"] == 20
+    assert record["faceBox"]["width"] == 60
+    assert record["faceBox"]["height"] == 50
+    assert record["faceBox"]["leftPct"] == 25
+    assert record["faceBox"]["heightPct"] == 50
 
 
 def test_root_redirects_to_demo() -> None:

@@ -34,6 +34,19 @@ async function expectHealthyPage(page, problems) {
   expect(problems).toEqual([]);
 }
 
+async function expectDesktopRecordListOnLeft(page) {
+  const viewport = page.viewportSize();
+  if (!viewport || viewport.width < 981) return;
+  const recordBox = await page.locator(".record-panel").boundingBox();
+  const detailBox = await page.locator(".detail-panel").boundingBox();
+  const targetBox = await page.locator(".target-panel").boundingBox();
+  expect(recordBox).not.toBeNull();
+  expect(detailBox).not.toBeNull();
+  expect(targetBox).not.toBeNull();
+  expect(recordBox.x + recordBox.width).toBeLessThanOrEqual(detailBox.x);
+  expect(recordBox.y).toBeGreaterThanOrEqual(targetBox.y);
+}
+
 test.describe("GKGuard C2 demo UI", () => {
   test("mock search, route navigation, and reset remain responsive", async ({ page }) => {
     const problems = collectBrowserProblems(page);
@@ -47,6 +60,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultRecordList .record-card")).toHaveCount(5);
     await expect(page.locator("#resultCountBadge")).toHaveText("5 条");
     await expect(page.locator("#toast")).toContainText("已加载 5 条本地模拟记录");
+    await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);
 
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
@@ -165,8 +179,10 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
     expect(searchUrl).toContain("query_face_index=0");
     await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1");
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
     await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
+    await expectDesktopRecordListOnLeft(page);
 
     await page.locator("#recordScene").click();
     await expect(page.locator("#mediaViewer")).toBeVisible();
@@ -288,8 +304,46 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
     expect(searchUrl).toContain("query_face_index=1");
     await expect(page.locator("#resultPortrait img")).toBeVisible();
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
+    await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
+  });
+
+  test("query face detection failure does not show false search results", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchCalls = 0;
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ detail: { message: "query face detection unavailable" } }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchCalls += 1;
+      await route.abort();
+    });
+
+    await page.goto("/demo?desktop=1&e2e=query-face-failure");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-failure.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("人脸检测暂不可用");
+    await page.getByRole("button", { name: /重新检测人脸|开始检索/ }).click();
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("未执行检索");
+    expect(searchCalls).toBe(0);
+    await expectNoHorizontalOverflow(page);
+    expect(problems.filter((problem) => !problem.includes("status of 503"))).toEqual([]);
   });
 });

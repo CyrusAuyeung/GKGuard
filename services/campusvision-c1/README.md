@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -64,9 +64,10 @@ curl http://127.0.0.1:8000/health
 
 ```bash
 FACE_ENGINE=insightface
+INSIGHTFACE_DET_SIZE=1280
 ```
 
-如果服务已经启动过旧配置，修改 `.env` 后需要重启实际监听端口的 uvicorn worker。
+`INSIGHTFACE_DET_SIZE` 控制 InsightFace 检测输入尺寸，默认 1280；多人全景图或多人乐队/教室场景中，如果查询图只检测到一张人脸，优先确认该值未被旧环境覆盖。修改 `.env` 后需要重启实际监听端口的 uvicorn worker。
 
 ## 快速接口流程
 
@@ -116,7 +117,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
   -F "files=@/path/to/group_photo.jpg"
 ```
 
-返回内容包含 `query_faces`、每张人脸的 `bbox` 和检测置信度。只有一张人脸时可以直接检索；多张人脸时由上层 UI 选择目标人脸并把 `query_face_index` 传给检索接口。
+返回内容包含 `query_faces`、每张人脸的 `bbox` 和检测置信度。只有一张人脸时可以直接检索；多张人脸时由上层 UI 选择目标人脸并把 `query_face_index` 传给检索接口。多人查询图只返回一张人脸时，应先检查 `INSIGHTFACE_DET_SIZE` 和服务重启状态。
 
 1. 基于人物库以图搜人。
 
@@ -267,9 +268,9 @@ Keep this in `.env`:
 
 ```bash
 FACE_ENGINE=insightface
+INSIGHTFACE_DET_SIZE=1280
 ```
-
-If the service was started with an older configuration, restart the actual uvicorn worker that owns the listening port after changing `.env`.
+`INSIGHTFACE_DET_SIZE` controls the InsightFace detection input size and defaults to `1280`. If a group, classroom, or band-room image returns only one detected query face, first confirm that an old runtime environment has not overridden this value. After changing `.env`, restart the actual uvicorn worker that owns the listening port.
 
 ## Quick API Flow
 
@@ -319,7 +320,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
   -F "files=@/path/to/group_photo.jpg"
 ```
 
-The response includes `query_faces`, each face `bbox`, and detection confidence. If there is one face, the caller can search directly; if there are multiple faces, the upper-layer UI selects the target and passes `query_face_index` to the search endpoint.
+The response includes `query_faces`, each face `bbox`, and detection confidence. If there is one face, the caller can search directly; if there are multiple faces, the upper-layer UI selects the target and passes `query_face_index` to the search endpoint. If a multi-face query image returns only one face, check `INSIGHTFACE_DET_SIZE` and confirm the service was restarted.
 
 1. Search person by image.
 

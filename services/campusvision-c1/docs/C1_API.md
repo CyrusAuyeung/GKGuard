@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -136,7 +136,10 @@ http://127.0.0.1:8000/docs
 - `query_faces[].score`
 - `query_faces[].bbox`
 
+`query_faces[].bbox` 包含像素坐标和百分比坐标；GKGuard C2 会兼容像素、归一化和百分比格式，用于在上传原图中定位选择框。
 `query_faces[].score` 是检测置信度；人物匹配相似度由后续 `/api/v1/search/person-by-image` 返回。
+
+多人查询图只返回一张人脸时，优先确认 CampusVision C1 运行环境包含 `INSIGHTFACE_DET_SIZE=1280` 或更高值，并确认实际监听端口的 uvicorn worker 已重启。
 
 ## 基于人物库以图搜人
 
@@ -324,7 +327,11 @@ Response includes:
 - `query_faces[].score`
 - `query_faces[].bbox`
 
+`query_faces[].bbox` includes pixel and percentage coordinates. GKGuard C2 accepts pixel, normalized, and percentage formats when placing selection boxes on the uploaded image.
+
 `query_faces[].score` is detection confidence. Person-match similarity is returned by `/api/v1/search/person-by-image`.
+
+If a multi-face query image returns only one face, first confirm the CampusVision C1 runtime has `INSIGHTFACE_DET_SIZE=1280` or a larger value and that the uvicorn worker owning the listening port was restarted.
 
 ## Person Search By Image
 
