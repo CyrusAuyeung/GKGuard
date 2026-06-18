@@ -21,7 +21,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.25.md](releases/v0.1.25.md)：当前最新版本说明，记录多人查询图检测修复、目标裁切图、桌面结果页左侧记录列表和关键帧目标框增强。
+- [releases/v0.1.25.md](releases/v0.1.25.md)：当前最新版本说明，记录多人查询图检测修复、目标裁切图、查询图人脸框点击命中、桌面结果页左侧记录列表和关键帧目标框增强。
 - [releases/v0.1.22.md](releases/v0.1.22.md)：移动端 UI 精修、空 toast 修复和静态资源版本命名。
 - [releases/](releases/)：历史版本发布记录。
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
@@ -70,7 +70,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.25.md](releases/v0.1.25.md): latest release notes covering multi-face query detection fixes, selected target crops, the left-side desktop result record list, and stronger keyframe overlays.
+- [releases/v0.1.25.md](releases/v0.1.25.md): latest release notes covering multi-face query detection fixes, selected target crops, query-face box hit testing, the left-side desktop result record list, and stronger keyframe overlays.
 - [releases/v0.1.22.md](releases/v0.1.22.md): mobile UI polish, empty-toast cleanup, and static asset version naming.
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.
