@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=v0.1.23-ui" />
+    <link rel="stylesheet" href="/static/styles.css?v=v0.1.24-ui" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -80,11 +80,11 @@
           <div class="search-layout">
             <section class="upload-panel" aria-label="上传图片">
               <h2>上传图片</h2>
-              <button id="uploadDrop" class="upload-drop" type="button">
-                <span id="uploadPreview" class="portrait-frame large-placeholder" aria-hidden="true"><span class="portrait-art"></span></span>
+              <div id="uploadDrop" class="upload-drop" role="button" tabindex="0">
+                <span id="uploadPreview" class="portrait-frame large-placeholder"><span class="portrait-art"></span></span>
                 <span class="upload-action"><svg class="ui-icon upload-icon" aria-hidden="true"><use href="#icon-upload"></use></svg>点击上传或拖拽图片到此处</span>
                 <small id="uploadHint">支持 JPG / PNG，建议上传清晰正脸照片</small>
-              </button>
+              </div>
               <input id="faceFile" type="file" accept="image/png,image/jpeg" hidden />
             </section>
 
@@ -283,6 +283,6 @@
         <span id="toastMessage" class="toast-message"></span>
       </span>
     </div>
-    <script src="/static/app.js?v=v0.1.23-ui" defer></script>
+    <script src="/static/app.js?v=v0.1.24-ui" defer></script>
   </body>
 </html>

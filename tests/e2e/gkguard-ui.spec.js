@@ -74,13 +74,56 @@ test.describe("GKGuard C2 demo UI", () => {
 
   test("CampusVision C1 media result opens the keyframe viewer", async ({ page }) => {
     const problems = collectBrowserProblems(page);
+    let searchUrl = "";
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.96,
+              bbox: {
+                x1: 0.08,
+                y1: 0.1,
+                x2: 0.48,
+                y2: 0.64,
+                width: 0.4,
+                height: 0.54,
+                leftPct: 8,
+                topPct: 10,
+                widthPct: 40,
+                heightPct: 54,
+              },
+            },
+          ],
+        }),
+      });
+    });
 
     await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchUrl = route.request().url();
       await route.fulfill({
         contentType: "application/json",
         body: JSON.stringify({
           source: "c1",
           searchId: "e2e-c1",
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.96,
+              bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 },
+            },
+          ],
+          selectedQueryFace: {
+            index: 0,
+            score: 0.96,
+            bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 },
+          },
           records: [
             {
               id: 1,
@@ -96,6 +139,7 @@ test.describe("GKGuard C2 demo UI", () => {
               progress: 62,
               frameUrl: "/static/icons/app-mark.png",
               faceUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 22, y1: 20, x2: 66, y2: 72, width: 44, height: 52 },
             },
           ],
           routePoints: [
@@ -118,18 +162,133 @@ test.describe("GKGuard C2 demo UI", () => {
       buffer: PNG_BUFFER,
     });
 
-    await page.getByRole("button", { name: /开始检索/ }).click();
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    expect(searchUrl).toContain("query_face_index=0");
     await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1");
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
+    await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
 
     await page.locator("#recordScene").click();
     await expect(page.locator("#mediaViewer")).toBeVisible();
     await expect(page.locator("#mediaViewerTitle")).toContainText("记录1");
     await expect(page.locator("#mediaViewer img")).toBeVisible();
+    await expect(page.locator("#mediaViewer .result-face-box")).toContainText("99%");
 
     await page.keyboard.press("Escape");
     await expect(page.locator("#mediaViewer")).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("multiple query faces require selecting a boxed face before C1 search", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchUrl = "";
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 2,
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.91,
+              bbox: {
+                x1: 0.05,
+                y1: 0.16,
+                x2: 0.32,
+                y2: 0.7,
+                width: 0.27,
+                height: 0.54,
+                leftPct: 5,
+                topPct: 16,
+                widthPct: 27,
+                heightPct: 54,
+              },
+            },
+            {
+              index: 1,
+              score: 0.89,
+              bbox: {
+                x1: 0.58,
+                y1: 0.18,
+                x2: 0.9,
+                y2: 0.72,
+                width: 0.32,
+                height: 0.54,
+                leftPct: 58,
+                topPct: 18,
+                widthPct: 32,
+                heightPct: 54,
+              },
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchUrl = route.request().url();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-c1-multi",
+          queryFaces: [
+            { index: 0, score: 0.91, bbox: { x1: 0.05, y1: 0.16, x2: 0.32, y2: 0.7, width: 0.27, height: 0.54 } },
+            { index: 1, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+          ],
+          selectedQueryFace: { index: 1, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+          records: [
+            {
+              id: 1,
+              title: "记录1",
+              time: "11:08:12",
+              fullTime: "2026-06-17 11:08:12",
+              location: "图书馆入口",
+              camera: "C1-E2E-02 图书馆摄像机",
+              cameraId: "C1-E2E-02",
+              similarity: 0.88,
+              note: "E2E 多人查询图检索结果",
+              sceneClass: "scene-2",
+              progress: 48,
+              frameUrl: "/static/icons/app-mark.png",
+              faceUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 26, y1: 22, x2: 72, y2: 78, width: 46, height: 56 },
+            },
+          ],
+          routePoints: [
+            { id: 1, time: "11:08:12", location: "图书馆入口", x: 52, y: 38, kind: "start" },
+          ],
+          person: {
+            personId: "P-E2E-2",
+            confidence: "medium",
+            representativeFaceUrl: "/static/icons/app-mark.png",
+          },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=c1-multi-face");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-multi.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("[data-query-face-index]")).toHaveCount(2);
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await page.locator('[data-query-face-index="1"]').click();
+    await expect(page.locator('[data-query-face-index="1"]')).toHaveClass(/is-selected/);
+
+    await page.getByRole("button", { name: /确认选择并检索/ }).click();
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    expect(searchUrl).toContain("query_face_index=1");
+    await expect(page.locator("#resultPortrait img")).toBeVisible();
+    await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

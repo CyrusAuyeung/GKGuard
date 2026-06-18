@@ -155,6 +155,53 @@ def _absolute_media_url(path: str | None) -> str | None:
     return "/c1/media/" + path.removeprefix("/api/v1/media/")
 
 
+def _normalize_bbox(box: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not isinstance(box, dict):
+        return None
+    try:
+        x1 = float(box.get("x1", 0))
+        y1 = float(box.get("y1", 0))
+        x2 = float(box.get("x2", x1))
+        y2 = float(box.get("y2", y1))
+    except (TypeError, ValueError):
+        return None
+    width = float(box.get("width", x2 - x1) or (x2 - x1))
+    height = float(box.get("height", y2 - y1) or (y2 - y1))
+    payload: dict[str, Any] = {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "width": width,
+        "height": height,
+    }
+    for source_key, target_key in (
+        ("leftPct", "leftPct"),
+        ("topPct", "topPct"),
+        ("widthPct", "widthPct"),
+        ("heightPct", "heightPct"),
+        ("score", "score"),
+    ):
+        if source_key in box:
+            try:
+                payload[target_key] = float(box[source_key])
+            except (TypeError, ValueError):
+                pass
+    return payload
+
+
+def _query_face_from_item(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "index": item.get("index"),
+        "imageIndex": item.get("image_index"),
+        "faceIndex": item.get("face_index"),
+        "score": item.get("score"),
+        "imageWidth": item.get("image_width"),
+        "imageHeight": item.get("image_height"),
+        "bbox": _normalize_bbox(item.get("bbox")),
+    }
+
+
 def _time_parts(value: str | None, fallback: str | None = None) -> tuple[str, str]:
     raw = value or fallback or ""
     if not raw:
@@ -178,6 +225,7 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
     frame_url = _absolute_media_url(match.get("frame_url") or match.get("best_frame_url"))
     face_id = match.get("face_id") or match.get("best_face_id") or f"c1-{index}"
     face_url = _absolute_media_url(match.get("face_url") or match.get("face_crop_url") or f"/api/v1/media/face/{face_id}")
+    face_box = _normalize_bbox(match.get("bbox") or match.get("face_box") or (match.get("best_match") or {}).get("bbox"))
     return {
         "id": index,
         "title": f"记录{index}",
@@ -193,6 +241,7 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
         "frameUrl": frame_url,
         "faceUrl": face_url,
         "faceId": face_id,
+        "faceBox": face_box,
         "videoId": match.get("video_id"),
         "videoTimestampSec": match.get("video_timestamp_sec"),
     }
@@ -237,6 +286,8 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
     representative_face = _absolute_media_url(person.get("representative_face_crop_url"))
     if not representative_face and records:
         representative_face = _absolute_media_url(f"/api/v1/media/face/{records[0].get('faceId')}")
+    query_faces = [_query_face_from_item(item) for item in raw.get("query_faces") or []]
+    selected_query_face = raw.get("selected_query_face")
 
     return {
         "source": "c1",
@@ -245,6 +296,8 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
         "engine": raw.get("engine"),
         "warning": raw.get("warning"),
         "ambiguous": raw.get("ambiguous", False),
+        "queryFaces": query_faces,
+        "selectedQueryFace": _query_face_from_item(selected_query_face) if isinstance(selected_query_face, dict) else None,
         "person": {
             "personId": person.get("person_id"),
             "score": person.get("score"),
@@ -341,13 +394,28 @@ def search_person_by_image(
     top_k: int,
     min_score: float | None,
     max_gap_sec: float,
+    query_face_index: int | None = None,
 ) -> dict[str, Any]:
     files = {"files": (filename, content, content_type or "application/octet-stream")}
     data: dict[str, str] = {"top_k": str(top_k), "max_gap_sec": str(max_gap_sec)}
     if min_score is not None:
         data["min_score"] = str(min_score)
+    if query_face_index is not None:
+        data["query_face_index"] = str(query_face_index)
     raw = _request("POST", "/api/v1/search/person-by-image", files=files, data=data).json()
     return _summarize_person_result(raw)
+
+
+def detect_query_faces(filename: str, content: bytes, content_type: str | None) -> dict[str, Any]:
+    files = {"files": (filename, content, content_type or "application/octet-stream")}
+    raw = _request("POST", "/api/v1/search/query-faces", files=files).json()
+    return {
+        "source": "c1",
+        "baseUrl": C1_BASE_URL,
+        "engine": raw.get("engine"),
+        "faceCount": raw.get("face_count", 0),
+        "queryFaces": [_query_face_from_item(item) for item in raw.get("query_faces") or []],
+    }
 
 
 def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:

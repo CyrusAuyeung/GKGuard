@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.23` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.24` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -21,7 +21,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.23.md](releases/v0.1.23.md)：当前最新版本说明，记录浏览器 E2E 回归、关键帧预览、路线联动和 Project 脚本。
+- [releases/v0.1.24.md](releases/v0.1.24.md)：当前最新版本说明，记录查询图人脸检测、多人框选、选中人脸检索和关键帧目标框标注。
 - [releases/v0.1.22.md](releases/v0.1.22.md)：移动端 UI 精修、空 toast 修复和静态资源版本命名。
 - [releases/](releases/)：历史版本发布记录。
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
@@ -56,7 +56,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.23`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.24`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -70,7 +70,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.23.md](releases/v0.1.23.md): latest release notes covering browser E2E regression, keyframe preview, route selection sync, and the Project helper.
+- [releases/v0.1.24.md](releases/v0.1.24.md): latest release notes covering query-face detection, multi-face selection, selected-face search, and target-face overlays on keyframes.
 - [releases/v0.1.22.md](releases/v0.1.22.md): mobile UI polish, empty-toast cleanup, and static asset version naming.
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.

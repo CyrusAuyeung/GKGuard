@@ -117,11 +117,32 @@ http://127.0.0.1:8000/docs
 
 浏览器可视化查看人物库、代表人脸和样例人脸。
 
+## 查询图人脸检测
+
+`POST /api/v1/search/query-faces`
+
+上传查询图片，返回图片中的人脸框和检测置信度。该接口不执行人物库匹配，只用于 GKGuard C2 等上层界面在检索前确认目标人脸。
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `files` | file[] | 是 | 查询图片，可多张，字段名保持为 `files` |
+
+返回内容包含：
+
+- `engine`
+- `face_count`
+- `query_faces[]`
+- `query_faces[].index`
+- `query_faces[].score`
+- `query_faces[].bbox`
+
+`query_faces[].score` 是检测置信度；人物匹配相似度由后续 `/api/v1/search/person-by-image` 返回。
+
 ## 基于人物库以图搜人
 
 `POST /api/v1/search/person-by-image`
 
-上传目标人物照片，先匹配人物库中的 `person`，再展开这个人的逐帧命中、轨迹和连续出现事件。
+上传目标人物照片，先匹配人物库中的 `person`，再展开这个人的逐帧命中、轨迹和连续出现事件。若查询图片有多张人脸，应先调用 `/api/v1/search/query-faces` 让上层界面选择目标，再通过 `query_face_index` 指定实际检索的人脸。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -129,17 +150,21 @@ http://127.0.0.1:8000/docs
 | `top_k` | int | 否 | 返回前 K 个候选人物，默认 5 |
 | `min_score` | float | 否 | 人物匹配最低相似度 |
 | `max_gap_sec` | float | 否 | 合并连续出现事件的最大时间间隔，默认 3.0 秒 |
+| `query_face_index` | int | 否 | 指定查询图中用于检索的人脸序号 |
 
 返回内容包含：
 
 - `search_id`
 - `engine`
+- `query_faces[]`
+- `selected_query_face`
 - `persons[]`
 - `persons[].score`
 - `persons[].representative_frame_url`
 - `persons[].matches[]`
 - `persons[].trajectory[]`
 - `persons[].appearance_events[]`
+- `persons[].matches[].bbox`
 
 ## 媒体访问
 
@@ -158,8 +183,9 @@ http://127.0.0.1:8000/docs
 3. `POST /api/v1/videos/{video_id}/index`
 4. `POST /api/v1/persons/update-index` 或 `POST /api/v1/persons/rebuild-index`
 5. `GET /api/v1/persons`
-6. `POST /api/v1/search/person-by-image`
-7. `GET /api/v1/media/frame/{face_id}` 或 `GET /api/v1/media/face/{face_id}`
+6. `POST /api/v1/search/query-faces`
+7. `POST /api/v1/search/person-by-image`
+8. `GET /api/v1/media/frame/{face_id}` 或 `GET /api/v1/media/face/{face_id}`
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
 
@@ -279,11 +305,32 @@ Lists indexed people.
 
 Provides a browser gallery for representative and sample faces.
 
+## Query-Face Detection
+
+`POST /api/v1/search/query-faces`
+
+Uploads query images and returns face boxes plus detection confidence. This endpoint does not match the person index; it lets upper-layer UIs such as GKGuard C2 confirm the target face before search.
+
+| Field | Type | Required | Description |
+|---|---|---:|---|
+| `files` | file[] | Yes | one or more query images; keep field name `files` |
+
+Response includes:
+
+- `engine`
+- `face_count`
+- `query_faces[]`
+- `query_faces[].index`
+- `query_faces[].score`
+- `query_faces[].bbox`
+
+`query_faces[].score` is detection confidence. Person-match similarity is returned by `/api/v1/search/person-by-image`.
+
 ## Person Search By Image
 
 `POST /api/v1/search/person-by-image`
 
-Uploads target-person images, matches the person index first, then expands the selected people into frame-level hits, trajectory, and appearance events.
+Uploads target-person images, matches the person index first, then expands the selected people into frame-level hits, trajectory, and appearance events. For query images with multiple faces, call `/api/v1/search/query-faces` first and pass the selected target as `query_face_index`.
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
@@ -291,17 +338,21 @@ Uploads target-person images, matches the person index first, then expands the s
 | `top_k` | int | No | top candidate people, default 5 |
 | `min_score` | float | No | minimum person-match similarity |
 | `max_gap_sec` | float | No | max gap for merging continuous appearances, default 3.0 seconds |
+| `query_face_index` | int | No | selected face index from the query image |
 
 Response includes:
 
 - `search_id`
 - `engine`
+- `query_faces[]`
+- `selected_query_face`
 - `persons[]`
 - `persons[].score`
 - `persons[].representative_frame_url`
 - `persons[].matches[]`
 - `persons[].trajectory[]`
 - `persons[].appearance_events[]`
+- `persons[].matches[].bbox`
 
 ## Media Access
 
@@ -320,7 +371,8 @@ Returns a JPEG face crop from the matched frame.
 3. `POST /api/v1/videos/{video_id}/index`
 4. `POST /api/v1/persons/update-index` or `POST /api/v1/persons/rebuild-index`
 5. `GET /api/v1/persons`
-6. `POST /api/v1/search/person-by-image`
-7. `GET /api/v1/media/frame/{face_id}` or `GET /api/v1/media/face/{face_id}`
+6. `POST /api/v1/search/query-faces`
+7. `POST /api/v1/search/person-by-image`
+8. `GET /api/v1/media/frame/{face_id}` or `GET /api/v1/media/face/{face_id}`
 
 <p align="right"><a href="#english">Back to English top</a></p>

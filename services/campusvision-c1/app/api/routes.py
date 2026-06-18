@@ -195,12 +195,30 @@ async def search_by_image(
     return result
 
 
+@router.post("/search/query-faces")
+async def detect_query_faces(files: list[UploadFile] = File(...)):
+    import uuid
+
+    temp_search_id = "detect_" + uuid.uuid4().hex
+    paths = []
+    for f in files:
+        if not f.filename:
+            continue
+        paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+
+    if not paths:
+        raise HTTPException(status_code=400, detail="No query image uploaded.")
+
+    return search_service.detect_query_faces(paths)
+
+
 @router.post("/search/person-by-image")
 async def search_person_by_image(
     files: list[UploadFile] = File(...),
     top_k: int = Form(5),
     min_score: Optional[float] = Form(None),
     max_gap_sec: float = Form(3.0),
+    query_face_index: Optional[int] = Form(None),
 ):
     import uuid
 
@@ -219,6 +237,7 @@ async def search_person_by_image(
         top_k=top_k,
         min_score=min_score,
         max_gap_sec=max_gap_sec,
+        query_face_index=query_face_index,
     )
 
 

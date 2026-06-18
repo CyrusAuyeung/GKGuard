@@ -109,16 +109,26 @@ curl -X POST http://127.0.0.1:8000/api/v1/persons/update-index \
   -F "min_detection_score=0.85"
 ```
 
+1. 可选：先检测查询图人脸，用于多人图片目标选择。
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
+  -F "files=@/path/to/group_photo.jpg"
+```
+
+返回内容包含 `query_faces`、每张人脸的 `bbox` 和检测置信度。只有一张人脸时可以直接检索；多张人脸时由上层 UI 选择目标人脸并把 `query_face_index` 传给检索接口。
+
 1. 基于人物库以图搜人。
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/search/person-by-image \
   -F "files=@/path/to/person_1.jpg" \
+  -F "query_face_index=0" \
   -F "top_k=5" \
   -F "max_gap_sec=3.0"
 ```
 
-返回内容包含 `persons`、候选人物分数、代表截图、逐帧 `matches`、`trajectory` 和 `appearance_events`。
+返回内容包含 `query_faces`、`selected_query_face`、`persons`、候选人物分数、代表截图、逐帧 `matches`、`trajectory` 和 `appearance_events`。`matches[].bbox` 可用于上层界面在关键帧中标出命中人脸。
 
 ## 媒体访问
 
@@ -302,16 +312,26 @@ curl -X POST http://127.0.0.1:8000/api/v1/persons/update-index \
   -F "min_detection_score=0.85"
 ```
 
+1. Optional: detect faces in the query image for multi-face target selection.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
+  -F "files=@/path/to/group_photo.jpg"
+```
+
+The response includes `query_faces`, each face `bbox`, and detection confidence. If there is one face, the caller can search directly; if there are multiple faces, the upper-layer UI selects the target and passes `query_face_index` to the search endpoint.
+
 1. Search person by image.
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/search/person-by-image \
   -F "files=@/path/to/person_1.jpg" \
+  -F "query_face_index=0" \
   -F "top_k=5" \
   -F "max_gap_sec=3.0"
 ```
 
-The response includes `persons`, candidate scores, representative frames, frame-level `matches`, `trajectory`, and `appearance_events`.
+The response includes `query_faces`, `selected_query_face`, `persons`, candidate scores, representative frames, frame-level `matches`, `trajectory`, and `appearance_events`. `matches[].bbox` can be used by upper-layer UIs to mark the matched face in the keyframe.
 
 ## Media Access
 
