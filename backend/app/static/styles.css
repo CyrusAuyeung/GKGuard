@@ -290,6 +290,8 @@ input, select {
 .face-box {
   position: absolute;
   z-index: 6;
+  display: block;
+  box-sizing: border-box;
   min-width: 38px;
   min-height: 30px;
   border: 2px solid #20c997;
@@ -299,13 +301,14 @@ input, select {
 }
 .query-face-layer .face-box {
   cursor: pointer;
-  pointer-events: auto;
+  pointer-events: none;
   box-shadow: 0 0 0 2px rgba(255,255,255,.62), 0 8px 18px rgba(15, 23, 42, .16);
 }
 .face-box span {
   position: absolute;
   left: -2px;
   top: -26px;
+  pointer-events: none;
   display: inline-flex;
   align-items: center;
   min-height: 22px;
