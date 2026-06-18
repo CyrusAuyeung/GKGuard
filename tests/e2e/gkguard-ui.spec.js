@@ -47,6 +47,13 @@ async function expectDesktopRecordListOnLeft(page) {
   expect(recordBox.y).toBeGreaterThanOrEqual(targetBox.y);
 }
 
+async function clickQueryFaceByIndex(page, index) {
+  const locator = page.locator(`[data-query-face-index="${index}"]`);
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 test.describe("GKGuard C2 demo UI", () => {
   test("mock search, route navigation, and reset remain responsive", async ({ page }) => {
     const problems = collectBrowserProblems(page);
@@ -297,7 +304,7 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await expect(page.locator("[data-query-face-index]")).toHaveCount(2);
     await expect(page.locator("#searchView")).toHaveClass(/is-active/);
-    await page.locator('[data-query-face-index="1"]').click();
+    await clickQueryFaceByIndex(page, 1);
     await expect(page.locator('[data-query-face-index="1"]')).toHaveClass(/is-selected/);
 
     await page.getByRole("button", { name: /确认选择并检索/ }).click();
