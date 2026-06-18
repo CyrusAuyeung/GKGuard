@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.29` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.30` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -22,7 +22,8 @@
 
 ## 发布与版本
 
-- [releases/v0.1.29.md](releases/v0.1.29.md)：当前最新版本说明，记录上传区显式放大选人按钮、重新上传交互修复、结果页人物照片缩略图来源修复和多人选择弹窗适应/缩小行为修复。
+- [releases/v0.1.30.md](releases/v0.1.30.md)：当前最新版本说明，记录多人选择弹窗最大无滚动适应和结果页人物照片目标框裁切修复。
+- [releases/v0.1.29.md](releases/v0.1.29.md)：上传区显式放大选人按钮、重新上传交互修复、结果页人物照片缩略图来源修复和多人选择弹窗适应/缩小行为修复。
 - [releases/v0.1.28.md](releases/v0.1.28.md)：CampusVision C1 远端半自动部署脚本的 Windows/SSH 换行兼容修复，以及远端查询图预处理测试期望修正。
 - [releases/v0.1.27.md](releases/v0.1.27.md)：查询图检测预处理与重试、多人放大弹窗选人、低置信候选可见标注、结果关键帧框外相似度、检索超时恢复和 CampusVision C1 远端半自动部署脚本。
 - [releases/v0.1.26.md](releases/v0.1.26.md)：查询图低置信框过滤、结果关键帧目标框定位修复、CampusVision C1 无匹配状态恢复、Electron 缓存刷新和 SSH 隧道错误处理。
@@ -60,7 +61,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.29`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.30`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -75,7 +76,8 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.29.md](releases/v0.1.29.md): latest release notes covering the explicit enlarged face-selection button on upload, re-upload interaction fix, result portrait thumbnail-source fix, and multi-face modal fit/zoom-out behavior fix.
+- [releases/v0.1.30.md](releases/v0.1.30.md): latest release notes covering the maximum no-scroll multi-face modal fit and selected-target-box result portrait crop fix.
+- [releases/v0.1.29.md](releases/v0.1.29.md): explicit enlarged face-selection button on upload, re-upload interaction fix, result portrait thumbnail-source fix, and multi-face modal fit/zoom-out behavior fix.
 - [releases/v0.1.28.md](releases/v0.1.28.md): Windows/SSH newline compatibility fix for the semi-automatic CampusVision C1 remote deployment script and the remote query-image preprocessing test expectation fix.
 - [releases/v0.1.27.md](releases/v0.1.27.md): query-face preprocessing and retry, the enlarged multi-face selection modal, visible low-confidence candidates, outside-box keyframe similarity labels, search timeout recovery, and the semi-automatic CampusVision C1 remote deployment script.
 - [releases/v0.1.26.md](releases/v0.1.26.md): low-confidence query-box filtering, result keyframe overlay positioning, CampusVision C1 no-match recovery, Electron cache refresh, and SSH tunnel error handling.

@@ -852,8 +852,9 @@ input, select {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 12px;
-  width: min(1120px, calc(100vw - 32px));
-  max-height: min(900px, calc(100vh - 32px));
+  width: min(1360px, calc(100vw - 32px));
+  height: min(900px, calc(100vh - 32px));
+  max-height: calc(100vh - 32px);
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, .22);
   border-radius: 8px;
@@ -1252,6 +1253,7 @@ input, select {
   }
   .query-face-modal-surface {
     width: calc(100vw - 20px);
+    height: calc(100vh - 20px);
     max-height: calc(100vh - 20px);
     padding: 10px;
   }
