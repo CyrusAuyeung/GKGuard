@@ -62,6 +62,8 @@ ssh gkguard-c1 "echo ok"
 6. 检查 `http://127.0.0.1:8000/health`。
 7. 检查 `/openapi.json` 是否包含 `query-faces`。
 
+脚本在 Windows PowerShell 中会先把发送给远端 bash 的脚本内容归一化为 LF，再通过 SSH 标准输入执行，避免 CRLF 换行导致远端 `set -euo pipefail` 解析失败。
+
 ## 部署后检查
 
 部署完成后建议继续执行：
@@ -90,7 +92,7 @@ http://127.0.0.1:8002/c1/status
 - 如果 `/health` 不通，查看远端日志：
 
 ```powershell
-ssh gkguard-c1 "tail -n 120 /tmp/gkguard-campusvision-c1.log"
+ssh gkguard-c1 "tail -n 120 /home/speng/projects/GKGuard/services/campusvision-c1/logs/campusvision-c1.log"
 ```
 
 - 如果查询图人脸检测不稳定，先确认远端已经部署最新 `main`，再检查 `/api/v1/search/query-faces` 返回的 `diagnostics`。
@@ -158,6 +160,8 @@ The script:
 6. Checks `http://127.0.0.1:8000/health`.
 7. Checks that `/openapi.json` contains `query-faces`.
 
+In Windows PowerShell, the script normalizes the remote bash script content to LF before writing it to SSH standard input, avoiding remote `set -euo pipefail` parsing failures caused by CRLF line endings.
+
 ## Post-Deploy Checks
 
 After deployment, run:
@@ -186,7 +190,7 @@ http://127.0.0.1:8002/c1/status
 - If `/health` fails, inspect the remote log:
 
 ```powershell
-ssh gkguard-c1 "tail -n 120 /tmp/gkguard-campusvision-c1.log"
+ssh gkguard-c1 "tail -n 120 /home/speng/projects/GKGuard/services/campusvision-c1/logs/campusvision-c1.log"
 ```
 
 - If query-face detection is unstable, first confirm that the latest `main` is deployed, then inspect the `diagnostics` returned by `/api/v1/search/query-faces`.
