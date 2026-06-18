@@ -292,13 +292,12 @@ input, select {
   z-index: 6;
   display: block;
   box-sizing: border-box;
-  min-width: 38px;
-  min-height: 30px;
   border: 2px solid #20c997;
   border-radius: 6px;
   background: rgba(32, 201, 151, .08);
   box-shadow: 0 0 0 999px rgba(17, 25, 39, .12);
 }
+.face-box.is-pending { opacity: 0; }
 .query-face-layer .face-box {
   cursor: pointer;
   pointer-events: none;

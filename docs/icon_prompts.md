@@ -1,8 +1,8 @@
 ﻿# GKGuard Icon Prompts
 
-> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.1.25` 前端功能小图标以页面内 SVG sprite 为准，品牌/启动/安装包图标使用仓库中的 PNG/ICO 资产。
+> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.1.26` 前端功能小图标以页面内 SVG sprite 为准，品牌/启动/安装包图标使用仓库中的 PNG/ICO 资产。
 >
-> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.1.25`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/installer icons use repository PNG/ICO assets.
+> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.1.26`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/installer icons use repository PNG/ICO assets.
 
 ## 通用风格 / Shared Style
 

@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.25-ui" in response.text
-    assert "/static/app.js?v=v0.1.25-ui" in response.text
+    assert "/static/styles.css?v=v0.1.26-ui" in response.text
+    assert "/static/app.js?v=v0.1.26-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -47,7 +47,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "matchedPersonImageUrl" in script
     assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
     assert "function prepareQueryFaces" in script
-    assert 'fetch("/c1/query-faces"' in script
+    assert 'fetchWithTimeout("/c1/query-faces"' in script
+    assert 'fetchWithTimeout(`/c1/search/person-by-image?' in script
+    assert "localizedC1Notice" in script
+    assert "CampusVision C1 响应超时" in script
+    assert "MIN_SELECTABLE_FACE_SCORE = 0.65" in script
     assert "query_face_index" in script
     assert "data-query-face-box" in script
     assert "function frameFaceBoxMarkup" in script
@@ -84,6 +88,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
     assert ".query-face-layer" in style
+    assert ".face-box.is-pending" in style
     assert ".face-box.is-selected" in style
     assert ".frame-image-wrap" in style
     assert ".result-face-box" in style
@@ -139,6 +144,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".ui-icon" in style
     assert "stroke: currentColor" in style
     assert "background-image: url(\"/static/icons/search-action.png\")" not in style
+    assert "min-width: 38px" not in style
+    assert "min-height: 30px" not in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: cover" not in style
     assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover" not in style
 
@@ -195,7 +202,10 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.25-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.26-ui\"" in main_script
+    assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
+    assert "clearCache()" in main_script
+    assert "swallowTunnelNetworkError" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script

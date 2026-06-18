@@ -19,7 +19,7 @@ GKGuard C2 后端会按顺序读取候选地址并自动探测；安装版默认
 4. 默认本机隧道地址：`http://127.0.0.1:18000`。
 5. 内置服务器地址：`http://10.4.167.122:8000`。
 
-探测时会访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`。第一个健康检查通过的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。
+探测时会访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`。第一个健康检查通过的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。桌面端 SSH 隧道连接如果被远端重置，主进程会记录警告并关闭对应 socket，不再弹出 Electron 主进程 JavaScript 错误。
 
 ## 推荐方案 A：直连 CampusVision C1 服务
 
@@ -118,6 +118,8 @@ remotePort = 8000
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.26-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
 ## 可选方案 D：手动或免密 SSH 隧道
@@ -139,7 +141,7 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 
 1. GKGuard C2 前端把照片发给本机 GKGuard C2 后端。
 2. GKGuard C2 自动选择健康的 CampusVision C1 地址。
-3. GKGuard C2 先调用 CampusVision C1 查询图人脸检测；单人图自动选中，多人图由前端在原图上选择目标。
+3. GKGuard C2 先调用 CampusVision C1 查询图人脸检测；一张有效候选人脸会自动选中，多张有效候选人脸由前端在原图上选择目标，存在高置信候选时会隐藏低于 `0.65` 的低置信检测框。
 4. GKGuard C2 把照片和可选 `query_face_index` 转发给 CampusVision C1 `person-by-image`。
 5. CampusVision C1 返回候选人物、关键帧、目标人脸框、相似度、摄像头、时间和轨迹。
 6. 前端显示 `CampusVision C1` 的真实结果。
@@ -150,7 +152,7 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 2. GKGuard C2 的 `/c1/...` 请求会返回不可用错误。
 3. 桌面 UI 会打开软件内 CampusVision C1 密码窗口；用户输入 SSH 密码后自动重试一次。
 4. 如果没有上传图片，前端可回退到本地模拟数据，继续展示演示结果。
-5. 如果已经上传图片但查询图人脸检测或真实检索仍不可用，前端停留在上传页提示重试，不展示模拟结果。
+5. 如果已经上传图片但查询图人脸检测、真实检索仍不可用，或 CampusVision C1 返回空 `records[]` 无匹配结果，前端停留在上传页提示重试，不展示模拟结果，也不保持“检索中”状态。
 6. 回退结果不是服务器真实数据。
 
 ## 检查方式
@@ -194,7 +196,7 @@ The GKGuard C2 backend reads and probes candidate URLs in this order; the packag
 4. Default local tunnel URL: `http://127.0.0.1:18000`.
 5. Built-in server URL: `http://10.4.167.122:8000`.
 
-During probing, GKGuard C2 calls `/openapi.json` and `/health` on each CampusVision C1 candidate. The first candidate with a healthy response is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once.
+During probing, GKGuard C2 calls `/openapi.json` and `/health` on each CampusVision C1 candidate. The first candidate with a healthy response is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once. If the remote side resets an SSH tunnel connection, the desktop main process records a warning and closes the socket instead of showing an Electron main-process JavaScript error dialog.
 
 ## Recommended Option A: Direct CampusVision C1 Access
 
@@ -292,6 +294,8 @@ Startup behavior:
 4. You type the server password in that window, and the main process creates the SSH tunnel with that one-time password.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.26-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 
 ## Optional Option D: Manual Or Passwordless SSH Tunnel
@@ -313,7 +317,7 @@ If any candidate CampusVision C1 service is reachable:
 
 1. The GKGuard C2 frontend sends the photo to the local GKGuard C2 backend.
 2. GKGuard C2 selects a healthy CampusVision C1 URL automatically.
-3. GKGuard C2 first calls CampusVision C1 query-face detection; single-face uploads are auto-selected, while multi-face uploads are selected on the original image.
+3. GKGuard C2 first calls CampusVision C1 query-face detection; one effective candidate face is auto-selected, while multiple effective candidates are selected on the original image. When higher-confidence candidates exist, boxes below `0.65` are hidden.
 4. GKGuard C2 forwards the image and optional `query_face_index` to CampusVision C1 `person-by-image`.
 5. CampusVision C1 returns candidate persons, keyframes, target-face boxes, similarity, camera, time, and route points.
 6. The frontend shows real `CampusVision C1` results.
@@ -324,7 +328,7 @@ If all candidate CampusVision C1 URLs are unavailable:
 2. GKGuard C2 `/c1/...` requests return unavailable errors.
 3. The desktop UI opens the embedded CampusVision C1 password prompt; after the user enters the SSH password, it retries once automatically.
 4. If no image has been uploaded, the frontend can fall back to local mock data and continue the demo.
-5. If an image has been uploaded but query-face detection or real search is still unavailable, the frontend stays on the upload screen with a retry/error message instead of showing mock results.
+5. If an image has been uploaded but query-face detection, real search, or an empty `records[]` no-match result prevents a real hit, the frontend stays on the upload screen with a retry/error message instead of showing mock results or staying in a loading state.
 6. The fallback result is not real server data.
 
 ## How To Check

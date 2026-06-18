@@ -145,7 +145,7 @@ http://127.0.0.1:8000/docs
 
 `POST /api/v1/search/person-by-image`
 
-上传目标人物照片，先匹配人物库中的 `person`，再展开这个人的逐帧命中、轨迹和连续出现事件。若查询图片有多张人脸，应先调用 `/api/v1/search/query-faces` 让上层界面选择目标，再通过 `query_face_index` 指定实际检索的人脸。
+上传目标人物照片，先匹配人物库中的 `person`，再展开这个人的逐帧命中、轨迹和连续出现事件。若查询图片有多张人脸，应先调用 `/api/v1/search/query-faces` 让上层界面选择目标，再通过 `query_face_index` 指定实际检索的人脸。若没有人物达到 `min_score`，接口可以返回空 `persons[]` 或带 warning 的无匹配结果；GKGuard C2 会保持在上传页并提示无匹配，不进入结果页。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -168,6 +168,8 @@ http://127.0.0.1:8000/docs
 - `persons[].trajectory[]`
 - `persons[].appearance_events[]`
 - `persons[].matches[].bbox`
+
+`persons[].matches[].bbox` 用于上层界面在关键帧上标注目标人脸。GKGuard C2 兼容像素、归一化和百分比坐标，并按实际渲染后的图片内容区域定位目标框。
 
 ## 媒体访问
 
@@ -337,7 +339,7 @@ If a multi-face query image returns only one face, first confirm the CampusVisio
 
 `POST /api/v1/search/person-by-image`
 
-Uploads target-person images, matches the person index first, then expands the selected people into frame-level hits, trajectory, and appearance events. For query images with multiple faces, call `/api/v1/search/query-faces` first and pass the selected target as `query_face_index`.
+Uploads target-person images, matches the person index first, then expands the selected people into frame-level hits, trajectory, and appearance events. For query images with multiple faces, call `/api/v1/search/query-faces` first and pass the selected target as `query_face_index`. If no person reaches `min_score`, the endpoint may return an empty `persons[]` or a warning-only no-match result; GKGuard C2 keeps the upload screen active and shows a no-match warning instead of entering results.
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
@@ -360,6 +362,8 @@ Response includes:
 - `persons[].trajectory[]`
 - `persons[].appearance_events[]`
 - `persons[].matches[].bbox`
+
+`persons[].matches[].bbox` lets upper-layer UIs mark the target face on keyframes. GKGuard C2 accepts pixel, normalized, and percentage coordinates, then positions the target box against the rendered image content area.
 
 ## Media Access
 

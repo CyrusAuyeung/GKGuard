@@ -32,6 +32,8 @@ conda activate campusvision-c1
 pip install -r requirements.txt
 ```
 
+`requirements.txt` 将 `numpy` 限制为 `<2`，并将 `opencv-python` 限制为 `<4.13`，用于匹配当前 InsightFace / ONNXRuntime 运行环境。若远端环境被 pip 升级到 NumPy 2.x，应重新执行 `pip install -r requirements.txt`，再运行 `python scripts/check_env.py` 并重启实际监听端口的 uvicorn worker。
+
 如果原环境不是 `torch126`：
 
 ```bash
@@ -235,6 +237,8 @@ conda create -n campusvision-c1 --clone torch126
 conda activate campusvision-c1
 pip install -r requirements.txt
 ```
+
+`requirements.txt` pins `numpy<2` and `opencv-python<4.13` to match the current InsightFace / ONNXRuntime runtime. If pip upgrades the remote environment to NumPy 2.x, rerun `pip install -r requirements.txt`, run `python scripts/check_env.py`, and restart the uvicorn worker that owns the listening port.
 
 If the source environment is not `torch126`:
 
