@@ -86,14 +86,23 @@ echo "[deploy] CampusVision C1 is running on 127.0.0.1:$PORT"
 '@
 
 $remoteScript = $remoteScript.Replace("__REPO_PATH__", $RepoPath.Replace("'", "'\''")).Replace("__BRANCH__", $Branch.Replace("'", "'\''")).Replace("__CONDA_SH__", $CondaSh.Replace("'", "'\''")).Replace("__CONDA_ENV__", $CondaEnv.Replace("'", "'\''")).Replace("__PORT__", [string]$Port).Replace("__INSTALL_COMMAND__", $installCommand)
+$remoteScript = $remoteScript -replace "`r`n", "`n" -replace "`r", "`n"
 
 Invoke-CheckedCommand "Testing SSH alias $HostAlias" {
   ssh $HostAlias "echo ok"
 }
 
 Write-Host "==> Deploying CampusVision C1 on $HostAlias"
-$remoteScript | ssh $HostAlias "bash -s"
-if ($LASTEXITCODE -ne 0) {
+$sshProcessInfo = [System.Diagnostics.ProcessStartInfo]::new()
+$sshProcessInfo.FileName = "ssh"
+$sshProcessInfo.Arguments = "$HostAlias ""bash -s"""
+$sshProcessInfo.RedirectStandardInput = $true
+$sshProcessInfo.UseShellExecute = $false
+$sshProcess = [System.Diagnostics.Process]::Start($sshProcessInfo)
+$sshProcess.StandardInput.Write($remoteScript)
+$sshProcess.StandardInput.Close()
+$sshProcess.WaitForExit()
+if ($sshProcess.ExitCode -ne 0) {
   throw "Remote deploy failed"
 }
 

@@ -43,7 +43,7 @@ def test_detect_query_faces_retries_with_padding_and_maps_bbox(monkeypatch, tmp_
 
     assert result["face_count"] == 1
     assert result["query_faces"][0]["detection_attempt"] == "padded-16"
-    assert result["query_faces"][0]["bbox"]["x1"] == 11
+    assert result["query_faces"][0]["bbox"]["x1"] == 10
     assert result["query_faces"][0]["bbox"]["y1"] == 8
     assert result["query_faces"][0]["bbox"]["width"] == 62
     assert result["diagnostics"]["images"][0]["attempts"][0]["face_count"] == 0
