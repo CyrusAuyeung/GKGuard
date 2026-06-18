@@ -102,6 +102,9 @@ let lastC1Notice = "";
 let activeSource = "mock";
 let toastTimer = null;
 let lastFocusedElement = null;
+const MIN_SELECTABLE_FACE_SCORE = 0.65;
+const FACE_HIT_PADDING_PX = 8;
+const C1_REQUEST_TIMEOUT_MS = 45000;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -116,6 +119,58 @@ function formatPercent(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return "--";
   return `${Math.round(number * 100)}%`;
+}
+
+function finiteNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function faceDetectionScore(face) {
+  return finiteNumber(face?.score ?? face?.bbox?.score);
+}
+
+function selectableQueryFaces() {
+  if (!queryFaces.length) return [];
+  const confidentFaces = queryFaces.filter((face) => {
+    const score = faceDetectionScore(face);
+    return score === null || score >= MIN_SELECTABLE_FACE_SCORE;
+  });
+  return confidentFaces.length ? confidentFaces : queryFaces;
+}
+
+function localizedC1Notice(message) {
+  const text = String(message || "").trim();
+  if (!text) return "";
+  if (/No person matched the requested minimum score/i.test(text)) {
+    return "未找到达到相似度阈值的人员。请更换目标人脸、检查人物库或确认 CampusVision C1 数据。";
+  }
+  if (/No face\/target embedding extracted/i.test(text)) {
+    return "未能从查询图片中提取可检索的人脸特征。请上传更清晰的正脸照片。";
+  }
+  if (/Selected query face was not found/i.test(text)) {
+    return "选中的查询人脸已失效，请重新选择目标人脸后检索。";
+  }
+  if (/Low-confidence person match/i.test(text)) {
+    return "当前为低置信匹配，请结合关键帧人工确认。";
+  }
+  return text;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = C1_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("CampusVision C1 响应超时，请检查服务状态或稍后重试");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function sourceLabel() {
@@ -213,23 +268,43 @@ function targetPortraitMarkup() {
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
 
+function initialFaceBoxStyle(box) {
+  const leftPct = finiteNumber(box?.leftPct);
+  const topPct = finiteNumber(box?.topPct);
+  const widthPct = finiteNumber(box?.widthPct);
+  const heightPct = finiteNumber(box?.heightPct);
+  if ([leftPct, topPct, widthPct, heightPct].every((value) => value !== null)) {
+    return `left:${leftPct}%; top:${topPct}%; width:${widthPct}%; height:${heightPct}%`;
+  }
+  const x1 = finiteNumber(box?.x1);
+  const y1 = finiteNumber(box?.y1);
+  const width = finiteNumber(box?.width);
+  const height = finiteNumber(box?.height);
+  if ([x1, y1, width, height].every((value) => value !== null && value >= 0 && value <= 1)) {
+    return `left:${x1 * 100}%; top:${y1 * 100}%; width:${width * 100}%; height:${height * 100}%`;
+  }
+  return "";
+}
+
 function faceBoxMarkup(face, options = {}) {
   const box = face?.bbox;
   if (!box) return "";
   const selected = Number(face.index) === Number(selectedQueryFaceIndex);
   const classes = [
     "face-box",
+    "is-pending",
     selected ? "is-selected" : "",
     options.compact ? "is-compact" : "",
   ].filter(Boolean).join(" ");
   const label = options.label || formatPercent(face.score ?? box.score);
+  const style = initialFaceBoxStyle(box);
   return `
     <span class="${classes}" role="button" tabindex="0" data-query-face-box data-query-face-index="${escapeHtml(face.index)}"
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
       data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
       data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
-      style="left:${box.leftPct}%; top:${box.topPct}%; width:${box.widthPct}%; height:${box.heightPct}%"
+      ${style ? `style="${style}"` : ""}
       aria-label="选择第 ${Number(face.index) + 1} 张人脸，检测置信度 ${escapeHtml(label)}">
       <span>${escapeHtml(label)}</span>
     </span>
@@ -238,7 +313,7 @@ function faceBoxMarkup(face, options = {}) {
 
 function uploadPortraitMarkup() {
   if (!uploadedImageUrl) return '<span class="portrait-art" aria-hidden="true"></span>';
-  const boxes = queryFaces.map((face) => faceBoxMarkup(face)).join("");
+  const boxes = selectableQueryFaces().map((face) => faceBoxMarkup(face)).join("");
   return `
     <img src="${uploadedImageUrl}" alt="上传的查询图片" />
     <span class="query-face-layer" aria-label="查询图人脸选择">${boxes}</span>
@@ -256,12 +331,14 @@ function recordThumbMarkup(record) {
 function frameFaceBoxMarkup(record) {
   const box = record?.faceBox;
   if (!box) return "";
+  const style = initialFaceBoxStyle(box);
   return `
-    <span class="face-box result-face-box" data-frame-face-box
+    <span class="face-box result-face-box is-pending" data-frame-face-box
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
       data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
-      data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}">
+      data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
+      ${style ? `style="${style}"` : ""}>
       <span>${escapeHtml(formatPercent(record.similarity))}</span>
     </span>
   `;
@@ -276,55 +353,102 @@ function frameImageMarkup(record, imageClass) {
   `;
 }
 
+function imageContentRect(wrap, image) {
+  if (!image.naturalWidth || !image.naturalHeight) return null;
+  const imageStyle = window.getComputedStyle(image);
+  const paddingLeft = Number.parseFloat(imageStyle.paddingLeft) || 0;
+  const paddingRight = Number.parseFloat(imageStyle.paddingRight) || 0;
+  const paddingTop = Number.parseFloat(imageStyle.paddingTop) || 0;
+  const paddingBottom = Number.parseFloat(imageStyle.paddingBottom) || 0;
+  const wrapRect = wrap.getBoundingClientRect();
+  const imageRect = image.getBoundingClientRect();
+  const contentWidth = Math.max(0, imageRect.width - paddingLeft - paddingRight);
+  const contentHeight = Math.max(0, imageRect.height - paddingTop - paddingBottom);
+  if (!contentWidth || !contentHeight) return null;
+
+  const scale = imageStyle.objectFit === "cover"
+    ? Math.max(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight)
+    : Math.min(contentWidth / image.naturalWidth, contentHeight / image.naturalHeight);
+  const renderedWidth = image.naturalWidth * scale;
+  const renderedHeight = image.naturalHeight * scale;
+  return {
+    left: imageRect.left - wrapRect.left + paddingLeft + (contentWidth - renderedWidth) / 2,
+    top: imageRect.top - wrapRect.top + paddingTop + (contentHeight - renderedHeight) / 2,
+    width: renderedWidth,
+    height: renderedHeight,
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+  };
+}
+
+function faceBoxRect(box, content) {
+  const x1 = finiteNumber(box.dataset.x1);
+  const y1 = finiteNumber(box.dataset.y1);
+  const boxWidth = finiteNumber(box.dataset.width);
+  const boxHeight = finiteNumber(box.dataset.height);
+  const leftPct = finiteNumber(box.dataset.leftPct);
+  const topPct = finiteNumber(box.dataset.topPct);
+  const widthPct = finiteNumber(box.dataset.widthPct);
+  const heightPct = finiteNumber(box.dataset.heightPct);
+  const hasPctBox = [leftPct, topPct, widthPct, heightPct].every((value) => value !== null);
+  const hasPixelBox = [x1, y1, boxWidth, boxHeight].every((value) => value !== null);
+  const hasNormalizedBox = hasPixelBox && [x1, y1, boxWidth, boxHeight].every((value) => value >= 0 && value <= 1);
+  if (!hasPctBox && !hasPixelBox) return null;
+
+  const left = hasPctBox
+    ? content.left + (leftPct / 100) * content.width
+    : content.left + (hasNormalizedBox ? x1 : x1 / content.naturalWidth) * content.width;
+  const top = hasPctBox
+    ? content.top + (topPct / 100) * content.height
+    : content.top + (hasNormalizedBox ? y1 : y1 / content.naturalHeight) * content.height;
+  const width = hasPctBox
+    ? (widthPct / 100) * content.width
+    : (hasNormalizedBox ? boxWidth : boxWidth / content.naturalWidth) * content.width;
+  const height = hasPctBox
+    ? (heightPct / 100) * content.height
+    : (hasNormalizedBox ? boxHeight : boxHeight / content.naturalHeight) * content.height;
+  if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { left, top, width, height };
+}
+
 function positionFrameFaceBoxes(root = document) {
   root.querySelectorAll(".frame-image-wrap, .portrait-frame").forEach((wrap) => {
     const image = wrap.querySelector("img");
     if (!image) return;
     const update = () => {
-      if (!image.naturalWidth || !image.naturalHeight) return;
-      const imageStyle = window.getComputedStyle(image);
-      const paddingLeft = Number.parseFloat(imageStyle.paddingLeft) || 0;
-      const paddingRight = Number.parseFloat(imageStyle.paddingRight) || 0;
-      const paddingTop = Number.parseFloat(imageStyle.paddingTop) || 0;
-      const paddingBottom = Number.parseFloat(imageStyle.paddingBottom) || 0;
-      const width = Math.max(0, (image.clientWidth || wrap.clientWidth) - paddingLeft - paddingRight);
-      const height = Math.max(0, (image.clientHeight || wrap.clientHeight) - paddingTop - paddingBottom);
-      if (!width || !height) return;
-      const imageRatio = image.naturalWidth / image.naturalHeight;
-      const boxRatio = width / height;
-      const renderedWidth = boxRatio > imageRatio ? height * imageRatio : width;
-      const renderedHeight = boxRatio > imageRatio ? height : width / imageRatio;
-      const wrapRect = wrap.getBoundingClientRect();
-      const imageRect = image.getBoundingClientRect();
-      const offsetX = imageRect.left - wrapRect.left + paddingLeft + (width - renderedWidth) / 2;
-      const offsetY = imageRect.top - wrapRect.top + paddingTop + (height - renderedHeight) / 2;
+      const content = imageContentRect(wrap, image);
+      if (!content) return;
 
       wrap.querySelectorAll("[data-frame-face-box], [data-query-face-box]").forEach((box) => {
-        const x1 = Number(box.dataset.x1);
-        const y1 = Number(box.dataset.y1);
-        const boxWidth = Number(box.dataset.width);
-        const boxHeight = Number(box.dataset.height);
-        const leftPct = Number(box.dataset.leftPct);
-        const topPct = Number(box.dataset.topPct);
-        const widthPct = Number(box.dataset.widthPct);
-        const heightPct = Number(box.dataset.heightPct);
-        const hasPctBox = [leftPct, topPct, widthPct, heightPct].every(Number.isFinite);
-        const hasPixelBox = [x1, y1, boxWidth, boxHeight].every(Number.isFinite);
-        if (!hasPctBox && !hasPixelBox) return;
-        const left = hasPctBox ? offsetX + (leftPct / 100) * renderedWidth : offsetX + (x1 / image.naturalWidth) * renderedWidth;
-        const top = hasPctBox ? offsetY + (topPct / 100) * renderedHeight : offsetY + (y1 / image.naturalHeight) * renderedHeight;
-        const width = hasPctBox ? (widthPct / 100) * renderedWidth : (boxWidth / image.naturalWidth) * renderedWidth;
-        const height = hasPctBox ? (heightPct / 100) * renderedHeight : (boxHeight / image.naturalHeight) * renderedHeight;
-        box.style.left = `${left}px`;
-        box.style.top = `${top}px`;
-        box.style.width = `${width}px`;
-        box.style.height = `${height}px`;
-        box.classList.toggle("is-label-inside", top < 30);
+        const rect = faceBoxRect(box, content);
+        if (!rect) {
+          box.classList.add("is-pending");
+          return;
+        }
+        box.style.left = `${rect.left}px`;
+        box.style.top = `${rect.top}px`;
+        box.style.width = `${rect.width}px`;
+        box.style.height = `${rect.height}px`;
+        box.classList.toggle("is-label-inside", rect.top < 30);
+        box.classList.remove("is-pending");
+        box.classList.add("is-positioned");
       });
     };
     if (image.complete) update();
     image.addEventListener("load", update, { once: true });
+    if (image.decode) image.decode().then(update).catch(() => {});
     window.requestAnimationFrame(update);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(update));
+    window.setTimeout(update, 80);
+    window.setTimeout(update, 280);
+    if (window.ResizeObserver && !wrap.dataset.faceBoxObserverBound) {
+      wrap.dataset.faceBoxObserverBound = "1";
+      const observer = new ResizeObserver(update);
+      observer.observe(wrap);
+      observer.observe(image);
+    }
   });
 }
 
@@ -419,10 +543,10 @@ function queryFaceIndexFromPoint(event) {
   const hits = boxes
     .map((box) => {
       const rect = box.getBoundingClientRect();
-      const contains = event.clientX >= rect.left
-        && event.clientX <= rect.right
-        && event.clientY >= rect.top
-        && event.clientY <= rect.bottom;
+      const contains = event.clientX >= rect.left - FACE_HIT_PADDING_PX
+        && event.clientX <= rect.right + FACE_HIT_PADDING_PX
+        && event.clientY >= rect.top - FACE_HIT_PADDING_PX
+        && event.clientY <= rect.bottom + FACE_HIT_PADDING_PX;
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       return {
@@ -449,7 +573,7 @@ async function fetchQueryFaces() {
   if (!uploadedFile) throw new Error("请先上传目标人脸图片");
   const formData = new FormData();
   formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
-  const response = await fetch("/c1/query-faces", {
+  const response = await fetchWithTimeout("/c1/query-faces", {
     method: "POST",
     body: formData,
   });
@@ -481,8 +605,9 @@ async function prepareQueryFaces(options = {}) {
         return "no-face";
       }
 
-      if (queryFaces.length === 1) {
-        await selectQueryFace(queryFaces[0].index, { silent: true });
+      const candidates = selectableQueryFaces();
+      if (candidates.length === 1) {
+        await selectQueryFace(candidates[0].index, { silent: true });
         if (options.autoSearchSingle) {
           showToast("已自动选中唯一人脸，正在检索。", { tone: "loading", title: "单人目标已确认" });
           window.setTimeout(() => startSearch(), 120);
@@ -496,7 +621,11 @@ async function prepareQueryFaces(options = {}) {
       syncPortraits();
       setSearchIdleLabel(selectedQueryFaceIndex === null ? "选择人脸后检索" : "确认选择并检索");
       if (selectedQueryFaceIndex === null) {
-        showToast("检测到多张人脸，请在原图上选择检索目标。", { tone: "warning", title: "请选择目标人脸", timeout: 5200 });
+        const hiddenCount = Math.max(0, queryFaces.length - candidates.length);
+        const message = hiddenCount
+          ? `检测到多张人脸，已隐藏 ${hiddenCount} 个低置信框，请在原图上选择检索目标。`
+          : "检测到多张人脸，请在原图上选择检索目标。";
+        showToast(message, { tone: "warning", title: "请选择目标人脸", timeout: 5200 });
         return "needs-selection";
       }
       return "ready";
@@ -557,10 +686,29 @@ function resetSearchInput() {
 }
 
 async function applyC1Result(result) {
-  if (!result?.records?.length) {
-    throw new Error(result?.warning || "C1 没有返回匹配记录");
+  if (Array.isArray(result?.queryFaces) && result.queryFaces.length) {
+    queryFaces = result.queryFaces;
+    queryFaceDetectionComplete = true;
   }
-  lastC1Notice = result.warning || (result.ambiguous ? "候选人物分数接近，请人工确认。" : "");
+  if (result?.selectedQueryFace && !queryFaces.some((face) => Number(face.index) === Number(result.selectedQueryFace.index))) {
+    queryFaces.push(result.selectedQueryFace);
+  }
+  if (result?.selectedQueryFace) {
+    selectedQueryFaceIndex = Number(result.selectedQueryFace.index);
+  }
+  if (selectedQueryFaceIndex !== null && !selectedQueryFaceImageUrl) {
+    await selectQueryFace(selectedQueryFaceIndex, { silent: true });
+  }
+
+  if (!result?.records?.length) {
+    records.splice(0, records.length);
+    routePoints.splice(0, routePoints.length);
+    lastC1Notice = localizedC1Notice(result?.warning) || "未找到达到相似度阈值的人员。请更换目标人脸、检查人物库或确认 CampusVision C1 数据。";
+    activeSource = "c1";
+    syncPortraits();
+    return false;
+  }
+  lastC1Notice = localizedC1Notice(result.warning) || (result.ambiguous ? "候选人物分数接近，请人工确认。" : "");
   if (!lastC1Notice && result.person?.confidence === "low") {
     lastC1Notice = "当前为低置信匹配，请结合关键帧人工确认。";
   }
@@ -586,25 +734,13 @@ async function applyC1Result(result) {
     kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
   })));
 
-  if (Array.isArray(result.queryFaces) && result.queryFaces.length) {
-    queryFaces = result.queryFaces;
-    queryFaceDetectionComplete = true;
-  }
-  if (result.selectedQueryFace && !queryFaces.some((face) => Number(face.index) === Number(result.selectedQueryFace.index))) {
-    queryFaces.push(result.selectedQueryFace);
-  }
-  if (result.selectedQueryFace) {
-    selectedQueryFaceIndex = Number(result.selectedQueryFace.index);
-  }
-  if (selectedQueryFaceIndex !== null && !selectedQueryFaceImageUrl) {
-    await selectQueryFace(selectedQueryFaceIndex, { silent: true });
-  }
   if (result.person?.representativeFaceUrl) {
     matchedPersonImageUrl = result.person.representativeFaceUrl;
   }
   syncPortraits();
 
   activeSource = "c1";
+  return true;
 }
 
 async function fetchC1Search() {
@@ -613,7 +749,7 @@ async function fetchC1Search() {
   formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
   const params = new URLSearchParams({ top_k: "5", max_gap_sec: "3" });
   if (selectedQueryFaceIndex !== null) params.set("query_face_index", String(selectedQueryFaceIndex));
-  const response = await fetch(`/c1/search/person-by-image?${params.toString()}`, {
+  const response = await fetchWithTimeout(`/c1/search/person-by-image?${params.toString()}`, {
     method: "POST",
     body: formData,
   });
@@ -965,13 +1101,17 @@ async function startSearch() {
     const faceState = await prepareQueryFaces({ autoSearchSingle: false });
     if (faceState === "needs-selection" || faceState === "no-face") return faceState;
     const result = await fetchC1Search();
-    await applyC1Result(result);
-    return "searched";
+    const hasResults = await applyC1Result(result);
+    return hasResults ? "searched" : "no-match";
   }
 
   try {
     if (uploadedFile) {
       const flowState = await runC1SearchFlow();
+      if (flowState === "no-match") {
+        resultToast = { message: lastC1Notice, options: { tone: "warning", title: "未找到匹配人员", timeout: 6200 } };
+        return;
+      }
       if (flowState !== "searched") return;
       shouldShowResults = true;
       resultToast = lastC1Notice
@@ -987,16 +1127,22 @@ async function startSearch() {
       try {
         queryFaceDetectionComplete = false;
         const retryState = await runC1SearchFlow();
+        if (retryState === "no-match") {
+          resultToast = { message: lastC1Notice, options: { tone: "warning", title: "未找到匹配人员", timeout: 6200 } };
+          return;
+        }
         if (retryState !== "searched") return;
         shouldShowResults = true;
         resultToast = lastC1Notice
           ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选记录。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
           : { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "重试检索完成" } };
       } catch (retryError) {
-        resultToast = { message: `${retryError.message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
+        const message = localizedC1Notice(retryError.message) || retryError.message;
+        resultToast = { message: `${message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
       }
     } else if (uploadedFile) {
-      resultToast = { message: `${error.message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
+      const message = localizedC1Notice(error.message) || error.message;
+      resultToast = { message: `${message}。未执行检索，请重新检测人脸或检查 CampusVision C1。`, options: { tone: "error", title: "检索未完成", timeout: 6200 } };
     } else {
       resetToMockData();
       shouldShowResults = true;
@@ -1005,13 +1151,14 @@ async function startSearch() {
   } finally {
     setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
     searchInProgress = false;
+    const candidateCount = selectableQueryFaces().length;
     if (uploadedFile && queryFaceDetectionComplete && !queryFaces.length) {
       setSearchIdleLabel("重新上传后检索");
     }
-    if (queryFaces.length > 1 && selectedQueryFaceIndex === null) {
+    if (candidateCount > 1 && selectedQueryFaceIndex === null) {
       setSearchIdleLabel("选择人脸后检索");
     }
-    if (queryFaces.length > 1 && selectedQueryFaceIndex !== null) {
+    if (candidateCount > 1 && selectedQueryFaceIndex !== null) {
       setSearchIdleLabel("确认选择并检索");
     }
     if (shouldShowResults) {

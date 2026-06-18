@@ -54,6 +54,15 @@ async function clickQueryFaceByIndex(page, index) {
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
+async function expectResultFaceBoxAwayFromOrigin(page, selector = "#recordScene .result-face-box") {
+  const box = await page.locator(selector).boundingBox();
+  const scene = await page.locator("#recordScene").boundingBox();
+  expect(box).not.toBeNull();
+  expect(scene).not.toBeNull();
+  expect(box.x - scene.x).toBeGreaterThan(80);
+  expect(box.y - scene.y).toBeGreaterThan(40);
+}
+
 test.describe("GKGuard C2 demo UI", () => {
   test("mock search, route navigation, and reset remain responsive", async ({ page }) => {
     const problems = collectBrowserProblems(page);
@@ -160,7 +169,7 @@ test.describe("GKGuard C2 demo UI", () => {
               progress: 62,
               frameUrl: "/static/icons/app-mark.png",
               faceUrl: "/static/icons/app-mark.png",
-              faceBox: { x1: 22, y1: 20, x2: 66, y2: 72, width: 44, height: 52 },
+              faceBox: { x1: 180, y1: 150, x2: 290, y2: 276, width: 110, height: 126 },
             },
           ],
           routePoints: [
@@ -189,6 +198,8 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
     await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
+    await expect(page.locator("#recordScene .result-face-box")).not.toHaveClass(/is-pending/);
+    await expectResultFaceBoxAwayFromOrigin(page);
     await expectDesktopRecordListOnLeft(page);
 
     await page.locator("#recordScene").click();
@@ -213,10 +224,26 @@ test.describe("GKGuard C2 demo UI", () => {
         body: JSON.stringify({
           source: "c1",
           engine: "e2e-face",
-          faceCount: 2,
+          faceCount: 3,
           queryFaces: [
             {
               index: 0,
+              score: 0.52,
+              bbox: {
+                x1: 0.03,
+                y1: 0.08,
+                x2: 0.18,
+                y2: 0.3,
+                width: 0.15,
+                height: 0.22,
+                leftPct: 3,
+                topPct: 8,
+                widthPct: 15,
+                heightPct: 22,
+              },
+            },
+            {
+              index: 1,
               score: 0.91,
               bbox: {
                 x1: 0.05,
@@ -232,7 +259,7 @@ test.describe("GKGuard C2 demo UI", () => {
               },
             },
             {
-              index: 1,
+              index: 2,
               score: 0.89,
               bbox: {
                 x1: 0.58,
@@ -260,10 +287,11 @@ test.describe("GKGuard C2 demo UI", () => {
           source: "c1",
           searchId: "e2e-c1-multi",
           queryFaces: [
-            { index: 0, score: 0.91, bbox: { x1: 0.05, y1: 0.16, x2: 0.32, y2: 0.7, width: 0.27, height: 0.54 } },
-            { index: 1, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+            { index: 0, score: 0.52, bbox: { x1: 0.03, y1: 0.08, x2: 0.18, y2: 0.3, width: 0.15, height: 0.22 } },
+            { index: 1, score: 0.91, bbox: { x1: 0.05, y1: 0.16, x2: 0.32, y2: 0.7, width: 0.27, height: 0.54 } },
+            { index: 2, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
           ],
-          selectedQueryFace: { index: 1, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+          selectedQueryFace: { index: 2, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
           records: [
             {
               id: 1,
@@ -303,17 +331,88 @@ test.describe("GKGuard C2 demo UI", () => {
     });
 
     await expect(page.locator("[data-query-face-index]")).toHaveCount(2);
+    await expect(page.locator('[data-query-face-index="0"]')).toHaveCount(0);
     await expect(page.locator("#searchView")).toHaveClass(/is-active/);
-    await clickQueryFaceByIndex(page, 1);
-    await expect(page.locator('[data-query-face-index="1"]')).toHaveClass(/is-selected/);
+    await clickQueryFaceByIndex(page, 2);
+    await expect(page.locator('[data-query-face-index="2"]')).toHaveClass(/is-selected/);
 
     await page.getByRole("button", { name: /确认选择并检索/ }).click();
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
-    expect(searchUrl).toContain("query_face_index=1");
+    expect(searchUrl).toContain("query_face_index=2");
     await expect(page.locator("#resultPortrait img")).toBeVisible();
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectDesktopRecordListOnLeft(page);
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("C1 no-match response returns to an idle upload state", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchCalls = 0;
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.91,
+              bbox: {
+                x1: 0.18,
+                y1: 0.18,
+                x2: 0.52,
+                y2: 0.62,
+                width: 0.34,
+                height: 0.44,
+                leftPct: 18,
+                topPct: 18,
+                widthPct: 34,
+                heightPct: 44,
+              },
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchCalls += 1;
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-no-match",
+          warning: "No person matched the requested minimum score.",
+          queryFaces: [
+            { index: 0, score: 0.91, bbox: { x1: 0.18, y1: 0.18, x2: 0.52, y2: 0.62, width: 0.34, height: 0.44 } },
+          ],
+          selectedQueryFace: { index: 0, score: 0.91, bbox: { x1: 0.18, y1: 0.18, x2: 0.52, y2: 0.62, width: 0.34, height: 0.44 } },
+          records: [],
+          routePoints: [],
+          person: {},
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=c1-no-match");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-no-match.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("未找到达到相似度阈值的人员");
+    await expect(page.locator("#toast")).not.toContainText("No person matched");
+    await expect(page.getByRole("button", { name: /开始检索/ })).toBeEnabled();
+    expect(searchCalls).toBe(1);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

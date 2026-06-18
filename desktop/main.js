@@ -10,7 +10,7 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "v0.1.25-ui";
+const STATIC_ASSET_VERSION = "v0.1.26-ui";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
@@ -116,7 +116,7 @@ function getC1StatusUrl(port = activeBackendPort) {
 }
 
 function getDemoUrl(port = activeBackendPort) {
-  return `${getBaseUrl(port)}/demo?desktop=1`;
+  return `${getBaseUrl(port)}/demo?desktop=1&asset=${encodeURIComponent(STATIC_ASSET_VERSION)}`;
 }
 
 function isTrustedReleaseUrl(url) {
@@ -294,6 +294,19 @@ function getTunnelBaseUrl(tunnel) {
   return `http://127.0.0.1:${tunnel.localPort}`;
 }
 
+function swallowTunnelNetworkError(error) {
+  const code = error?.code || "";
+  return ["ECONNRESET", "EPIPE", "ETIMEDOUT", "ECONNABORTED"].includes(code)
+    || /read ECONNRESET|socket hang up/i.test(error?.message || "");
+}
+
+function closeTunnelStream(stream) {
+  if (!stream || stream.destroyed) {
+    return;
+  }
+  stream.destroy();
+}
+
 function isC1TunnelConnected(status, tunnel) {
   return Boolean(tunnel && status?.selectedBaseUrl === getTunnelBaseUrl(tunnel));
 }
@@ -388,12 +401,29 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
     client.on("ready", () => {
       onProgress?.({ percent: 42, message: "SSH 已认证，正在建立本机隧道..." });
       server = net.createServer((socket) => {
+        socket.on("error", (error) => {
+          if (!swallowTunnelNetworkError(error)) {
+            console.warn(`C1 tunnel socket error: ${error.message}`);
+          }
+        });
+
         client.forwardOut("127.0.0.1", 0, tunnel.remoteHost, tunnel.remotePort, (error, stream) => {
           if (error) {
-            socket.destroy(error);
+            closeTunnelStream(socket);
             return;
           }
-          socket.pipe(stream).pipe(socket);
+
+          stream.on("error", (streamError) => {
+            if (!swallowTunnelNetworkError(streamError)) {
+              console.warn(`C1 tunnel stream error: ${streamError.message}`);
+            }
+            closeTunnelStream(socket);
+          });
+          stream.on("close", () => closeTunnelStream(socket));
+          socket.on("close", () => closeTunnelStream(stream));
+
+          socket.pipe(stream);
+          stream.pipe(socket);
         });
       });
 
@@ -850,6 +880,9 @@ async function boot() {
   try {
     await ensureBackend();
     await maybePromptForC1Tunnel();
+    await mainWindow.webContents.session.clearCache().catch((error) => {
+      console.warn(`Failed to clear Electron cache before loading GKGuard UI: ${error.message}`);
+    });
     await mainWindow.loadURL(getDemoUrl());
     if (process.argv.includes("--devtools")) {
       mainWindow.webContents.openDevTools({ mode: "detach" });

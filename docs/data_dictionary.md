@@ -72,10 +72,10 @@
 - `engine`：CampusVision C1 引擎名，预期为 `insightface`。
 - `warning`：低置信或歧义提示。
 - `ambiguous`：候选集是否歧义。
-- `queryFaces`：查询图中检测到的人脸列表；每项包含 `index`、检测置信度和人脸框。
+- `queryFaces`：查询图中检测到的人脸列表；每项包含 `index`、检测置信度和人脸框。GKGuard C2 前端展示的是有效候选人脸；当存在高置信候选时，低于 `0.65` 的检测框会被隐藏以减少误检堆叠。
 - `selectedQueryFace`：当前实际用于检索的查询图人脸；单人自动选择或多人手动选择后生成。
 - `person`：当前 UI 选中的候选人物。
-- `records`：GKGuard C2 结果页使用的关键帧记录。
+- `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
 - `routePoints`：GKGuard C2 路线页使用的地图轨迹点。
 - `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
 - `raw`：CampusVision C1 原始响应内容，用于调试和后续映射。
@@ -89,7 +89,7 @@
 - `faceIndex`：单张图片内的人脸序号。
 - `score`：人脸检测置信度，用于判断检测质量，不等同于人物匹配相似度。
 - `imageWidth`、`imageHeight`：查询原图尺寸。
-- `bbox`：查询图人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height`、`leftPct`、`topPct`、`widthPct`、`heightPct` 和可选 `score`。
+- `bbox`：查询图人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height`、`leftPct`、`topPct`、`widthPct`、`heightPct` 和可选 `score`。GKGuard C2 兼容像素坐标、归一化坐标和百分比字段。
 
 真实部署中的敏感字段：查询原图、人脸框位置、检测置信度和被选中的目标人脸。
 
@@ -107,7 +107,7 @@
 - `frameUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于详情关键帧。
 - `faceUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图。
 - `faceId`：CampusVision C1 face record ID。
-- `faceBox`：命中关键帧中的目标人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height` 和可选检测分数；GKGuard C2 用于在详情关键帧和预览弹窗上标注目标人脸。适配器兼容像素坐标、归一化坐标、百分比字段和常见 bbox 字段别名。
+- `faceBox`：命中关键帧中的目标人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height` 和可选检测分数；GKGuard C2 用于在详情关键帧和预览弹窗上标注目标人脸。适配器兼容像素坐标、归一化坐标、百分比字段和常见 bbox 字段别名，前端会按实际渲染后的图片内容区域计算显示位置，避免框落在左上角或黑边区域。
 - `videoId`：CampusVision C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
 
@@ -256,10 +256,10 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `engine`: CampusVision C1 engine name, expected to be `insightface`.
 - `warning`: low-confidence or ambiguity warning.
 - `ambiguous`: whether the candidate set is ambiguous.
-- `queryFaces`: faces detected in the query image; each item includes an `index`, detection confidence, and face box.
+- `queryFaces`: faces detected in the query image; each item includes an `index`, detection confidence, and face box. GKGuard C2 displays effective candidate faces; when higher-confidence candidates exist, boxes below `0.65` are hidden to reduce false-positive overlap.
 - `selectedQueryFace`: query face actually used for this search, produced by single-face auto-selection or manual multi-face selection.
 - `person`: selected candidate person for the current UI.
-- `records`: keyframe records used by the GKGuard C2 result screen.
+- `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
 - `routePoints`: map-ready route points used by the GKGuard C2 route screen.
 - `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.
 - `raw`: original CampusVision C1 payload for debugging and future mapping.
@@ -273,7 +273,7 @@ Sensitive in real deployments: face images, frame images, person links, movement
 - `faceIndex`: face sequence inside one image.
 - `score`: face-detection confidence for detection quality, not person-match similarity.
 - `imageWidth`, `imageHeight`: original query-image dimensions.
-- `bbox`: query-face box, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, `leftPct`, `topPct`, `widthPct`, `heightPct`, and optional `score`.
+- `bbox`: query-face box, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, `leftPct`, `topPct`, `widthPct`, `heightPct`, and optional `score`. GKGuard C2 accepts pixel, normalized, and percentage coordinates.
 
 Sensitive in real deployments: query image, face-box position, detection confidence, and selected target face.
 
@@ -291,7 +291,7 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by the detail keyframe.
 - `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails.
 - `faceId`: CampusVision C1 face record ID.
-- `faceBox`: target-face box in the matched keyframe, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, and optional detection score; GKGuard C2 uses it for target-face overlays in the detail keyframe and preview dialog. The adapter accepts pixel coordinates, normalized coordinates, percentage fields, and common bbox field aliases.
+- `faceBox`: target-face box in the matched keyframe, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, and optional detection score; GKGuard C2 uses it for target-face overlays in the detail keyframe and preview dialog. The adapter accepts pixel coordinates, normalized coordinates, percentage fields, and common bbox field aliases, and the frontend positions the overlay against the rendered image content area so it does not fall into the top-left corner or letterbox area.
 - `videoId`: CampusVision C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.
 
