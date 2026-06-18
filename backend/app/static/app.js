@@ -9,6 +9,7 @@ const elements = {
   uploadDrop: document.querySelector("#uploadDrop"),
   uploadPreview: document.querySelector("#uploadPreview"),
   uploadHint: document.querySelector("#uploadHint"),
+  openQueryFaceModalBtn: document.querySelector("#openQueryFaceModalBtn"),
   startSearchBtn: document.querySelector("#startSearchBtn"),
   resultPortrait: document.querySelector("#resultPortrait"),
   routePortrait: document.querySelector("#routePortrait"),
@@ -111,6 +112,7 @@ let activeSearchController = null;
 let searchRunId = 0;
 let pendingAutoSearchTimer = null;
 let queryFaceModalZoom = 1;
+let queryFaceModalBaseScale = 1;
 let lastC1Notice = "";
 let activeSource = "mock";
 let toastTimer = null;
@@ -118,6 +120,8 @@ let lastFocusedElement = null;
 const CONFIDENT_QUERY_FACE_SCORE = 0.65;
 const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FACE_HIT_PADDING_PX = 8;
+const QUERY_FACE_MODAL_MIN_ZOOM = 0.5;
+const QUERY_FACE_MODAL_MAX_ZOOM = 3;
 const C1_QUERY_FACE_TIMEOUT_MS = 15000;
 const C1_SEARCH_TIMEOUT_MS = 25000;
 const SEARCH_WATCHDOG_TIMEOUT_MS = 30000;
@@ -299,7 +303,7 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
 }
 
 function targetPortraitMarkup() {
-  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
+  const portraitUrl = matchedPersonImageUrl || selectedQueryFaceImageUrl || uploadedImageUrl;
   if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
@@ -512,8 +516,20 @@ function bindRecordThumbnailFallbacks() {
   });
 }
 
+function syncUploadPreviewAction() {
+  if (!elements.openQueryFaceModalBtn) return;
+  const canOpenModal = Boolean(uploadedImageUrl && visibleQueryFaces().length > 1);
+  elements.openQueryFaceModalBtn.hidden = !canOpenModal;
+  elements.openQueryFaceModalBtn.textContent = selectedQueryFaceIndex === null ? "放大选择目标人脸" : "重新放大选择";
+  elements.openQueryFaceModalBtn.setAttribute(
+    "aria-label",
+    selectedQueryFaceIndex === null ? "打开大图选择目标人脸" : "重新打开大图选择目标人脸",
+  );
+}
+
 function syncPortraits() {
   if (elements.uploadPreview) elements.uploadPreview.innerHTML = uploadPortraitMarkup();
+  syncUploadPreviewAction();
   [elements.resultPortrait, elements.routePortrait].forEach((target) => {
     if (!target) return;
     target.innerHTML = targetPortraitMarkup();
@@ -539,10 +555,30 @@ async function cropUploadedFace(face) {
   const widthPct = Number(box.widthPct);
   const heightPct = Number(box.heightPct);
   const hasPctBox = [leftPct, topPct, widthPct, heightPct].every(Number.isFinite);
-  const rawX = hasPctBox ? (leftPct / 100) * image.naturalWidth : Number(box.x1 || 0);
-  const rawY = hasPctBox ? (topPct / 100) * image.naturalHeight : Number(box.y1 || 0);
-  const rawWidth = hasPctBox ? (widthPct / 100) * image.naturalWidth : Number(box.width || 0);
-  const rawHeight = hasPctBox ? (heightPct / 100) * image.naturalHeight : Number(box.height || 0);
+  const x1 = finiteNumber(box.x1) ?? 0;
+  const y1 = finiteNumber(box.y1) ?? 0;
+  const x2 = finiteNumber(box.x2);
+  const y2 = finiteNumber(box.y2);
+  const boxWidth = finiteNumber(box.width);
+  const boxHeight = finiteNumber(box.height);
+  const hasNormalizedBox = !hasPctBox && [x1, y1, boxWidth, boxHeight].every((value) => value !== null && value >= 0 && value <= 1);
+  const hasNormalizedCorners = !hasPctBox && x2 !== null && y2 !== null && [x1, y1, x2, y2].every((value) => value >= 0 && value <= 1);
+  const rawX = hasPctBox ? (leftPct / 100) * image.naturalWidth : hasNormalizedBox || hasNormalizedCorners ? x1 * image.naturalWidth : x1;
+  const rawY = hasPctBox ? (topPct / 100) * image.naturalHeight : hasNormalizedBox || hasNormalizedCorners ? y1 * image.naturalHeight : y1;
+  const rawWidth = hasPctBox
+    ? (widthPct / 100) * image.naturalWidth
+    : hasNormalizedBox
+      ? boxWidth * image.naturalWidth
+      : hasNormalizedCorners
+        ? Math.max(0, (x2 - x1) * image.naturalWidth)
+        : boxWidth ?? Math.max(0, (x2 ?? x1) - x1);
+  const rawHeight = hasPctBox
+    ? (heightPct / 100) * image.naturalHeight
+    : hasNormalizedBox
+      ? boxHeight * image.naturalHeight
+      : hasNormalizedCorners
+        ? Math.max(0, (y2 - y1) * image.naturalHeight)
+        : boxHeight ?? Math.max(0, (y2 ?? y1) - y1);
   const padX = Math.max(8, rawWidth * 0.18);
   const padY = Math.max(8, rawHeight * 0.22);
   const x = Math.max(0, rawX - padX);
@@ -629,13 +665,25 @@ function closeQueryFaceModal() {
   lastFocusedElement?.focus?.();
 }
 
+function calculateQueryFaceModalBaseScale(image) {
+  const frame = elements.queryFaceModalFrame;
+  if (!frame || !image?.naturalWidth || !image?.naturalHeight) return 1;
+  const availableWidth = Math.max(1, frame.clientWidth - 24);
+  const availableHeight = Math.max(1, frame.clientHeight - 18);
+  return Math.min(1, availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+}
+
 function setQueryFaceModalZoom(nextZoom) {
-  queryFaceModalZoom = Math.max(1, Math.min(3, Number(nextZoom) || 1));
+  queryFaceModalZoom = Math.max(QUERY_FACE_MODAL_MIN_ZOOM, Math.min(QUERY_FACE_MODAL_MAX_ZOOM, Number(nextZoom) || 1));
   const stage = elements.queryFaceModalFrame?.querySelector(".face-select-image-wrap");
   const image = stage?.querySelector("img");
   if (!stage || !image) return;
   const naturalWidth = image.naturalWidth || 900;
-  stage.style.width = `${Math.round(naturalWidth * queryFaceModalZoom)}px`;
+  queryFaceModalBaseScale = calculateQueryFaceModalBaseScale(image);
+  const minimumDisplayWidth = naturalWidth < 360
+    ? Math.min(360, Math.max(1, (elements.queryFaceModalFrame?.clientWidth || 384) - 24))
+    : 1;
+  stage.style.width = `${Math.max(minimumDisplayWidth, Math.round(naturalWidth * queryFaceModalBaseScale * queryFaceModalZoom))}px`;
   positionFrameFaceBoxes(elements.queryFaceModalFrame);
 }
 
@@ -649,6 +697,7 @@ function renderQueryFaceModalFrame() {
     </span>
   `;
   queryFaceModalZoom = 1;
+  queryFaceModalBaseScale = 1;
   const image = elements.queryFaceModalFrame.querySelector("img");
   const applyInitialZoom = () => {
     setQueryFaceModalZoom(1);
@@ -689,6 +738,12 @@ function cancelActiveSearch() {
   }
   searchRunId += 1;
   searchInProgress = false;
+}
+
+function openFaceFilePicker() {
+  if (!elements.faceFile) return;
+  elements.faceFile.value = "";
+  elements.faceFile.click();
 }
 
 function setSearchIdleLabel(label = "开始检索") {
@@ -1362,6 +1417,7 @@ function downloadText(filename, content) {
 
 function bindEvents() {
   elements.uploadDrop.addEventListener("click", async (event) => {
+    if (event.target.closest("#openQueryFaceModalBtn")) return;
     const faceIndex = queryFaceIndexFromPoint(event);
     if (faceIndex !== undefined) {
       event.preventDefault();
@@ -1369,12 +1425,7 @@ function bindEvents() {
       setSearchIdleLabel("确认选择并检索");
       return;
     }
-    if (visibleQueryFaces().length > 1) {
-      event.preventDefault();
-      openQueryFaceModal();
-      return;
-    }
-    elements.faceFile.click();
+    openFaceFilePicker();
   });
   elements.uploadDrop.addEventListener("keydown", async (event) => {
     const faceTarget = event.target.closest("[data-query-face-index]");
@@ -1386,10 +1437,15 @@ function bindEvents() {
     }
     if ((event.key === "Enter" || event.key === " ") && event.target === elements.uploadDrop) {
       event.preventDefault();
-      elements.faceFile.click();
+      openFaceFilePicker();
     }
   });
   elements.faceFile.addEventListener("change", (event) => loadImage(event.target.files?.[0]));
+  elements.openQueryFaceModalBtn?.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openQueryFaceModal();
+  });
   elements.uploadDrop.addEventListener("dragover", (event) => {
     event.preventDefault();
     elements.uploadDrop.classList.add("is-dragging");
@@ -1465,7 +1521,13 @@ function bindEvents() {
       closeQueryFaceModal();
     }
   });
-  window.addEventListener("resize", () => positionFrameFaceBoxes());
+  window.addEventListener("resize", () => {
+    if (elements.queryFaceModal?.classList.contains("is-visible")) {
+      setQueryFaceModalZoom(queryFaceModalZoom);
+      return;
+    }
+    positionFrameFaceBoxes();
+  });
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
     downloadText(`GKGuard-${record.title}.json`, JSON.stringify(record, null, 2));

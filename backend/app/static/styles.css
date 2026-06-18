@@ -148,6 +148,12 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .upload-action { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; }
 .upload-icon { width: 22px; height: 22px; }
 .upload-drop small { color: #6a7b91; font-size: 13px; }
+.upload-preview-action {
+  position: relative;
+  z-index: 8;
+  margin-top: 2px;
+}
+.upload-preview-action[hidden] { display: none; }
 
 .query-panel { grid-column: 3; display: grid; gap: clamp(28px, 4vh, 52px); padding-top: 26px; }
 .time-row { display: grid; grid-template-columns: minmax(190px, 1fr) 34px minmax(190px, 1fr); align-items: end; gap: 16px; }
@@ -890,7 +896,7 @@ input, select {
   position: relative;
   display: inline-block;
   width: min(100%, 960px);
-  min-width: min(100%, 360px);
+  min-width: 0;
   margin: 0 auto;
   vertical-align: top;
 }
