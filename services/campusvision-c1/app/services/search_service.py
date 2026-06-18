@@ -27,20 +27,78 @@ def save_query_image(fileobj: BinaryIO, filename: str, search_id: str) -> str:
     return str(dest)
 
 
-def load_embeddings_from_images(paths: list[str]) -> list[list[float]]:
-    engine = get_face_engine()
-    embeddings: list[list[float]] = []
+def _bbox_payload(box: dict, image_width: int, image_height: int) -> dict:
+    x1 = max(0, min(image_width - 1, int(box["x1"])))
+    y1 = max(0, min(image_height - 1, int(box["y1"])))
+    x2 = max(x1 + 1, min(image_width, int(box["x2"])))
+    y2 = max(y1 + 1, min(image_height, int(box["y2"])))
+    width = x2 - x1
+    height = y2 - y1
+    return {
+        "x1": x1,
+        "y1": y1,
+        "x2": x2,
+        "y2": y2,
+        "width": width,
+        "height": height,
+        "leftPct": round(x1 / image_width * 100, 4) if image_width else 0,
+        "topPct": round(y1 / image_height * 100, 4) if image_height else 0,
+        "widthPct": round(width / image_width * 100, 4) if image_width else 0,
+        "heightPct": round(height / image_height * 100, 4) if image_height else 0,
+        "score": float(box.get("score") or 0),
+    }
 
-    for path in paths:
+
+def _query_faces_from_images(paths: list[str], include_embeddings: bool = False) -> list[dict]:
+    engine = get_face_engine()
+    faces: list[dict] = []
+
+    for image_index, path in enumerate(paths):
         image = cv2.imread(path)
         if image is None:
             continue
+        image_height, image_width = image.shape[:2]
 
         boxes = engine.detect_faces(image)
         if not boxes:
             continue
 
-        embeddings.extend(engine.embed_faces(image, boxes))
+        embeddings = engine.embed_faces(image, boxes) if include_embeddings else []
+        for face_index, box in enumerate(boxes):
+            face = {
+                "index": len(faces),
+                "image_index": image_index,
+                "face_index": face_index,
+                "bbox": _bbox_payload(box, image_width, image_height),
+                "score": round(float(box.get("score") or 0), 6),
+                "image_width": image_width,
+                "image_height": image_height,
+            }
+            if include_embeddings and face_index < len(embeddings):
+                face["embedding"] = embeddings[face_index]
+            faces.append(face)
+
+    return faces
+
+
+def detect_query_faces(paths: list[str]) -> dict:
+    faces = _query_faces_from_images(paths, include_embeddings=False)
+    return {
+        "engine": get_face_engine().name,
+        "query_faces": faces,
+        "face_count": len(faces),
+    }
+
+
+def load_embeddings_from_images(paths: list[str], query_face_index: int | None = None) -> list[list[float]]:
+    faces = _query_faces_from_images(paths, include_embeddings=True)
+    embeddings: list[list[float]] = []
+    for face in faces:
+        if query_face_index is not None and int(face["index"]) != int(query_face_index):
+            continue
+        embedding = face.get("embedding")
+        if embedding is not None:
+            embeddings.append(embedding)
 
     return embeddings
 
@@ -62,6 +120,7 @@ def build_match(record: dict, score: float, cameras: dict[str, dict]) -> dict:
         "video_id": record["video_id"],
         "video_timestamp_sec": float(record["video_timestamp_sec"]),
         "captured_at": record.get("captured_at"),
+        "bbox": record.get("bbox"),
         "frame_url": f"/api/v1/media/frame/{record['face_id']}",
     }
 

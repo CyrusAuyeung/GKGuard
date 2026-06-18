@@ -139,9 +139,10 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 
 1. GKGuard C2 前端把照片发给本机 GKGuard C2 后端。
 2. GKGuard C2 自动选择健康的 CampusVision C1 地址。
-3. GKGuard C2 把照片转发给 CampusVision C1 `person-by-image`。
-4. CampusVision C1 返回候选人物、关键帧、相似度、摄像头、时间和轨迹。
-5. 前端显示 `CampusVision C1` 的真实结果。
+3. GKGuard C2 先调用 CampusVision C1 查询图人脸检测；单人图自动选中，多人图由前端在原图上选择目标。
+4. GKGuard C2 把照片和可选 `query_face_index` 转发给 CampusVision C1 `person-by-image`。
+5. CampusVision C1 返回候选人物、关键帧、目标人脸框、相似度、摄像头、时间和轨迹。
+6. 前端显示 `CampusVision C1` 的真实结果。
 
 如果所有候选 CampusVision C1 服务都不可达：
 
@@ -311,9 +312,10 @@ If any candidate CampusVision C1 service is reachable:
 
 1. The GKGuard C2 frontend sends the photo to the local GKGuard C2 backend.
 2. GKGuard C2 selects a healthy CampusVision C1 URL automatically.
-3. GKGuard C2 forwards the image to CampusVision C1 `person-by-image`.
-4. CampusVision C1 returns candidate persons, keyframes, similarity, camera, time, and route points.
-5. The frontend shows real `CampusVision C1` results.
+3. GKGuard C2 first calls CampusVision C1 query-face detection; single-face uploads are auto-selected, while multi-face uploads are selected on the original image.
+4. GKGuard C2 forwards the image and optional `query_face_index` to CampusVision C1 `person-by-image`.
+5. CampusVision C1 returns candidate persons, keyframes, target-face boxes, similarity, camera, time, and route points.
+6. The frontend shows real `CampusVision C1` results.
 
 If all candidate CampusVision C1 URLs are unavailable:
 

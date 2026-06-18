@@ -640,18 +640,32 @@ def search_persons_by_images(
     top_k: int = 5,
     min_score: float | None = None,
     max_gap_sec: float = 3.0,
+    query_face_index: int | None = None,
 ) -> dict:
     search_id = uuid.uuid4().hex
     min_score = default_similarity_threshold() if min_score is None else float(min_score)
-    query_embeddings = search_service.load_embeddings_from_images(query_paths)
+    query_faces = search_service.detect_query_faces(query_paths)["query_faces"]
+    selected_query_face = None
+    if query_face_index is not None:
+        selected_query_face = next(
+            (face for face in query_faces if int(face["index"]) == int(query_face_index)),
+            None,
+        )
+    query_embeddings = search_service.load_embeddings_from_images(query_paths, query_face_index=query_face_index)
 
     if not query_embeddings:
+        if query_face_index is not None and selected_query_face is None:
+            warning = "Selected query face was not found in the uploaded image."
+        else:
+            warning = "No face/target embedding extracted from query images."
         result = {
             "search_id": search_id,
             "engine": get_face_engine().name,
+            "query_faces": query_faces,
+            "selected_query_face": selected_query_face,
             "persons": [],
             "ambiguous": False,
-            "warning": "No face/target embedding extracted from query images.",
+            "warning": warning,
         }
         db.add_search(
             {
@@ -662,6 +676,7 @@ def search_persons_by_images(
                     "top_k": top_k,
                     "min_score": min_score,
                     "max_gap_sec": max_gap_sec,
+                    "query_face_index": query_face_index,
                 },
                 "result": result,
             }
@@ -726,6 +741,8 @@ def search_persons_by_images(
     result = {
         "search_id": search_id,
         "engine": get_face_engine().name,
+        "query_faces": query_faces,
+        "selected_query_face": selected_query_face,
         "persons": persons,
         "ambiguous": ambiguous if persons else False,
         "warning": warning,
@@ -739,6 +756,7 @@ def search_persons_by_images(
                 "top_k": top_k,
                 "min_score": min_score,
                 "max_gap_sec": max_gap_sec,
+                "query_face_index": query_face_index,
             },
             "result": result,
         }

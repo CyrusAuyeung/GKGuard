@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.23-ui" in response.text
-    assert "/static/app.js?v=v0.1.23-ui" in response.text
+    assert "/static/styles.css?v=v0.1.24-ui" in response.text
+    assert "/static/app.js?v=v0.1.24-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -46,6 +46,14 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "record.frameUrl" in script
     assert "matchedPersonImageUrl" in script
     assert "uploadedImageUrl || matchedPersonImageUrl" in script
+    assert "selectedQueryFaceImageUrl || uploadedImageUrl || matchedPersonImageUrl" in script
+    assert "function prepareQueryFaces" in script
+    assert 'fetch("/c1/query-faces"' in script
+    assert "query_face_index" in script
+    assert "data-query-face-box" in script
+    assert "function frameFaceBoxMarkup" in script
+    assert "data-frame-face-box" in script
+    assert "function positionFrameFaceBoxes" in script
     assert "uploadedImageUrl = result.person.representativeFaceUrl" not in script
     assert "initDesktopUpdateEntry" in script
     assert "feedbackConfig" in script
@@ -76,6 +84,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".portrait-frame img" in style
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
+    assert ".query-face-layer" in style
+    assert ".face-box.is-selected" in style
+    assert ".frame-image-wrap" in style
+    assert ".result-face-box" in style
     assert ".mini-face img" in style
     assert ".scene-frame" in style
     assert "min-width: 0" in style
@@ -101,6 +113,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".toast[hidden] { display: none; }" in style
     assert ".media-viewer" in style
     assert ".media-viewer-frame img" in style
+    assert ".media-viewer-frame .frame-image-wrap" in style
     assert ".empty-state" in style
     assert ".map-point.is-active" in style
     assert ".timeline-row.is-active" in style
@@ -114,7 +127,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".mini-face { position: relative; overflow: hidden; width: 96px; height: 60px" in style
     assert ".mini-face img { width: 100%; height: 100%; object-fit: contain" in style
     assert "background: #eef4ff" in style
-    assert ".scene-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain" in style
+    assert ".scene-frame,\n.media-frame-image { width: 100%; height: 100%; object-fit: contain" in normalized_style
+    assert ".scene-frame { position: absolute; inset: 0; }" in style
     assert ".desktop-update" in style
     assert ".toast-success" in style
     assert ".toast-warning" in style
@@ -180,7 +194,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.23-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.24-ui\"" in main_script
     assert "prepareBackendPort" in main_script
     assert "existingBackendMatchesCurrentBuild" in main_script
     assert "getAvailablePort" in main_script
@@ -335,8 +349,23 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
 
     def fake_search_person_by_image(**kwargs):
         assert kwargs["filename"] == "target.jpg"
+        assert kwargs["query_face_index"] == 1
         return {
             "source": "c1",
+            "queryFaces": [
+                {
+                    "index": 0,
+                    "bbox": {"x1": 6, "y1": 8, "x2": 28, "y2": 38, "width": 22, "height": 30},
+                },
+                {
+                    "index": 1,
+                    "bbox": {"x1": 42, "y1": 10, "x2": 70, "y2": 44, "width": 28, "height": 34},
+                },
+            ],
+            "selectedQueryFace": {
+                "index": 1,
+                "bbox": {"x1": 42, "y1": 10, "x2": 70, "y2": 44, "width": 28, "height": 34},
+            },
             "records": [
                 {
                     "id": 1,
@@ -352,6 +381,7 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
                     "progress": 21,
                     "frameUrl": "/c1/media/frame/face-1",
                     "faceUrl": "/c1/media/face/face-1",
+                    "faceBox": {"x1": 20, "y1": 30, "x2": 68, "y2": 90, "width": 48, "height": 60},
                 }
             ],
             "routePoints": [],
@@ -360,13 +390,75 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
     monkeypatch.setattr(c1_service, "search_person_by_image", fake_search_person_by_image)
     response = client.post(
         "/c1/search/person-by-image",
+        params={"query_face_index": 1},
         files={"file": ("target.jpg", b"fake image", "image/jpeg")},
     )
     assert response.status_code == 200
     body = response.json()
     assert body["source"] == "c1"
+    assert body["queryFaces"][1]["index"] == 1
+    assert body["selectedQueryFace"]["index"] == 1
     assert body["records"][0]["frameUrl"] == "/c1/media/frame/face-1"
     assert body["records"][0]["faceUrl"] == "/c1/media/face/face-1"
+    assert body["records"][0]["faceBox"]["width"] == 48
+
+
+def test_c1_query_faces_proxy_maps_query_metadata(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_detect_query_faces(**kwargs):
+        assert kwargs["filename"] == "target.jpg"
+        return {
+            "source": "c1",
+            "engine": "mock-face",
+            "faceCount": 2,
+            "queryFaces": [
+                {
+                    "index": 0,
+                    "score": 0.92,
+                    "bbox": {
+                        "x1": 8,
+                        "y1": 10,
+                        "x2": 36,
+                        "y2": 52,
+                        "width": 28,
+                        "height": 42,
+                        "leftPct": 8,
+                        "topPct": 10,
+                        "widthPct": 28,
+                        "heightPct": 42,
+                    },
+                },
+                {
+                    "index": 1,
+                    "score": 0.88,
+                    "bbox": {
+                        "x1": 44,
+                        "y1": 14,
+                        "x2": 72,
+                        "y2": 56,
+                        "width": 28,
+                        "height": 42,
+                        "leftPct": 44,
+                        "topPct": 14,
+                        "widthPct": 28,
+                        "heightPct": 42,
+                    },
+                },
+            ],
+        }
+
+    monkeypatch.setattr(c1_service, "detect_query_faces", fake_detect_query_faces)
+    response = client.post(
+        "/c1/query-faces",
+        files={"file": ("target.jpg", b"fake image", "image/jpeg")},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["faceCount"] == 2
+    assert body["queryFaces"][0]["bbox"]["leftPct"] == 8
+    assert body["queryFaces"][1]["score"] == 0.88
 
 
 def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
@@ -380,12 +472,15 @@ def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
             "captured_at": "2026-06-14T10:00:00",
             "camera_id": "cam02",
             "score": 0.91,
+            "bbox": {"x1": 12, "y1": 18, "x2": 42, "y2": 58, "score": 0.97},
         },
         1,
     )
 
     assert record["frameUrl"] == "/c1/media/frame/face-1"
     assert record["faceUrl"] == "/c1/media/face/face-1"
+    assert record["faceBox"]["width"] == 30
+    assert record["faceBox"]["score"] == 0.97
 
 
 def test_root_redirects_to_demo() -> None:

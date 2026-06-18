@@ -92,6 +92,13 @@ let selectedRecordIndex = 0;
 let uploadedImageUrl = "";
 let matchedPersonImageUrl = "";
 let uploadedFile = null;
+let queryFaces = [];
+let selectedQueryFaceIndex = null;
+let selectedQueryFaceImageUrl = "";
+let queryFaceDetectionComplete = false;
+let queryFaceDetectionPromise = null;
+let searchInProgress = false;
+let lastC1Notice = "";
 let activeSource = "mock";
 let toastTimer = null;
 let lastFocusedElement = null;
@@ -200,10 +207,40 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
   button.innerHTML = `<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>${busy ? busyLabel : idleLabel}`;
 }
 
-function portraitMarkup() {
-  const portraitUrl = uploadedImageUrl || matchedPersonImageUrl;
+function targetPortraitMarkup() {
+  const portraitUrl = selectedQueryFaceImageUrl || uploadedImageUrl || matchedPersonImageUrl;
   if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
+}
+
+function faceBoxMarkup(face, options = {}) {
+  const box = face?.bbox;
+  if (!box) return "";
+  const selected = Number(face.index) === Number(selectedQueryFaceIndex);
+  const classes = [
+    "face-box",
+    selected ? "is-selected" : "",
+    options.compact ? "is-compact" : "",
+  ].filter(Boolean).join(" ");
+  const label = options.label || formatPercent(face.score ?? box.score);
+  return `
+    <span class="${classes}" role="button" tabindex="0" data-query-face-box data-query-face-index="${escapeHtml(face.index)}"
+      data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
+      data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
+      style="left:${box.leftPct}%; top:${box.topPct}%; width:${box.widthPct}%; height:${box.heightPct}%"
+      aria-label="选择第 ${Number(face.index) + 1} 张人脸，检测置信度 ${escapeHtml(label)}">
+      <span>${escapeHtml(label)}</span>
+    </span>
+  `;
+}
+
+function uploadPortraitMarkup() {
+  if (!uploadedImageUrl) return '<span class="portrait-art" aria-hidden="true"></span>';
+  const boxes = queryFaces.map((face) => faceBoxMarkup(face)).join("");
+  return `
+    <img src="${uploadedImageUrl}" alt="上传的查询图片" />
+    <span class="query-face-layer" aria-label="查询图人脸选择">${boxes}</span>
+  `;
 }
 
 function recordThumbMarkup(record) {
@@ -212,6 +249,71 @@ function recordThumbMarkup(record) {
     return `<span class="mini-face has-thumb"><img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
   }
   return '<span class="mini-face" aria-hidden="true"></span>';
+}
+
+function frameFaceBoxMarkup(record) {
+  const box = record?.faceBox;
+  if (!box) return "";
+  return `
+    <span class="face-box result-face-box" data-frame-face-box
+      data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
+      data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}">
+      <span>${escapeHtml(formatPercent(record.similarity))}</span>
+    </span>
+  `;
+}
+
+function frameImageMarkup(record, imageClass) {
+  return `
+    <span class="frame-image-wrap">
+      <img class="${imageClass}" src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" />
+      <span class="frame-face-layer" aria-label="目标人脸位置">${frameFaceBoxMarkup(record)}</span>
+    </span>
+  `;
+}
+
+function positionFrameFaceBoxes(root = document) {
+  root.querySelectorAll(".frame-image-wrap, .portrait-frame").forEach((wrap) => {
+    const image = wrap.querySelector("img");
+    if (!image) return;
+    const update = () => {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      const imageStyle = window.getComputedStyle(image);
+      const paddingLeft = Number.parseFloat(imageStyle.paddingLeft) || 0;
+      const paddingRight = Number.parseFloat(imageStyle.paddingRight) || 0;
+      const paddingTop = Number.parseFloat(imageStyle.paddingTop) || 0;
+      const paddingBottom = Number.parseFloat(imageStyle.paddingBottom) || 0;
+      const width = Math.max(0, (image.clientWidth || wrap.clientWidth) - paddingLeft - paddingRight);
+      const height = Math.max(0, (image.clientHeight || wrap.clientHeight) - paddingTop - paddingBottom);
+      if (!width || !height) return;
+      const imageRatio = image.naturalWidth / image.naturalHeight;
+      const boxRatio = width / height;
+      const renderedWidth = boxRatio > imageRatio ? height * imageRatio : width;
+      const renderedHeight = boxRatio > imageRatio ? height : width / imageRatio;
+      const wrapRect = wrap.getBoundingClientRect();
+      const imageRect = image.getBoundingClientRect();
+      const offsetX = imageRect.left - wrapRect.left + paddingLeft + (width - renderedWidth) / 2;
+      const offsetY = imageRect.top - wrapRect.top + paddingTop + (height - renderedHeight) / 2;
+
+      wrap.querySelectorAll("[data-frame-face-box], [data-query-face-box]").forEach((box) => {
+        const x1 = Number(box.dataset.x1);
+        const y1 = Number(box.dataset.y1);
+        const boxWidth = Number(box.dataset.width);
+        const boxHeight = Number(box.dataset.height);
+        if (![x1, y1, boxWidth, boxHeight].every(Number.isFinite)) return;
+        const left = offsetX + (x1 / image.naturalWidth) * renderedWidth;
+        const top = offsetY + (y1 / image.naturalHeight) * renderedHeight;
+        box.style.left = `${left}px`;
+        box.style.top = `${top}px`;
+        box.style.width = `${(boxWidth / image.naturalWidth) * renderedWidth}px`;
+        box.style.height = `${(boxHeight / image.naturalHeight) * renderedHeight}px`;
+        box.classList.toggle("is-label-inside", top < 30);
+      });
+    };
+    if (image.complete) update();
+    image.addEventListener("load", update, { once: true });
+    window.requestAnimationFrame(update);
+  });
 }
 
 function emptyStateMarkup(title, detail) {
@@ -234,10 +336,129 @@ function bindRecordThumbnailFallbacks() {
 }
 
 function syncPortraits() {
-  [elements.uploadPreview, elements.resultPortrait, elements.routePortrait].forEach((target) => {
+  if (elements.uploadPreview) elements.uploadPreview.innerHTML = uploadPortraitMarkup();
+  [elements.resultPortrait, elements.routePortrait].forEach((target) => {
     if (!target) return;
-    target.innerHTML = portraitMarkup();
+    target.innerHTML = targetPortraitMarkup();
   });
+  window.requestAnimationFrame(() => positionFrameFaceBoxes());
+}
+
+function loadBrowserImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image), { once: true });
+    image.addEventListener("error", reject, { once: true });
+    image.src = src;
+  });
+}
+
+async function cropUploadedFace(face) {
+  if (!uploadedImageUrl || !face?.bbox) return "";
+  const image = await loadBrowserImage(uploadedImageUrl);
+  const box = face.bbox;
+  const padX = Math.max(8, Number(box.width || 0) * 0.18);
+  const padY = Math.max(8, Number(box.height || 0) * 0.22);
+  const x = Math.max(0, Number(box.x1 || 0) - padX);
+  const y = Math.max(0, Number(box.y1 || 0) - padY);
+  const width = Math.min(image.naturalWidth - x, Number(box.width || 0) + padX * 2);
+  const height = Math.min(image.naturalHeight - y, Number(box.height || 0) + padY * 2);
+  if (width <= 0 || height <= 0) return "";
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width);
+  canvas.height = Math.round(height);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, x, y, width, height, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function clearQueryFaces() {
+  queryFaces = [];
+  selectedQueryFaceIndex = null;
+  selectedQueryFaceImageUrl = "";
+  queryFaceDetectionComplete = false;
+  queryFaceDetectionPromise = null;
+}
+
+async function selectQueryFace(index, options = {}) {
+  const face = queryFaces.find((item) => Number(item.index) === Number(index));
+  if (!face) return false;
+  selectedQueryFaceIndex = Number(face.index);
+  selectedQueryFaceImageUrl = await cropUploadedFace(face).catch(() => "");
+  syncPortraits();
+  if (!options.silent) {
+    showToast(`已选择第 ${selectedQueryFaceIndex + 1} 张人脸作为检索目标。`, { tone: "success", title: "目标已确认" });
+  }
+  return true;
+}
+
+function setSearchIdleLabel(label = "开始检索") {
+  if (!elements.startSearchBtn || elements.startSearchBtn.dataset.state === "busy") return;
+  elements.startSearchBtn.innerHTML = `<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>${label}`;
+}
+
+async function fetchQueryFaces() {
+  if (!uploadedFile) throw new Error("请先上传目标人脸图片");
+  const formData = new FormData();
+  formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
+  const response = await fetch("/c1/query-faces", {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail?.detail?.message || `C1 人脸检测返回 ${response.status}`);
+  }
+  return response.json();
+}
+
+async function prepareQueryFaces(options = {}) {
+  if (!uploadedFile) return "no-upload";
+  if (queryFaceDetectionPromise) return queryFaceDetectionPromise;
+
+  queryFaceDetectionPromise = (async () => {
+    try {
+      if (!queryFaceDetectionComplete) {
+        const result = await fetchQueryFaces();
+        queryFaces = Array.isArray(result.queryFaces) ? result.queryFaces : [];
+        queryFaceDetectionComplete = true;
+      }
+
+      if (!queryFaces.length) {
+        selectedQueryFaceIndex = null;
+        selectedQueryFaceImageUrl = "";
+        syncPortraits();
+        showToast("未检测到人脸，请上传清晰正脸照片。", { tone: "warning", title: "未检测到人脸", timeout: 4200 });
+        setSearchIdleLabel("重新上传后检索");
+        return "no-face";
+      }
+
+      if (queryFaces.length === 1) {
+        await selectQueryFace(queryFaces[0].index, { silent: true });
+        if (options.autoSearchSingle) {
+          showToast("已自动选中唯一人脸，正在检索。", { tone: "loading", title: "单人目标已确认" });
+          window.setTimeout(() => startSearch(), 120);
+        } else {
+          showToast("已自动选中唯一人脸。", { tone: "success", title: "目标已确认" });
+        }
+        setSearchIdleLabel("开始检索");
+        return "ready";
+      }
+
+      syncPortraits();
+      setSearchIdleLabel(selectedQueryFaceIndex === null ? "选择人脸后检索" : "确认选择并检索");
+      if (selectedQueryFaceIndex === null) {
+        showToast("检测到多张人脸，请在原图上选择检索目标。", { tone: "warning", title: "请选择目标人脸", timeout: 5200 });
+        return "needs-selection";
+      }
+      return "ready";
+    } finally {
+      queryFaceDetectionPromise = null;
+    }
+  })();
+
+  return queryFaceDetectionPromise;
 }
 
 function loadImage(file) {
@@ -251,9 +472,14 @@ function loadImage(file) {
     uploadedFile = file;
     uploadedImageUrl = String(reader.result || "");
     matchedPersonImageUrl = "";
+    clearQueryFaces();
     elements.uploadHint.textContent = `${file.name} 已就绪`;
     syncPortraits();
-    showToast("目标照片已加载。", { tone: "success", title: "图片已就绪" });
+    showToast("目标照片已加载，正在检测人脸。", { tone: "loading", title: "图片已就绪" });
+    prepareQueryFaces({ autoSearchSingle: true }).catch((error) => {
+      showToast(`${error.message}。点击开始检索时将尝试连接 CampusVision C1。`, { tone: "warning", title: "人脸检测暂不可用", timeout: 5200 });
+      setSearchIdleLabel("开始检索");
+    });
   });
   reader.readAsDataURL(file);
 }
@@ -262,12 +488,14 @@ function resetToMockData() {
   records.splice(0, records.length, ...mockRecords.map((record) => ({ ...record })));
   routePoints.splice(0, routePoints.length, ...mockRoutePoints.map((point) => ({ ...point })));
   activeSource = "mock";
+  lastC1Notice = "";
 }
 
 function resetSearchInput() {
   uploadedFile = null;
   uploadedImageUrl = "";
   matchedPersonImageUrl = "";
+  clearQueryFaces();
   selectedRecordIndex = 0;
   if (elements.faceFile) elements.faceFile.value = "";
   if (elements.uploadHint) elements.uploadHint.textContent = "支持 JPG / PNG，建议上传清晰正脸照片";
@@ -284,6 +512,10 @@ function resetSearchInput() {
 function applyC1Result(result) {
   if (!result?.records?.length) {
     throw new Error(result?.warning || "C1 没有返回匹配记录");
+  }
+  lastC1Notice = result.warning || (result.ambiguous ? "候选人物分数接近，请人工确认。" : "");
+  if (!lastC1Notice && result.person?.confidence === "low") {
+    lastC1Notice = "当前为低置信匹配，请结合关键帧人工确认。";
   }
 
   records.splice(0, records.length, ...result.records.map((record, index) => ({
@@ -311,6 +543,9 @@ function applyC1Result(result) {
     matchedPersonImageUrl = result.person.representativeFaceUrl;
     syncPortraits();
   }
+  if (result.selectedQueryFace && selectedQueryFaceIndex === null) {
+    selectedQueryFaceIndex = Number(result.selectedQueryFace.index);
+  }
 
   activeSource = "c1";
 }
@@ -319,7 +554,9 @@ async function fetchC1Search() {
   if (!uploadedFile) throw new Error("请先上传目标人脸图片");
   const formData = new FormData();
   formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
-  const response = await fetch("/c1/search/person-by-image?top_k=5&max_gap_sec=3", {
+  const params = new URLSearchParams({ top_k: "5", max_gap_sec: "3" });
+  if (selectedQueryFaceIndex !== null) params.set("query_face_index", String(selectedQueryFaceIndex));
+  const response = await fetch(`/c1/search/person-by-image?${params.toString()}`, {
     method: "POST",
     body: formData,
   });
@@ -501,13 +738,10 @@ function renderSelectedRecord() {
   }
   elements.recordTitle.textContent = record.title;
   elements.recordScene.className = `camera-scene ${record.frameUrl ? "has-frame" : record.sceneClass}`;
-  elements.recordScene.querySelectorAll(".scene-frame").forEach((node) => node.remove());
+  elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
   if (record.frameUrl) {
-    const image = document.createElement("img");
-    image.className = "scene-frame";
-    image.src = record.frameUrl;
-    image.alt = `${record.title} 监控关键帧`;
-    elements.recordScene.prepend(image);
+    elements.recordScene.insertAdjacentHTML("afterbegin", frameImageMarkup(record, "scene-frame"));
+    positionFrameFaceBoxes(elements.recordScene);
   }
   elements.recordScene.querySelector(".scene-time").innerHTML = record.fullTime.replace(" ", "&nbsp;&nbsp;");
   elements.recordScene.setAttribute("tabindex", "0");
@@ -635,7 +869,7 @@ function openMediaViewer(record = records[selectedRecordIndex]) {
   elements.mediaViewerCamera.textContent = record.camera || record.cameraId || "--";
   elements.mediaViewerSimilarity.textContent = formatPercent(record.similarity);
   if (record.frameUrl) {
-    elements.mediaViewerFrame.innerHTML = `<img src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" />`;
+    elements.mediaViewerFrame.innerHTML = frameImageMarkup(record, "media-frame-image");
   } else {
     elements.mediaViewerFrame.innerHTML = `
       <div class="camera-scene media-viewer-mock ${escapeHtml(record.sceneClass || "scene-1")}">
@@ -650,6 +884,7 @@ function openMediaViewer(record = records[selectedRecordIndex]) {
   }
   elements.mediaViewer.hidden = false;
   elements.mediaViewer.classList.add("is-visible");
+  positionFrameFaceBoxes(elements.mediaViewerFrame);
   elements.mediaViewerClose?.focus();
 }
 
@@ -662,40 +897,71 @@ function closeMediaViewer() {
 }
 
 async function startSearch() {
+  if (searchInProgress) return;
+  searchInProgress = true;
   setButtonBusy(elements.startSearchBtn, true, "检索中...", "开始检索");
   showToast(uploadedFile ? "正在调用 CampusVision C1 检索服务。" : "未上传图片，使用本地模拟数据。", { tone: "loading", title: uploadedFile ? "检索中" : "准备本地模拟" });
   let resultToast = null;
+  let shouldShowResults = false;
+
+  async function runC1SearchFlow() {
+    const faceState = await prepareQueryFaces({ autoSearchSingle: false });
+    if (faceState === "needs-selection" || faceState === "no-face") return faceState;
+    const result = await fetchC1Search();
+    applyC1Result(result);
+    return "searched";
+  }
+
   try {
     if (uploadedFile) {
-      const result = await fetchC1Search();
-      applyC1Result(result);
-      resultToast = { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "检索完成" } };
+      const flowState = await runC1SearchFlow();
+      if (flowState !== "searched") return;
+      shouldShowResults = true;
+      resultToast = lastC1Notice
+        ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选记录。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
+        : { message: `CampusVision C1 返回 ${records.length} 条关联记录。目标人脸已确认。`, options: { tone: "success", title: "检索完成" } };
     } else {
       resetToMockData();
+      shouldShowResults = true;
       resultToast = { message: `已加载 ${records.length} 条本地模拟记录。`, options: { tone: "info", title: "本地模拟已就绪" } };
     }
   } catch (error) {
     if (uploadedFile && await connectC1AfterFailure(error)) {
       try {
-        const retryResult = await fetchC1Search();
-        applyC1Result(retryResult);
-        resultToast = { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "重试检索完成" } };
+        queryFaceDetectionComplete = false;
+        const retryState = await runC1SearchFlow();
+        if (retryState !== "searched") return;
+        shouldShowResults = true;
+        resultToast = lastC1Notice
+          ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选记录。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
+          : { message: `CampusVision C1 返回 ${records.length} 条关联记录。`, options: { tone: "success", title: "重试检索完成" } };
       } catch (retryError) {
         resetToMockData();
+        shouldShowResults = true;
         resultToast = { message: `${retryError.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
       }
     } else {
       resetToMockData();
+      shouldShowResults = true;
       resultToast = { message: `${error.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
     }
   } finally {
     setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
-    selectedRecordIndex = 0;
-    renderRecordLists();
-    renderSelectedRecord();
-    renderRouteMap();
-    renderRouteTimeline();
-    switchScreen("result");
+    searchInProgress = false;
+    if (queryFaces.length > 1 && selectedQueryFaceIndex === null) {
+      setSearchIdleLabel("选择人脸后检索");
+    }
+    if (queryFaces.length > 1 && selectedQueryFaceIndex !== null) {
+      setSearchIdleLabel("确认选择并检索");
+    }
+    if (shouldShowResults) {
+      selectedRecordIndex = 0;
+      renderRecordLists();
+      renderSelectedRecord();
+      renderRouteMap();
+      renderRouteTimeline();
+      switchScreen("result");
+    }
     if (resultToast) {
       showToast(resultToast.message, resultToast.options);
     }
@@ -715,7 +981,29 @@ function downloadText(filename, content) {
 }
 
 function bindEvents() {
-  elements.uploadDrop.addEventListener("click", () => elements.faceFile.click());
+  elements.uploadDrop.addEventListener("click", async (event) => {
+    const faceTarget = event.target.closest("[data-query-face-index]");
+    if (faceTarget) {
+      event.preventDefault();
+      await selectQueryFace(faceTarget.dataset.queryFaceIndex);
+      setSearchIdleLabel("确认选择并检索");
+      return;
+    }
+    elements.faceFile.click();
+  });
+  elements.uploadDrop.addEventListener("keydown", async (event) => {
+    const faceTarget = event.target.closest("[data-query-face-index]");
+    if (faceTarget && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      await selectQueryFace(faceTarget.dataset.queryFaceIndex);
+      setSearchIdleLabel("确认选择并检索");
+      return;
+    }
+    if ((event.key === "Enter" || event.key === " ") && event.target === elements.uploadDrop) {
+      event.preventDefault();
+      elements.faceFile.click();
+    }
+  });
   elements.faceFile.addEventListener("change", (event) => loadImage(event.target.files?.[0]));
   elements.uploadDrop.addEventListener("dragover", (event) => {
     event.preventDefault();
@@ -758,6 +1046,7 @@ function bindEvents() {
       closeMediaViewer();
     }
   });
+  window.addEventListener("resize", () => positionFrameFaceBoxes());
   document.querySelector("#exportFrameBtn").addEventListener("click", () => {
     const record = records[selectedRecordIndex];
     downloadText(`GKGuard-${record.title}.json`, JSON.stringify(record, null, 2));

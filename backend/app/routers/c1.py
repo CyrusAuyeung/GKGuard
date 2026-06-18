@@ -28,12 +28,28 @@ def c1_videos() -> dict:
         raise HTTPException(status_code=exc.status_code, detail={"code": "C1_UNAVAILABLE", "message": str(exc)}) from exc
 
 
+@router.post("/query-faces")
+async def c1_query_faces(file: UploadFile = File(...)) -> dict:
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail={"code": "EMPTY_IMAGE", "message": "Uploaded file is empty"})
+    try:
+        return c1_service.detect_query_faces(
+            filename=file.filename or "query.jpg",
+            content=content,
+            content_type=file.content_type,
+        )
+    except c1_service.C1ServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": "C1_UNAVAILABLE", "message": str(exc)}) from exc
+
+
 @router.post("/search/person-by-image")
 async def c1_search_person_by_image(
     file: UploadFile = File(...),
     top_k: int = Query(5, ge=1, le=20),
     min_score: float | None = Query(None, ge=0, le=1),
     max_gap_sec: float = Query(3.0, ge=0),
+    query_face_index: int | None = Query(None, ge=0),
 ) -> dict:
     content = await file.read()
     if not content:
@@ -46,6 +62,7 @@ async def c1_search_person_by_image(
             top_k=top_k,
             min_score=min_score,
             max_gap_sec=max_gap_sec,
+            query_face_index=query_face_index,
         )
     except c1_service.C1ServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail={"code": "C1_UNAVAILABLE", "message": str(exc)}) from exc
