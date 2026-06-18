@@ -208,7 +208,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
     expect(searchUrl).toContain("query_face_index=0");
     await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1");
-    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /\/static\/icons\/app-mark\.png$/);
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
     await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
     await expect(page.locator("#recordScene .result-face-box")).not.toHaveClass(/is-pending/);
@@ -349,6 +349,31 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator('#uploadDrop [data-query-face-index="0"]')).toHaveClass(/is-low-confidence/);
     await expect(page.locator("#queryFaceModalFrame [data-query-face-index]")).toHaveCount(3);
     await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await page.locator("#queryFaceModalCancel").click();
+    await expect(page.locator("#queryFaceModal")).toBeHidden();
+    await expect(page.locator("#openQueryFaceModalBtn")).toBeVisible();
+    const chooserPromise = page.waitForEvent("filechooser");
+    await page.locator(".upload-action").click();
+    await chooserPromise;
+    await expect(page.locator("#queryFaceModal")).toBeHidden();
+    await page.locator("#openQueryFaceModalBtn").click();
+    await expect(page.locator("#queryFaceModal")).toBeVisible();
+    const fitMetrics = await page.locator("#queryFaceModalFrame").evaluate((frame) => {
+      const wrap = frame.querySelector(".face-select-image-wrap");
+      return {
+        frameWidth: frame.clientWidth,
+        frameHeight: frame.clientHeight,
+        wrapWidth: wrap?.getBoundingClientRect().width || 0,
+        wrapHeight: wrap?.getBoundingClientRect().height || 0,
+        scrollWidth: frame.scrollWidth,
+        scrollHeight: frame.scrollHeight,
+      };
+    });
+    expect(fitMetrics.wrapWidth).toBeLessThanOrEqual(fitMetrics.frameWidth);
+    expect(fitMetrics.wrapHeight).toBeLessThanOrEqual(fitMetrics.frameHeight);
+    await page.locator("#queryFaceZoomOut").click();
+    const smallerWidth = await page.locator("#queryFaceModalFrame .face-select-image-wrap").evaluate((wrap) => wrap.getBoundingClientRect().width);
+    expect(smallerWidth).toBeLessThanOrEqual(fitMetrics.wrapWidth);
     const modalFace = page.locator('#queryFaceModalFrame [data-query-face-index="2"]');
     const modalFaceBox = await modalFace.boundingBox();
     expect(modalFaceBox).not.toBeNull();
@@ -360,7 +385,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#queryFaceModal")).toBeHidden();
     expect(searchUrl).toContain("query_face_index=2");
     await expect(page.locator("#resultPortrait img")).toBeVisible();
-    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /\/static\/icons\/app-mark\.png$/);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);
