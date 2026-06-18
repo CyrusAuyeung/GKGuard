@@ -303,7 +303,7 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
 }
 
 function targetPortraitMarkup() {
-  const portraitUrl = matchedPersonImageUrl || selectedQueryFaceImageUrl || uploadedImageUrl;
+  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
   if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
@@ -579,8 +579,8 @@ async function cropUploadedFace(face) {
       : hasNormalizedCorners
         ? Math.max(0, (y2 - y1) * image.naturalHeight)
         : boxHeight ?? Math.max(0, (y2 ?? y1) - y1);
-  const padX = Math.max(8, rawWidth * 0.18);
-  const padY = Math.max(8, rawHeight * 0.22);
+  const padX = 0;
+  const padY = 0;
   const x = Math.max(0, rawX - padX);
   const y = Math.max(0, rawY - padY);
   const width = Math.min(image.naturalWidth - x, rawWidth + padX * 2);
@@ -588,8 +588,8 @@ async function cropUploadedFace(face) {
   if (width <= 0 || height <= 0) return "";
 
   const canvas = document.createElement("canvas");
-  canvas.width = Math.round(width);
-  canvas.height = Math.round(height);
+  canvas.width = Math.max(1, Math.round(width));
+  canvas.height = Math.max(1, Math.round(height));
   const context = canvas.getContext("2d");
   context.drawImage(image, x, y, width, height, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL("image/jpeg", 0.92);
@@ -670,7 +670,7 @@ function calculateQueryFaceModalBaseScale(image) {
   if (!frame || !image?.naturalWidth || !image?.naturalHeight) return 1;
   const availableWidth = Math.max(1, frame.clientWidth - 24);
   const availableHeight = Math.max(1, frame.clientHeight - 18);
-  return Math.min(1, availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
+  return Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight);
 }
 
 function setQueryFaceModalZoom(nextZoom) {
@@ -680,10 +680,7 @@ function setQueryFaceModalZoom(nextZoom) {
   if (!stage || !image) return;
   const naturalWidth = image.naturalWidth || 900;
   queryFaceModalBaseScale = calculateQueryFaceModalBaseScale(image);
-  const minimumDisplayWidth = naturalWidth < 360
-    ? Math.min(360, Math.max(1, (elements.queryFaceModalFrame?.clientWidth || 384) - 24))
-    : 1;
-  stage.style.width = `${Math.max(minimumDisplayWidth, Math.round(naturalWidth * queryFaceModalBaseScale * queryFaceModalZoom))}px`;
+  stage.style.width = `${Math.max(1, Math.round(naturalWidth * queryFaceModalBaseScale * queryFaceModalZoom))}px`;
   positionFrameFaceBoxes(elements.queryFaceModalFrame);
 }
 
@@ -712,9 +709,9 @@ function renderQueryFaceModalFrame() {
 function openQueryFaceModal() {
   if (!elements.queryFaceModal || !uploadedImageUrl || visibleQueryFaces().length < 2) return;
   lastFocusedElement = document.activeElement;
-  renderQueryFaceModalFrame();
   elements.queryFaceModal.hidden = false;
   elements.queryFaceModal.classList.add("is-visible");
+  renderQueryFaceModalFrame();
   updateQueryFaceSelectionState();
   elements.queryFaceModalFrame?.focus?.();
 }

@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 
 import httpx
 from fastapi.testclient import TestClient
@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.29-ui" in response.text
-    assert "/static/app.js?v=v0.1.29-ui" in response.text
+    assert "/static/styles.css?v=v0.1.30-ui" in response.text
+    assert "/static/app.js?v=v0.1.30-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -45,7 +45,7 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "record.thumbnailUrl || record.faceUrl || record.frameUrl" in script
     assert "record.frameUrl" in script
     assert "matchedPersonImageUrl" in script
-    assert "matchedPersonImageUrl || selectedQueryFaceImageUrl || uploadedImageUrl" in script
+    assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
     assert "function prepareQueryFaces" in script
     assert 'fetchWithTimeout("/c1/query-faces"' in script
     assert 'fetchWithTimeout(`/c1/search/person-by-image?' in script
@@ -83,6 +83,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "function syncUploadPreviewAction" in script
     assert "function openFaceFilePicker" in script
     assert "QUERY_FACE_MODAL_MIN_ZOOM = 0.5" in script
+    assert "return Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight)" in script
+    assert "const padX = 0" in script
     assert "AbortController" in script
     assert "function selectRouteRecord" in script
     assert "function emptyStateMarkup" in script
@@ -220,7 +222,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.29-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.30-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
