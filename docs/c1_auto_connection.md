@@ -118,7 +118,7 @@ remotePort = 8000
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
-安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.26-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.27-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -141,7 +141,7 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 
 1. GKGuard C2 前端把照片发给本机 GKGuard C2 后端。
 2. GKGuard C2 自动选择健康的 CampusVision C1 地址。
-3. GKGuard C2 先调用 CampusVision C1 查询图人脸检测；一张有效候选人脸会自动选中，多张有效候选人脸由前端在原图上选择目标，存在高置信候选时会隐藏低于 `0.65` 的低置信检测框。
+3. GKGuard C2 先调用 CampusVision C1 查询图人脸检测；一张有效候选人脸会自动选中，多张有效候选人脸由前端打开放大原图弹窗选择目标；低于 `0.65` 但不低于 `0.45` 的候选会以低置信样式显示并仍可选择，低于 `0.45` 的候选不作为可选目标。
 4. GKGuard C2 把照片和可选 `query_face_index` 转发给 CampusVision C1 `person-by-image`。
 5. CampusVision C1 返回候选人物、关键帧、目标人脸框、相似度、摄像头、时间和轨迹。
 6. 前端显示 `CampusVision C1` 的真实结果。
@@ -152,7 +152,7 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 2. GKGuard C2 的 `/c1/...` 请求会返回不可用错误。
 3. 桌面 UI 会打开软件内 CampusVision C1 密码窗口；用户输入 SSH 密码后自动重试一次。
 4. 如果没有上传图片，前端可回退到本地模拟数据，继续展示演示结果。
-5. 如果已经上传图片但查询图人脸检测、真实检索仍不可用，或 CampusVision C1 返回空 `records[]` 无匹配结果，前端停留在上传页提示重试，不展示模拟结果，也不保持“检索中”状态。
+5. 如果已经上传图片但查询图人脸检测、真实检索仍不可用、CampusVision C1 返回空 `records[]` 无匹配结果，或请求超时，前端停留在上传页提示重试，不展示模拟结果，也不保持“检索中”状态。
 6. 回退结果不是服务器真实数据。
 
 ## 检查方式
@@ -294,7 +294,7 @@ Startup behavior:
 4. You type the server password in that window, and the main process creates the SSH tunnel with that one-time password.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 
-Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.26-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.27-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 
@@ -317,7 +317,7 @@ If any candidate CampusVision C1 service is reachable:
 
 1. The GKGuard C2 frontend sends the photo to the local GKGuard C2 backend.
 2. GKGuard C2 selects a healthy CampusVision C1 URL automatically.
-3. GKGuard C2 first calls CampusVision C1 query-face detection; one effective candidate face is auto-selected, while multiple effective candidates are selected on the original image. When higher-confidence candidates exist, boxes below `0.65` are hidden.
+3. GKGuard C2 first calls CampusVision C1 query-face detection; one effective candidate face is auto-selected, while multiple effective candidates are selected in an enlarged original-image modal. Candidates below `0.65` but at least `0.45` stay visible with a low-confidence style and remain selectable, while candidates below `0.45` are not exposed as targets.
 4. GKGuard C2 forwards the image and optional `query_face_index` to CampusVision C1 `person-by-image`.
 5. CampusVision C1 returns candidate persons, keyframes, target-face boxes, similarity, camera, time, and route points.
 6. The frontend shows real `CampusVision C1` results.
@@ -328,7 +328,7 @@ If all candidate CampusVision C1 URLs are unavailable:
 2. GKGuard C2 `/c1/...` requests return unavailable errors.
 3. The desktop UI opens the embedded CampusVision C1 password prompt; after the user enters the SSH password, it retries once automatically.
 4. If no image has been uploaded, the frontend can fall back to local mock data and continue the demo.
-5. If an image has been uploaded but query-face detection, real search, or an empty `records[]` no-match result prevents a real hit, the frontend stays on the upload screen with a retry/error message instead of showing mock results or staying in a loading state.
+5. If an image has been uploaded but query-face detection, real search, an empty `records[]` no-match result, or a request timeout prevents a real hit, the frontend stays on the upload screen with a retry/error message instead of showing mock results or staying in a loading state.
 6. The fallback result is not real server data.
 
 ## How To Check

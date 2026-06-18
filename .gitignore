@@ -19,4 +19,5 @@ release/
 npm-debug.log*
 playwright-report/
 test-results/
+local-test-data/
 初期材料/

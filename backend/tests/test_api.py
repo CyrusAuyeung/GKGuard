@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.26-ui" in response.text
-    assert "/static/app.js?v=v0.1.26-ui" in response.text
+    assert "/static/styles.css?v=v0.1.27-ui" in response.text
+    assert "/static/app.js?v=v0.1.27-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -51,7 +51,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert 'fetchWithTimeout(`/c1/search/person-by-image?' in script
     assert "localizedC1Notice" in script
     assert "CampusVision C1 响应超时" in script
-    assert "MIN_SELECTABLE_FACE_SCORE = 0.65" in script
+    assert "CONFIDENT_QUERY_FACE_SCORE = 0.65" in script
+    assert "MIN_VISIBLE_QUERY_FACE_SCORE = 0.45" in script
+    assert "SEARCH_WATCHDOG_TIMEOUT_MS = 30000" in script
     assert "query_face_index" in script
     assert "data-query-face-box" in script
     assert "function frameFaceBoxMarkup" in script
@@ -76,6 +78,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "mapLabelClass" in script
     assert "function openMediaViewer" in script
     assert "function closeMediaViewer" in script
+    assert "function openQueryFaceModal" in script
+    assert "function setQueryFaceModalZoom" in script
+    assert "AbortController" in script
     assert "function selectRouteRecord" in script
     assert "function emptyStateMarkup" in script
     assert "data-route-index" in script
@@ -92,6 +97,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert ".face-box.is-selected" in style
     assert ".frame-image-wrap" in style
     assert ".result-face-box" in style
+    assert ".result-face-box .face-score-label" in style
+    assert ".result-face-box.is-label-below .face-score-label" in style
+    assert ".query-face-modal" in style
+    assert ".face-box.is-low-confidence" in style
     assert ".mini-face img" in style
     assert ".scene-frame" in style
     assert "min-width: 0" in style
@@ -176,6 +185,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "routeCurrentSimilarity" in page
     assert "mediaViewerTitle" in page
     assert "mediaViewerFrame" in page
+    assert "queryFaceModal" in page
+    assert "queryFaceModalFrame" in page
+    assert "queryFaceModalConfirm" in page
     assert 'id="toast" class="toast toast-info" role="status" aria-live="polite" aria-atomic="true" hidden' in page
     assert "导出截图" not in page
     assert "查看全部结果" not in page
@@ -202,7 +214,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.26-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.27-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script

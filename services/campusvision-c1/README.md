@@ -119,7 +119,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
   -F "files=@/path/to/group_photo.jpg"
 ```
 
-返回内容包含 `query_faces`、每张人脸的 `bbox` 和检测置信度。只有一张人脸时可以直接检索；多张人脸时由上层 UI 选择目标人脸并把 `query_face_index` 传给检索接口。多人查询图只返回一张人脸时，应先检查 `INSIGHTFACE_DET_SIZE` 和服务重启状态。
+返回内容包含 `query_faces`、每张人脸的 `bbox`、检测置信度和可选 `diagnostics`。服务端会先对查询图做 EXIF 转正、RGB 标准化、透明通道处理；若首轮没有检测到人脸，会继续尝试贴边/大脸补边和小图放大检测，并把检测框映射回原图坐标。只有一张人脸时可以直接检索；多张人脸时由上层 UI 选择目标人脸并把 `query_face_index` 传给检索接口。多人查询图只返回一张人脸时，应先检查 `INSIGHTFACE_DET_SIZE`、服务重启状态和 `diagnostics` 中的检测尝试。
 
 1. 基于人物库以图搜人。
 
@@ -324,7 +324,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/search/query-faces \
   -F "files=@/path/to/group_photo.jpg"
 ```
 
-The response includes `query_faces`, each face `bbox`, and detection confidence. If there is one face, the caller can search directly; if there are multiple faces, the upper-layer UI selects the target and passes `query_face_index` to the search endpoint. If a multi-face query image returns only one face, check `INSIGHTFACE_DET_SIZE` and confirm the service was restarted.
+The response includes `query_faces`, each face `bbox`, detection confidence, and optional `diagnostics`. The service normalizes EXIF orientation, RGB channels, and alpha before detection. If the first pass finds no faces, it retries with padding for tight or large faces and with small-image upscaling, then maps detected boxes back to original-image coordinates. If there is one face, the caller can search directly; if there are multiple faces, the upper-layer UI selects the target and passes `query_face_index` to the search endpoint. If a multi-face query image returns only one face, check `INSIGHTFACE_DET_SIZE`, confirm the service was restarted, and inspect `diagnostics`.
 
 1. Search person by image.
 

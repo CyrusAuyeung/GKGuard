@@ -499,6 +499,7 @@ def detect_query_faces(filename: str, content: bytes, content_type: str | None) 
         "baseUrl": C1_BASE_URL,
         "engine": raw.get("engine"),
         "faceCount": raw.get("face_count", 0),
+        "diagnostics": raw.get("diagnostics") or {},
         "queryFaces": [_query_face_from_item(item) for item in raw.get("query_faces") or []],
     }
 

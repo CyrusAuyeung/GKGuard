@@ -56,6 +56,15 @@ const elements = {
   mediaViewerLocation: document.querySelector("#mediaViewerLocation"),
   mediaViewerCamera: document.querySelector("#mediaViewerCamera"),
   mediaViewerSimilarity: document.querySelector("#mediaViewerSimilarity"),
+  queryFaceModal: document.querySelector("#queryFaceModal"),
+  queryFaceModalClose: document.querySelector("#queryFaceModalClose"),
+  queryFaceModalFrame: document.querySelector("#queryFaceModalFrame"),
+  queryFaceModalStatus: document.querySelector("#queryFaceModalStatus"),
+  queryFaceModalConfirm: document.querySelector("#queryFaceModalConfirm"),
+  queryFaceModalCancel: document.querySelector("#queryFaceModalCancel"),
+  queryFaceZoomIn: document.querySelector("#queryFaceZoomIn"),
+  queryFaceZoomOut: document.querySelector("#queryFaceZoomOut"),
+  queryFaceZoomReset: document.querySelector("#queryFaceZoomReset"),
 };
 
 const records = [
@@ -98,13 +107,20 @@ let selectedQueryFaceImageUrl = "";
 let queryFaceDetectionComplete = false;
 let queryFaceDetectionPromise = null;
 let searchInProgress = false;
+let activeSearchController = null;
+let searchRunId = 0;
+let pendingAutoSearchTimer = null;
+let queryFaceModalZoom = 1;
 let lastC1Notice = "";
 let activeSource = "mock";
 let toastTimer = null;
 let lastFocusedElement = null;
-const MIN_SELECTABLE_FACE_SCORE = 0.65;
+const CONFIDENT_QUERY_FACE_SCORE = 0.65;
+const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FACE_HIT_PADDING_PX = 8;
-const C1_REQUEST_TIMEOUT_MS = 45000;
+const C1_QUERY_FACE_TIMEOUT_MS = 15000;
+const C1_SEARCH_TIMEOUT_MS = 25000;
+const SEARCH_WATCHDOG_TIMEOUT_MS = 30000;
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -131,13 +147,28 @@ function faceDetectionScore(face) {
   return finiteNumber(face?.score ?? face?.bbox?.score);
 }
 
-function selectableQueryFaces() {
+function visibleQueryFaces() {
   if (!queryFaces.length) return [];
-  const confidentFaces = queryFaces.filter((face) => {
+  return queryFaces.filter((face) => {
     const score = faceDetectionScore(face);
-    return score === null || score >= MIN_SELECTABLE_FACE_SCORE;
+    return score === null || score >= MIN_VISIBLE_QUERY_FACE_SCORE;
   });
-  return confidentFaces.length ? confidentFaces : queryFaces;
+}
+
+function selectableQueryFaces() {
+  return visibleQueryFaces();
+}
+
+function queryFaceConfidenceClass(face) {
+  const score = faceDetectionScore(face);
+  if (score !== null && score < CONFIDENT_QUERY_FACE_SCORE) return "is-low-confidence";
+  return "";
+}
+
+function queryFaceConfidenceLabel(face) {
+  const score = faceDetectionScore(face);
+  if (score === null) return "检测置信度 --";
+  return score < CONFIDENT_QUERY_FACE_SCORE ? `低置信 ${formatPercent(score)}` : `检测 ${formatPercent(score)}`;
 }
 
 function localizedC1Notice(message) {
@@ -158,11 +189,15 @@ function localizedC1Notice(message) {
   return text;
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = C1_REQUEST_TIMEOUT_MS) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = C1_SEARCH_TIMEOUT_MS) {
+  const { signal, ...fetchOptions } = options;
   const controller = new AbortController();
+  const abortFromOuterSignal = () => controller.abort(signal?.reason);
+  if (signal?.aborted) controller.abort(signal.reason);
+  signal?.addEventListener("abort", abortFromOuterSignal, { once: true });
   const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
-    return await fetch(url, { ...options, signal: controller.signal });
+    return await fetch(url, { ...fetchOptions, signal: controller.signal });
   } catch (error) {
     if (error?.name === "AbortError") {
       throw new Error("CampusVision C1 响应超时，请检查服务状态或稍后重试");
@@ -170,6 +205,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = C1_REQUEST_TIMEOU
     throw error;
   } finally {
     window.clearTimeout(timeout);
+    signal?.removeEventListener("abort", abortFromOuterSignal);
   }
 }
 
@@ -294,9 +330,12 @@ function faceBoxMarkup(face, options = {}) {
     "face-box",
     "is-pending",
     selected ? "is-selected" : "",
+    queryFaceConfidenceClass(face),
     options.compact ? "is-compact" : "",
+    options.modal ? "is-modal-face" : "",
   ].filter(Boolean).join(" ");
   const label = options.label || formatPercent(face.score ?? box.score);
+  const ariaLabel = queryFaceConfidenceLabel(face);
   const style = initialFaceBoxStyle(box);
   return `
     <span class="${classes}" role="button" tabindex="0" data-query-face-box data-query-face-index="${escapeHtml(face.index)}"
@@ -305,7 +344,7 @@ function faceBoxMarkup(face, options = {}) {
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
       data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
       ${style ? `style="${style}"` : ""}
-      aria-label="选择第 ${Number(face.index) + 1} 张人脸，检测置信度 ${escapeHtml(label)}">
+      aria-label="选择第 ${Number(face.index) + 1} 张人脸，${escapeHtml(ariaLabel)}">
       <span>${escapeHtml(label)}</span>
     </span>
   `;
@@ -339,7 +378,7 @@ function frameFaceBoxMarkup(record) {
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
       data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
       ${style ? `style="${style}"` : ""}>
-      <span>${escapeHtml(formatPercent(record.similarity))}</span>
+      <span class="face-score-label">${escapeHtml(formatPercent(record.similarity))}</span>
     </span>
   `;
 }
@@ -414,7 +453,7 @@ function faceBoxRect(box, content) {
 }
 
 function positionFrameFaceBoxes(root = document) {
-  root.querySelectorAll(".frame-image-wrap, .portrait-frame").forEach((wrap) => {
+  root.querySelectorAll(".frame-image-wrap, .portrait-frame, .face-select-image-wrap").forEach((wrap) => {
     const image = wrap.querySelector("img");
     if (!image) return;
     const update = () => {
@@ -431,7 +470,9 @@ function positionFrameFaceBoxes(root = document) {
         box.style.top = `${rect.top}px`;
         box.style.width = `${rect.width}px`;
         box.style.height = `${rect.height}px`;
-        box.classList.toggle("is-label-inside", rect.top < 30);
+        const isResultBox = box.classList.contains("result-face-box");
+        box.classList.toggle("is-label-inside", !isResultBox && rect.top < 30);
+        box.classList.toggle("is-label-below", isResultBox && rect.top < 32);
         box.classList.remove("is-pending");
         box.classList.add("is-positioned");
       });
@@ -524,6 +565,7 @@ function clearQueryFaces() {
   selectedQueryFaceImageUrl = "";
   queryFaceDetectionComplete = false;
   queryFaceDetectionPromise = null;
+  closeQueryFaceModal();
 }
 
 async function selectQueryFace(index, options = {}) {
@@ -532,14 +574,29 @@ async function selectQueryFace(index, options = {}) {
   selectedQueryFaceIndex = Number(face.index);
   selectedQueryFaceImageUrl = await cropUploadedFace(face).catch(() => "");
   syncPortraits();
+  updateQueryFaceSelectionState();
   if (!options.silent) {
     showToast(`已选择第 ${selectedQueryFaceIndex + 1} 张人脸作为检索目标。`, { tone: "success", title: "目标已确认" });
   }
   return true;
 }
 
-function queryFaceIndexFromPoint(event) {
-  const boxes = Array.from(elements.uploadDrop.querySelectorAll("[data-query-face-index]"));
+function updateQueryFaceSelectionState() {
+  document.querySelectorAll("[data-query-face-index]").forEach((box) => {
+    box.classList.toggle("is-selected", Number(box.dataset.queryFaceIndex) === Number(selectedQueryFaceIndex));
+  });
+  if (elements.queryFaceModalStatus) {
+    elements.queryFaceModalStatus.textContent = selectedQueryFaceIndex === null
+      ? `检测到 ${visibleQueryFaces().length} 张可选人脸，请点击目标人物。`
+      : `已选择第 ${selectedQueryFaceIndex + 1} 张人脸。`;
+  }
+  if (elements.queryFaceModalConfirm) {
+    elements.queryFaceModalConfirm.disabled = selectedQueryFaceIndex === null;
+  }
+}
+
+function queryFaceIndexFromPoint(event, root = elements.uploadDrop) {
+  const boxes = Array.from(root.querySelectorAll("[data-query-face-index]"));
   const hits = boxes
     .map((box) => {
       const rect = box.getBoundingClientRect();
@@ -564,19 +621,90 @@ function queryFaceIndexFromPoint(event) {
   return event.target.closest("[data-query-face-index]")?.dataset.queryFaceIndex;
 }
 
+function closeQueryFaceModal() {
+  if (!elements.queryFaceModal) return;
+  elements.queryFaceModal.classList.remove("is-visible");
+  elements.queryFaceModal.hidden = true;
+  if (elements.queryFaceModalFrame) elements.queryFaceModalFrame.innerHTML = "";
+  lastFocusedElement?.focus?.();
+}
+
+function setQueryFaceModalZoom(nextZoom) {
+  queryFaceModalZoom = Math.max(1, Math.min(3, Number(nextZoom) || 1));
+  const stage = elements.queryFaceModalFrame?.querySelector(".face-select-image-wrap");
+  const image = stage?.querySelector("img");
+  if (!stage || !image) return;
+  const naturalWidth = image.naturalWidth || 900;
+  stage.style.width = `${Math.round(naturalWidth * queryFaceModalZoom)}px`;
+  positionFrameFaceBoxes(elements.queryFaceModalFrame);
+}
+
+function renderQueryFaceModalFrame() {
+  if (!elements.queryFaceModalFrame || !uploadedImageUrl) return;
+  const boxes = visibleQueryFaces().map((face) => faceBoxMarkup(face, { modal: true })).join("");
+  elements.queryFaceModalFrame.innerHTML = `
+    <span class="face-select-image-wrap">
+      <img src="${escapeHtml(uploadedImageUrl)}" alt="放大选择目标人脸" />
+      <span class="query-face-layer" aria-label="放大查询图人脸选择">${boxes}</span>
+    </span>
+  `;
+  queryFaceModalZoom = 1;
+  const image = elements.queryFaceModalFrame.querySelector("img");
+  const applyInitialZoom = () => {
+    setQueryFaceModalZoom(1);
+    updateQueryFaceSelectionState();
+  };
+  if (image?.complete) applyInitialZoom();
+  image?.addEventListener("load", applyInitialZoom, { once: true });
+  positionFrameFaceBoxes(elements.queryFaceModalFrame);
+  updateQueryFaceSelectionState();
+}
+
+function openQueryFaceModal() {
+  if (!elements.queryFaceModal || !uploadedImageUrl || visibleQueryFaces().length < 2) return;
+  lastFocusedElement = document.activeElement;
+  renderQueryFaceModalFrame();
+  elements.queryFaceModal.hidden = false;
+  elements.queryFaceModal.classList.add("is-visible");
+  updateQueryFaceSelectionState();
+  elements.queryFaceModalFrame?.focus?.();
+}
+
+function scheduleAutoSearch() {
+  window.clearTimeout(pendingAutoSearchTimer);
+  pendingAutoSearchTimer = window.setTimeout(() => {
+    pendingAutoSearchTimer = null;
+    if (uploadedFile && selectedQueryFaceIndex !== null && !searchInProgress) {
+      startSearch();
+    }
+  }, 120);
+}
+
+function cancelActiveSearch() {
+  window.clearTimeout(pendingAutoSearchTimer);
+  pendingAutoSearchTimer = null;
+  if (activeSearchController) {
+    activeSearchController.abort();
+    activeSearchController = null;
+  }
+  searchRunId += 1;
+  searchInProgress = false;
+}
+
 function setSearchIdleLabel(label = "开始检索") {
   if (!elements.startSearchBtn || elements.startSearchBtn.dataset.state === "busy") return;
   elements.startSearchBtn.innerHTML = `<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>${label}`;
 }
 
-async function fetchQueryFaces() {
+async function fetchQueryFaces(signal) {
   if (!uploadedFile) throw new Error("请先上传目标人脸图片");
   const formData = new FormData();
   formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
   const response = await fetchWithTimeout("/c1/query-faces", {
     method: "POST",
     body: formData,
-  });
+    signal,
+  }, C1_QUERY_FACE_TIMEOUT_MS);
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail?.detail?.message || `C1 人脸检测返回 ${response.status}`);
@@ -587,11 +715,12 @@ async function fetchQueryFaces() {
 async function prepareQueryFaces(options = {}) {
   if (!uploadedFile) return "no-upload";
   if (queryFaceDetectionPromise) return queryFaceDetectionPromise;
+  const { signal } = options;
 
   queryFaceDetectionPromise = (async () => {
     try {
       if (!queryFaceDetectionComplete) {
-        const result = await fetchQueryFaces();
+        const result = await fetchQueryFaces(signal);
         queryFaces = Array.isArray(result.queryFaces) ? result.queryFaces : [];
         queryFaceDetectionComplete = true;
       }
@@ -600,17 +729,30 @@ async function prepareQueryFaces(options = {}) {
         selectedQueryFaceIndex = null;
         selectedQueryFaceImageUrl = "";
         syncPortraits();
-        showToast("未检测到人脸，请上传清晰正脸照片。", { tone: "warning", title: "未检测到人脸", timeout: 4200 });
-        setSearchIdleLabel("重新上传后检索");
+        showToast("未检测到人脸，请重新检测或上传更清晰的正脸照片。", { tone: "warning", title: "未检测到人脸", timeout: 5200 });
+        setSearchIdleLabel("重新检测人脸");
         return "no-face";
       }
 
       const candidates = selectableQueryFaces();
+      if (!candidates.length) {
+        selectedQueryFaceIndex = null;
+        selectedQueryFaceImageUrl = "";
+        syncPortraits();
+        showToast("检测到的人脸置信度过低，请重新检测或上传更清晰的照片。", { tone: "warning", title: "人脸置信度过低", timeout: 5600 });
+        setSearchIdleLabel("重新检测人脸");
+        return "no-face";
+      }
+
       if (candidates.length === 1) {
         await selectQueryFace(candidates[0].index, { silent: true });
         if (options.autoSearchSingle) {
-          showToast("已自动选中唯一人脸，正在检索。", { tone: "loading", title: "单人目标已确认" });
-          window.setTimeout(() => startSearch(), 120);
+          const score = faceDetectionScore(candidates[0]);
+          const message = score !== null && score < CONFIDENT_QUERY_FACE_SCORE
+            ? "已自动选中唯一低置信人脸，正在检索，请结合结果人工确认。"
+            : "已自动选中唯一人脸，正在检索。";
+          showToast(message, { tone: score !== null && score < CONFIDENT_QUERY_FACE_SCORE ? "warning" : "loading", title: "单人目标已确认" });
+          scheduleAutoSearch();
         } else {
           showToast("已自动选中唯一人脸。", { tone: "success", title: "目标已确认" });
         }
@@ -621,10 +763,11 @@ async function prepareQueryFaces(options = {}) {
       syncPortraits();
       setSearchIdleLabel(selectedQueryFaceIndex === null ? "选择人脸后检索" : "确认选择并检索");
       if (selectedQueryFaceIndex === null) {
-        const hiddenCount = Math.max(0, queryFaces.length - candidates.length);
+        const hiddenCount = Math.max(0, queryFaces.length - visibleQueryFaces().length);
+        openQueryFaceModal();
         const message = hiddenCount
-          ? `检测到多张人脸，已隐藏 ${hiddenCount} 个低置信框，请在原图上选择检索目标。`
-          : "检测到多张人脸，请在原图上选择检索目标。";
+          ? `检测到多张人脸，已隐藏 ${hiddenCount} 个极低置信框，请在放大图中选择检索目标。`
+          : "检测到多张人脸，请在放大图中选择检索目标。";
         showToast(message, { tone: "warning", title: "请选择目标人脸", timeout: 5200 });
         return "needs-selection";
       }
@@ -643,6 +786,7 @@ function loadImage(file) {
     showToast("请选择 JPG 或 PNG 图片。", { tone: "warning", title: "图片格式不支持" });
     return;
   }
+  cancelActiveSearch();
   const reader = new FileReader();
   reader.addEventListener("load", () => {
     uploadedFile = file;
@@ -668,6 +812,7 @@ function resetToMockData() {
 }
 
 function resetSearchInput() {
+  cancelActiveSearch();
   uploadedFile = null;
   uploadedImageUrl = "";
   matchedPersonImageUrl = "";
@@ -743,7 +888,7 @@ async function applyC1Result(result) {
   return true;
 }
 
-async function fetchC1Search() {
+async function fetchC1Search(signal) {
   if (!uploadedFile) throw new Error("请先上传目标人脸图片");
   const formData = new FormData();
   formData.append("file", uploadedFile, uploadedFile.name || "query.jpg");
@@ -752,7 +897,8 @@ async function fetchC1Search() {
   const response = await fetchWithTimeout(`/c1/search/person-by-image?${params.toString()}`, {
     method: "POST",
     body: formData,
-  });
+    signal,
+  }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}));
     throw new Error(detail?.detail?.message || `C1 接口返回 ${response.status}`);
@@ -768,12 +914,19 @@ async function connectC1AfterFailure(error) {
   }
 
   showToast("CampusVision C1 暂不可用，请在软件内输入服务器密码。", { tone: "warning", title: "需要连接 CampusVision C1", timeout: 0 });
-  const result = await desktopBridge.connectC1(error?.message || "CampusVision C1 服务当前不可用").catch(() => null);
+  const result = await Promise.race([
+    desktopBridge.connectC1(error?.message || "CampusVision C1 服务当前不可用").catch(() => null),
+    new Promise((resolve) => window.setTimeout(() => resolve({ connected: false, timeout: true }), SEARCH_WATCHDOG_TIMEOUT_MS)),
+  ]);
+  if (result?.timeout) {
+    showToast("CampusVision C1 连接等待超时，请重试或手动检查 SSH 隧道。", { tone: "error", title: "连接超时", timeout: 6200 });
+    return false;
+  }
   if (result?.connected) {
     showToast(result.prompted ? "CampusVision C1 已连接，正在重新检索。" : "CampusVision C1 已可用，正在重新检索。", { tone: "success", title: "连接已恢复" });
     return true;
   }
-  showToast("仍未检测到 CampusVision C1，将使用本地模拟。请确认服务器密码和校园网连接。", { tone: "warning", title: "已切换本地模拟", timeout: 4600 });
+  showToast("仍未检测到 CampusVision C1。已上传图片的真实检索不会回退本地模拟，请确认服务器密码和校园网连接后重试。", { tone: "warning", title: "连接未恢复", timeout: 5200 });
   return false;
 }
 
@@ -1090,17 +1243,32 @@ function closeMediaViewer() {
 }
 
 async function startSearch() {
-  if (searchInProgress) return;
+  if (searchInProgress) {
+    showToast("当前检索仍在进行，请等待完成或重新上传以取消。", { tone: "info", title: "检索中" });
+    return;
+  }
+  if (uploadedFile && queryFaceDetectionComplete && !queryFaces.length) {
+    queryFaceDetectionComplete = false;
+  }
+
+  const runId = searchRunId + 1;
+  searchRunId = runId;
+  const controller = new AbortController();
+  activeSearchController = controller;
   searchInProgress = true;
   setButtonBusy(elements.startSearchBtn, true, "检索中...", "开始检索");
   showToast(uploadedFile ? "正在调用 CampusVision C1 检索服务。" : "未上传图片，使用本地模拟数据。", { tone: "loading", title: uploadedFile ? "检索中" : "准备本地模拟" });
   let resultToast = null;
   let shouldShowResults = false;
+  const watchdog = window.setTimeout(() => {
+    controller.abort(new Error("CampusVision C1 检索超时"));
+  }, SEARCH_WATCHDOG_TIMEOUT_MS);
 
   async function runC1SearchFlow() {
-    const faceState = await prepareQueryFaces({ autoSearchSingle: false });
+    const faceState = await prepareQueryFaces({ autoSearchSingle: false, signal: controller.signal });
     if (faceState === "needs-selection" || faceState === "no-face") return faceState;
-    const result = await fetchC1Search();
+    const result = await fetchC1Search(controller.signal);
+    if (runId !== searchRunId) return "stale";
     const hasResults = await applyC1Result(result);
     return hasResults ? "searched" : "no-match";
   }
@@ -1123,6 +1291,7 @@ async function startSearch() {
       resultToast = { message: `已加载 ${records.length} 条本地模拟记录。`, options: { tone: "info", title: "本地模拟已就绪" } };
     }
   } catch (error) {
+    if (runId !== searchRunId) return;
     if (uploadedFile && await connectC1AfterFailure(error)) {
       try {
         queryFaceDetectionComplete = false;
@@ -1149,28 +1318,32 @@ async function startSearch() {
       resultToast = { message: `${error.message}，已回退本地模拟。`, options: { tone: "warning", title: "已使用本地模拟", timeout: 4600 } };
     }
   } finally {
-    setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
-    searchInProgress = false;
-    const candidateCount = selectableQueryFaces().length;
-    if (uploadedFile && queryFaceDetectionComplete && !queryFaces.length) {
-      setSearchIdleLabel("重新上传后检索");
-    }
-    if (candidateCount > 1 && selectedQueryFaceIndex === null) {
-      setSearchIdleLabel("选择人脸后检索");
-    }
-    if (candidateCount > 1 && selectedQueryFaceIndex !== null) {
-      setSearchIdleLabel("确认选择并检索");
-    }
-    if (shouldShowResults) {
-      selectedRecordIndex = 0;
-      renderRecordLists();
-      renderSelectedRecord();
-      renderRouteMap();
-      renderRouteTimeline();
-      switchScreen("result");
-    }
-    if (resultToast) {
-      showToast(resultToast.message, resultToast.options);
+    window.clearTimeout(watchdog);
+    if (activeSearchController === controller) activeSearchController = null;
+    if (runId === searchRunId) {
+      setButtonBusy(elements.startSearchBtn, false, "检索中...", "开始检索");
+      searchInProgress = false;
+      const candidateCount = selectableQueryFaces().length;
+      if (uploadedFile && queryFaceDetectionComplete && !queryFaces.length) {
+        setSearchIdleLabel("重新检测人脸");
+      }
+      if (candidateCount > 1 && selectedQueryFaceIndex === null) {
+        setSearchIdleLabel("选择人脸后检索");
+      }
+      if (candidateCount > 1 && selectedQueryFaceIndex !== null) {
+        setSearchIdleLabel("确认选择并检索");
+      }
+      if (shouldShowResults) {
+        selectedRecordIndex = 0;
+        renderRecordLists();
+        renderSelectedRecord();
+        renderRouteMap();
+        renderRouteTimeline();
+        switchScreen("result");
+      }
+      if (resultToast) {
+        showToast(resultToast.message, resultToast.options);
+      }
     }
   }
 }
@@ -1194,6 +1367,11 @@ function bindEvents() {
       event.preventDefault();
       await selectQueryFace(faceIndex);
       setSearchIdleLabel("确认选择并检索");
+      return;
+    }
+    if (visibleQueryFaces().length > 1) {
+      event.preventDefault();
+      openQueryFaceModal();
       return;
     }
     elements.faceFile.click();
@@ -1223,6 +1401,37 @@ function bindEvents() {
     loadImage(event.dataTransfer.files?.[0]);
   });
   elements.startSearchBtn.addEventListener("click", startSearch);
+  elements.queryFaceModalFrame?.addEventListener("click", async (event) => {
+    const faceIndex = queryFaceIndexFromPoint(event, elements.queryFaceModalFrame);
+    if (faceIndex === undefined) return;
+    event.preventDefault();
+    await selectQueryFace(faceIndex, { silent: true });
+    setSearchIdleLabel("确认选择并检索");
+  });
+  elements.queryFaceModalFrame?.addEventListener("keydown", async (event) => {
+    const faceTarget = event.target.closest("[data-query-face-index]");
+    if (faceTarget && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      await selectQueryFace(faceTarget.dataset.queryFaceIndex, { silent: true });
+      setSearchIdleLabel("确认选择并检索");
+    }
+  });
+  elements.queryFaceModalConfirm?.addEventListener("click", () => {
+    if (selectedQueryFaceIndex === null) {
+      showToast("请先在放大图中选择目标人脸。", { tone: "warning", title: "未选择目标" });
+      return;
+    }
+    closeQueryFaceModal();
+    startSearch();
+  });
+  elements.queryFaceModalCancel?.addEventListener("click", closeQueryFaceModal);
+  elements.queryFaceModalClose?.addEventListener("click", closeQueryFaceModal);
+  elements.queryFaceModal?.addEventListener("click", (event) => {
+    if (event.target === elements.queryFaceModal) closeQueryFaceModal();
+  });
+  elements.queryFaceZoomIn?.addEventListener("click", () => setQueryFaceModalZoom(queryFaceModalZoom + 0.25));
+  elements.queryFaceZoomOut?.addEventListener("click", () => setQueryFaceModalZoom(queryFaceModalZoom - 0.25));
+  elements.queryFaceZoomReset?.addEventListener("click", () => setQueryFaceModalZoom(1));
   elements.newSearchBtn?.addEventListener("click", resetSearchInput);
   elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。", { tone: "info", title: "已切换视图" }); });
@@ -1251,6 +1460,9 @@ function bindEvents() {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && elements.mediaViewer?.classList.contains("is-visible")) {
       closeMediaViewer();
+    }
+    if (event.key === "Escape" && elements.queryFaceModal?.classList.contains("is-visible")) {
+      closeQueryFaceModal();
     }
   });
   window.addEventListener("resize", () => positionFrameFaceBoxes());

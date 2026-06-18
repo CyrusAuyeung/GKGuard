@@ -7,21 +7,23 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.26` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.27` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
 1. [README.md](../README.md)：仓库内容、运行方式、发布流程和验证命令。
 2. [c1_c2_integration.md](c1_c2_integration.md)：CampusVision C1 服务与 GKGuard C2 工作台的职责边界、字段映射和联调检查。
 3. [c1_auto_connection.md](c1_auto_connection.md)：安装版自动连接 CampusVision C1、SSH 隧道和密码窗口行为。
-4. [api_contract.md](api_contract.md)：GKGuard C2 API、CampusVision C1 代理接口和 CampusCar/UE 占位接口。
-5. [demo_script.md](demo_script.md)：安装版和本地开发版演示流程。
-6. [data_dictionary.md](data_dictionary.md)：模拟数据、CampusVision C1 检索数据和敏感字段边界。
-7. [campuscar_ue_integration.md](campuscar_ue_integration.md)：CampusCar、ROS2、UE Bridge 的当前占位接口规范。
+4. [c1_remote_deploy.md](c1_remote_deploy.md)：CampusVision C1 远端半自动部署、重启和健康检查流程。
+5. [api_contract.md](api_contract.md)：GKGuard C2 API、CampusVision C1 代理接口和 CampusCar/UE 占位接口。
+6. [demo_script.md](demo_script.md)：安装版和本地开发版演示流程。
+7. [data_dictionary.md](data_dictionary.md)：模拟数据、CampusVision C1 检索数据和敏感字段边界。
+8. [campuscar_ue_integration.md](campuscar_ue_integration.md)：CampusCar、ROS2、UE Bridge 的当前占位接口规范。
 
 ## 发布与版本
 
-- [releases/v0.1.26.md](releases/v0.1.26.md)：当前最新版本说明，记录查询图低置信框过滤、结果关键帧目标框定位修复、CampusVision C1 无匹配状态恢复、Electron 缓存刷新和 SSH 隧道错误处理。
+- [releases/v0.1.27.md](releases/v0.1.27.md)：当前最新版本说明，记录查询图检测预处理与重试、多人放大弹窗选人、低置信候选可见标注、结果关键帧框外相似度、检索超时恢复和 CampusVision C1 远端半自动部署脚本。
+- [releases/v0.1.26.md](releases/v0.1.26.md)：查询图低置信框过滤、结果关键帧目标框定位修复、CampusVision C1 无匹配状态恢复、Electron 缓存刷新和 SSH 隧道错误处理。
 - [releases/v0.1.22.md](releases/v0.1.22.md)：移动端 UI 精修、空 toast 修复和静态资源版本命名。
 - [releases/](releases/)：历史版本发布记录。
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
@@ -56,21 +58,23 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.26`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.27`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
 1. [README.md](../README.md): repository contents, run modes, release flow, and validation commands.
 2. [c1_c2_integration.md](c1_c2_integration.md): CampusVision C1 service and GKGuard C2 workbench ownership boundary, field mapping, and integration checklist.
 3. [c1_auto_connection.md](c1_auto_connection.md): packaged-app CampusVision C1 auto-connection, SSH tunnel, and password-window behavior.
-4. [api_contract.md](api_contract.md): GKGuard C2 APIs, CampusVision C1 proxy endpoints, and CampusCar/UE placeholder endpoints.
-5. [demo_script.md](demo_script.md): packaged-app and local-development demo flows.
-6. [data_dictionary.md](data_dictionary.md): mock data, CampusVision C1 search data, and sensitive-field boundaries.
-7. [campuscar_ue_integration.md](campuscar_ue_integration.md): current placeholder interface specification for CampusCar, ROS2, and UE Bridge.
+4. [c1_remote_deploy.md](c1_remote_deploy.md): semi-automatic CampusVision C1 remote deployment, restart, and health-check flow.
+5. [api_contract.md](api_contract.md): GKGuard C2 APIs, CampusVision C1 proxy endpoints, and CampusCar/UE placeholder endpoints.
+6. [demo_script.md](demo_script.md): packaged-app and local-development demo flows.
+7. [data_dictionary.md](data_dictionary.md): mock data, CampusVision C1 search data, and sensitive-field boundaries.
+8. [campuscar_ue_integration.md](campuscar_ue_integration.md): current placeholder interface specification for CampusCar, ROS2, and UE Bridge.
 
 ## Releases And Versions
 
-- [releases/v0.1.26.md](releases/v0.1.26.md): latest release notes covering low-confidence query-box filtering, result keyframe overlay positioning, CampusVision C1 no-match recovery, Electron cache refresh, and SSH tunnel error handling.
+- [releases/v0.1.27.md](releases/v0.1.27.md): latest release notes covering query-face preprocessing and retry, the enlarged multi-face selection modal, visible low-confidence candidates, outside-box keyframe similarity labels, search timeout recovery, and the semi-automatic CampusVision C1 remote deployment script.
+- [releases/v0.1.26.md](releases/v0.1.26.md): low-confidence query-box filtering, result keyframe overlay positioning, CampusVision C1 no-match recovery, Electron cache refresh, and SSH tunnel error handling.
 - [releases/v0.1.22.md](releases/v0.1.22.md): mobile UI polish, empty-toast cleanup, and static asset version naming.
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.
