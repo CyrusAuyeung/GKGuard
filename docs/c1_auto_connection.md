@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -149,8 +149,9 @@ ssh -N -L 18000:127.0.0.1:8000 speng@10.4.167.122
 1. GKGuard C2 前端仍能上传照片到本机 GKGuard C2 后端。
 2. GKGuard C2 的 `/c1/...` 请求会返回不可用错误。
 3. 桌面 UI 会打开软件内 CampusVision C1 密码窗口；用户输入 SSH 密码后自动重试一次。
-4. 如果仍不可用，前端才会回退到本地模拟数据，继续展示演示结果。
-5. 回退结果不是服务器真实数据。
+4. 如果没有上传图片，前端可回退到本地模拟数据，继续展示演示结果。
+5. 如果已经上传图片但查询图人脸检测或真实检索仍不可用，前端停留在上传页提示重试，不展示模拟结果。
+6. 回退结果不是服务器真实数据。
 
 ## 检查方式
 
@@ -322,8 +323,9 @@ If all candidate CampusVision C1 URLs are unavailable:
 1. The GKGuard C2 frontend still uploads the photo to the local GKGuard C2 backend.
 2. GKGuard C2 `/c1/...` requests return unavailable errors.
 3. The desktop UI opens the embedded CampusVision C1 password prompt; after the user enters the SSH password, it retries once automatically.
-4. If CampusVision C1 is still unavailable, the frontend falls back to local mock data and continues the demo.
-5. The fallback result is not real server data.
+4. If no image has been uploaded, the frontend can fall back to local mock data and continue the demo.
+5. If an image has been uploaded but query-face detection or real search is still unavailable, the frontend stays on the upload screen with a retry/error message instead of showing mock results.
+6. The fallback result is not real server data.
 
 ## How To Check
 

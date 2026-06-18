@@ -1,4 +1,4 @@
-name: Bug report / 缺陷反馈
+﻿name: Bug report / 缺陷反馈
 description: Report a reproducible GKGuard problem / 反馈可复现问题
 title: "[Bug]: "
 labels: ["type: bug"]
@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      description: Release tag or commit, for example v0.1.24.
-      placeholder: v0.1.24
+      description: Release tag or commit, for example v0.1.25.
+      placeholder: v0.1.25
     validations:
       required: true
   - type: dropdown

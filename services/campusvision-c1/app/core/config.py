@@ -35,6 +35,7 @@ class Settings:
     db_path: Path = data_dir / "campusvision.sqlite3"
 
     face_engine: str = os.getenv("FACE_ENGINE", "insightface").strip().lower()
+    insightface_det_size: int = int(os.getenv("INSIGHTFACE_DET_SIZE", "1280"))
     default_frame_interval_sec: float = float(os.getenv("DEFAULT_FRAME_INTERVAL_SEC", "1.0"))
 
     def ensure_dirs(self) -> None:

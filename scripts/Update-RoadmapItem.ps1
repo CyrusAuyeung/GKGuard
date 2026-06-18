@@ -15,7 +15,7 @@ param(
   [string]$StartDate = (Get-Date -Format "yyyy-MM-dd"),
   [string]$EndDate = "",
   [double]$TimelineOrder = 0,
-  [string]$TargetVersion = "post-v0.1.24"
+  [string]$TargetVersion = "post-v0.1.25"
 )
 
 $ErrorActionPreference = "Stop"

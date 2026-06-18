@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -107,7 +107,7 @@
 - `frameUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于详情关键帧。
 - `faceUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图。
 - `faceId`：CampusVision C1 face record ID。
-- `faceBox`：命中关键帧中的目标人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height` 和可选检测分数；GKGuard C2 用于在详情关键帧和预览弹窗上标注目标人脸。
+- `faceBox`：命中关键帧中的目标人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height` 和可选检测分数；GKGuard C2 用于在详情关键帧和预览弹窗上标注目标人脸。适配器兼容像素坐标、归一化坐标、百分比字段和常见 bbox 字段别名。
 - `videoId`：CampusVision C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
 
@@ -291,7 +291,7 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by the detail keyframe.
 - `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails.
 - `faceId`: CampusVision C1 face record ID.
-- `faceBox`: target-face box in the matched keyframe, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, and optional detection score; GKGuard C2 uses it for target-face overlays in the detail keyframe and preview dialog.
+- `faceBox`: target-face box in the matched keyframe, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, and optional detection score; GKGuard C2 uses it for target-face overlays in the detail keyframe and preview dialog. The adapter accepts pixel coordinates, normalized coordinates, percentage fields, and common bbox field aliases.
 - `videoId`: CampusVision C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.
 

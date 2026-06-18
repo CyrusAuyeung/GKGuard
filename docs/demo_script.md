@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -9,13 +9,13 @@
 
 ## 目标
 
-演示当前 GKGuard C2 工作台闭环：上传人脸图片，GKGuard C2 前端只访问 GKGuard C2 后端；GKGuard C2 后端优先调用 CampusVision C1 服务获取真实关键帧和轨迹；如果 CampusVision C1 不可用，则回退本地模拟记录；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 模拟工作流。
+演示当前 GKGuard C2 工作台闭环：未上传图片时可用本地模拟记录展示三屏流程；上传人脸图片后，GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端调用 CampusVision C1 服务获取真实关键帧和轨迹；若查询图人脸检测或真实检索失败，界面停留在上传页提示重试，不展示伪成功结果；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 模拟工作流。
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.24` 推荐流程：
+安装版 `v0.1.25` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.24.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.25.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -25,7 +25,7 @@
 8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框和相似度。
 9. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 10. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`。
-11. 在最大化窗口、常规桌面窗口、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；结果页和路线页按钮保持双列触控高度，记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
+11. 在最大化窗口、常规桌面窗口、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
@@ -81,20 +81,20 @@ CampusVision C1 已连接时期望结果：
 
 - 结果页数据来源显示 `CampusVision C1`。
 - 上传页会先检测查询图人脸；单人图会自动检索，多人图会在原图上显示人脸框和检测置信度，用户选择后只检索目标人脸。
-- 结果页人物照片显示选中的查询人脸；只有未上传图或无法裁切时才回退完整上传图或 CampusVision C1 代表人脸。
+- 结果页人物照片优先显示选中的查询人脸裁切图；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
 - 检索记录列表优先展示 CampusVision C1 人脸裁剪缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
 - 详情关键帧和关键帧预览弹窗会在目标人脸位置显示框和相似度。
 - 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、地图上方摘要、时间线和轨迹摘要。
-- 检索、CampusVision C1 回退、定位、导出和更新入口会显示统一状态提示，按处理中、完成、注意和失败区分反馈。
+- 检索、查询图人脸检测、定位、导出和更新入口会显示统一状态提示，按处理中、完成、注意和失败区分反馈。
 
 CampusVision C1 未连接、接口失败或未上传图片时期望结果：
 
 - 桌面模式下，CampusVision C1 检索失败会先打开软件内服务器密码窗口并重试一次。
-- UI 回退到本地模拟记录。
-- 结果页数据来源显示 `本地模拟`。
+- 未上传图片时，UI 回退到本地模拟记录；已上传图片但查询图人脸检测或真实检索失败时，UI 停留在上传页并提示重试。
+- 只有未上传图片时，结果页数据来源才显示 `本地模拟`；已上传图片但检测或检索失败时不会进入模拟结果页。
 - 页面仍可用于演示 GKGuard C2 工作台和交互流程。
 
 ## 旧版模拟 API 演示
@@ -201,13 +201,13 @@ GET /events/ALT-001/case-package
 
 ## Goal
 
-Demonstrate the current GKGuard C2 workbench loop: upload a face image, let the GKGuard C2 frontend call only the GKGuard C2 backend, let the GKGuard C2 backend prefer the CampusVision C1 service for real keyframes and trajectory, fall back to local mock records if CampusVision C1 is unavailable, and keep GKGuard C2 mock workflows for case review, audit, and CampusCar/UE placeholders.
+Demonstrate the current GKGuard C2 workbench loop: use local mock records for the three-screen flow when no image is uploaded; after uploading a face image, let the GKGuard C2 frontend call only the GKGuard C2 backend and let the GKGuard C2 backend call CampusVision C1 for real keyframes and trajectory. If query-face detection or real search fails, the UI stays on the upload screen with a retry/error message instead of showing false successful results. GKGuard C2 mock workflows for case review, audit, and CampusCar/UE placeholders remain available.
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.24`:
+Recommended packaged-app flow for `v0.1.25`:
 
-1. Download and install `GKGuard-Setup-0.1.24.exe`.
+1. Download and install `GKGuard-Setup-0.1.25.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -217,7 +217,7 @@ Recommended packaged-app flow for `v0.1.24`:
 8. After the search finishes, confirm that the result portrait uses the selected query face; the detail keyframe and keyframe preview dialog should show a target-face box with the similarity score.
 9. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 10. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`.
-11. Check maximized, regular desktop, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. Result and route action buttons should keep two-column touch-height layout, record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
+11. Check maximized, regular desktop, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
 
 GKGuard does not store, read, or log the SSH password.
 
@@ -280,13 +280,13 @@ Expected result with CampusVision C1 connected:
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
 - The detail keyframe and keyframe preview dialog show the target-face box with similarity.
 - `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data, with a top route overview, timeline, and summary.
-- Search, CampusVision C1 fallback, navigation, export, and update actions use unified status feedback for loading, success, warning, and failure states.
+- Search, query-face detection, navigation, export, and update actions use unified status feedback for loading, success, warning, and failure states.
 
 Expected result without CampusVision C1, after a CampusVision C1 failure, or without an uploaded image:
 
 - In desktop mode, failed CampusVision C1 search first opens the server login window and retries once.
-- The UI falls back to local mock records.
-- The result source shows `本地模拟`.
+- The UI falls back to local mock records only when no image has been uploaded; uploaded-image detection or real-search failures keep the UI on the upload screen with a retry/error message.
+- The result source shows `本地模拟` only when no image has been uploaded; uploaded-image detection or search failures do not enter the mock result screen.
 - The page remains usable for demonstrating the GKGuard C2 workbench and interactions.
 
 ## Legacy Mock API Walkthrough

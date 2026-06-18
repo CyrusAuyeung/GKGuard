@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -7,7 +7,7 @@
 
 # CampusVision C1 / GKGuard C2 集成说明
 
-本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.24` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路，并新增查询图人脸检测、多人原图框选、选中人脸检索、结果关键帧目标框和相似度标注：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
+本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.25` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路、查询图人脸检测、多人原图框选、选中人脸检索、目标人脸裁切展示、结果关键帧目标框和相似度标注：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
 
 ## 职责边界
 
@@ -65,7 +65,7 @@ CampusVision C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/person
 | `appearance_events[]` | 后续更丰富时间线的事件段。 |
 | `frame_url` / `best_frame_url` | 改写为 `/c1/media/frame/...` 后用于详情关键帧。 |
 | `face_url` / `face_crop_url` / `face_id` | 改写为 `/c1/media/face/...` 后用于记录列表缩略图。 |
-| `bbox` | 查询图或命中帧中的人脸框；查询图 bbox 用于选择目标，命中帧 bbox 映射为 `records[].faceBox` 并用于关键帧目标框。 |
+| `bbox` | 查询图或命中帧中的人脸框；查询图 bbox 用于选择目标，命中帧 bbox 映射为 `records[].faceBox` 并用于关键帧目标框。GKGuard C2 兼容像素坐标、归一化坐标、百分比字段和常见 bbox 字段别名。 |
 | `representative_face_crop_url` | 改写为 `/c1/media/face/...` 后作为目标头像。 |
 | `camera_id`、`camera_name` | 摄像头标识与展示名。 |
 | `location`、`lat`、`lng` | 位置和地图信息。 |
@@ -84,7 +84,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 - GKGuard C2 将 CampusVision C1 相对媒体 URL 改写为 `/c1/media/...`。
 - GKGuard C2 将 CampusVision C1 `query_faces`、`selected_query_face`、`matches`、`trajectory` 和人物元数据转换为上传页、结果页与路线图可用的数据结构。
 - 若 CampusVision C1 返回命中帧 `bbox`，GKGuard C2 前端会在详情关键帧和预览弹窗上显示目标人脸框，并在框上显示匹配相似度。
-- 未上传图片、CampusVision C1 不可用或 CampusVision C1 请求失败时，桌面 UI 会先触发软件内 CampusVision C1 连接窗口并重试；仍失败时才回退本地模拟数据。
+- 未上传图片时可以使用本地模拟数据演示流程；已上传图片后，查询图人脸检测或 CampusVision C1 真实检索失败会停留在上传页提示重试，不展示本地模拟命中结果。
 - 结果页显示当前数据来源：`CampusVision C1` 或 `本地模拟`。
 
 ## 联调检查
@@ -95,6 +95,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 - GKGuard C2 验证 `/c1/status`、`/c1/persons`、`/c1/query-faces`、`/c1/search/person-by-image` 和 `/c1/media/...`。
 - 多人查询图联调时，应确认 `/c1/query-faces` 返回多张查询人脸，GKGuard C2 上传页能框选目标，后续 `/c1/search/person-by-image` 带上正确的 `query_face_index`。
 - 关键帧联调时，应确认 CampusVision C1 返回命中帧 `bbox`，GKGuard C2 详情区和关键帧预览弹窗能显示目标框和相似度。
+- 若多人图只返回一张查询人脸，应优先检查 CampusVision C1 是否使用 `INSIGHTFACE_DET_SIZE=1280` 或更高检测尺寸，并确认服务已重启。
 - CampusVision C1 提供安全的演示视频与查询图片规范，真实媒体不进入仓库。
 - 后续 CampusVision C1 数据应补齐 `captured_at`、`camera_name`、`location`，否则 GKGuard C2 只能展示摄像头 ID 和视频内时间。
 
@@ -106,7 +107,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 
 # CampusVision C1 / GKGuard C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder interface specifications. As of `v0.1.24`, the real GKGuard C2-to-CampusVision C1 search path is included, with query-face detection, multi-face selection on the original upload, selected-face search, and target-face overlays with similarity on result keyframes: the GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder interface specifications. As of `v0.1.25`, the real GKGuard C2-to-CampusVision C1 search path is included, with query-face detection, multi-face selection on the original upload, selected-face search, selected query-face crop display, and target-face overlays with similarity on result keyframes: the GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 
@@ -183,8 +184,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 - GKGuard C2 rewrites CampusVision C1 relative media URLs to `/c1/media/...`.
 - GKGuard C2 converts CampusVision C1 `query_faces`, `selected_query_face`, `matches`, `trajectory`, and person metadata into upload, result, and route view models.
 - If CampusVision C1 returns a matched-frame `bbox`, the GKGuard C2 frontend overlays the target face and similarity on the detail keyframe and preview dialog.
-- If no image is uploaded, CampusVision C1 is unavailable, or the CampusVision C1 request fails, the UI first triggers the embedded CampusVision C1 connection prompt and retries; it falls back to local mock data only if CampusVision C1 remains unavailable.
-- The result screen shows the active data source: `CampusVision C1` or `本地模拟`.
+- Without an uploaded image, the UI can use local mock data for the demo flow; after an image is uploaded, query-face detection or real CampusVision C1 search failures keep the UI on the upload screen with a retry/error message instead of showing mock hits.
 
 ## Integration Checklist
 
@@ -193,6 +193,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 - CampusVision C1 completes the full flow: create camera, upload video, index video, rebuild or update person index, and search person by image.
 - GKGuard C2 verifies `/c1/status`, `/c1/persons`, `/c1/query-faces`, `/c1/search/person-by-image`, and `/c1/media/...`.
 - For multi-face query-image testing, confirm `/c1/query-faces` returns multiple faces, the GKGuard C2 upload screen can select the intended target, and the following `/c1/search/person-by-image` request includes the correct `query_face_index`.
+- If a multi-face image returns only one query face, first check that CampusVision C1 is running with `INSIGHTFACE_DET_SIZE=1280` or a larger detection size, then restart the service.
 - For keyframe testing, confirm CampusVision C1 returns matched-frame `bbox` data and GKGuard C2 shows the target box plus similarity in the detail view and preview dialog.
 - CampusVision C1 provides a safe demo video and query-image policy; real media must not enter this repository.
 - Future CampusVision C1 data should include meaningful `captured_at`, `camera_name`, and `location`; otherwise GKGuard C2 can only display camera IDs and in-video time.
