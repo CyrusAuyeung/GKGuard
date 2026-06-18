@@ -63,6 +63,19 @@ async function expectResultFaceBoxAwayFromOrigin(page, selector = "#recordScene 
   expect(box.y - scene.y).toBeGreaterThan(40);
 }
 
+async function expectResultFaceLabelOutsideBox(page, selector = "#recordScene .result-face-box") {
+  const placement = await page.locator(selector).evaluate((box) => {
+    const label = box.querySelector(".face-score-label");
+    const boxRect = box.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    return {
+      above: labelRect.bottom <= boxRect.top,
+      below: labelRect.top >= boxRect.bottom,
+    };
+  });
+  expect(placement.above || placement.below).toBe(true);
+}
+
 test.describe("GKGuard C2 demo UI", () => {
   test("mock search, route navigation, and reset remain responsive", async ({ page }) => {
     const problems = collectBrowserProblems(page);
@@ -200,6 +213,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
     await expect(page.locator("#recordScene .result-face-box")).not.toHaveClass(/is-pending/);
     await expectResultFaceBoxAwayFromOrigin(page);
+    await expectResultFaceLabelOutsideBox(page);
     await expectDesktopRecordListOnLeft(page);
 
     await page.locator("#recordScene").click();
@@ -330,14 +344,20 @@ test.describe("GKGuard C2 demo UI", () => {
       buffer: PNG_BUFFER,
     });
 
-    await expect(page.locator("[data-query-face-index]")).toHaveCount(2);
-    await expect(page.locator('[data-query-face-index="0"]')).toHaveCount(0);
+    await expect(page.locator("#queryFaceModal")).toBeVisible();
+    await expect(page.locator("#uploadDrop [data-query-face-index]")).toHaveCount(3);
+    await expect(page.locator('#uploadDrop [data-query-face-index="0"]')).toHaveClass(/is-low-confidence/);
+    await expect(page.locator("#queryFaceModalFrame [data-query-face-index]")).toHaveCount(3);
     await expect(page.locator("#searchView")).toHaveClass(/is-active/);
-    await clickQueryFaceByIndex(page, 2);
-    await expect(page.locator('[data-query-face-index="2"]')).toHaveClass(/is-selected/);
+    const modalFace = page.locator('#queryFaceModalFrame [data-query-face-index="2"]');
+    const modalFaceBox = await modalFace.boundingBox();
+    expect(modalFaceBox).not.toBeNull();
+    await page.mouse.click(modalFaceBox.x + modalFaceBox.width / 2, modalFaceBox.y + modalFaceBox.height / 2);
+    await expect(modalFace).toHaveClass(/is-selected/);
 
-    await page.getByRole("button", { name: /确认选择并检索/ }).click();
+    await page.locator("#queryFaceModalConfirm").click();
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await expect(page.locator("#queryFaceModal")).toBeHidden();
     expect(searchUrl).toContain("query_face_index=2");
     await expect(page.locator("#resultPortrait img")).toBeVisible();
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
@@ -412,6 +432,74 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#toast")).toContainText("未找到达到相似度阈值的人员");
     await expect(page.locator("#toast")).not.toContainText("No person matched");
     await expect(page.getByRole("button", { name: /开始检索/ })).toBeEnabled();
+    expect(searchCalls).toBe(1);
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("C1 search timeout returns to an idle upload state", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchCalls = 0;
+
+    await page.route("**/static/app.js?**", async (route) => {
+      const response = await route.fetch();
+      const body = (await response.text())
+        .replace("const C1_QUERY_FACE_TIMEOUT_MS = 15000;", "const C1_QUERY_FACE_TIMEOUT_MS = 600;")
+        .replace("const C1_SEARCH_TIMEOUT_MS = 25000;", "const C1_SEARCH_TIMEOUT_MS = 600;")
+        .replace("const SEARCH_WATCHDOG_TIMEOUT_MS = 30000;", "const SEARCH_WATCHDOG_TIMEOUT_MS = 900;");
+      await route.fulfill({ response, body });
+    });
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.93,
+              bbox: {
+                x1: 0.18,
+                y1: 0.18,
+                x2: 0.52,
+                y2: 0.62,
+                width: 0.34,
+                height: 0.44,
+                leftPct: 18,
+                topPct: 18,
+                widthPct: 34,
+                heightPct: 44,
+              },
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchCalls += 1;
+      await new Promise((resolve) => setTimeout(resolve, 1600));
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ records: [] }),
+      }).catch(() => {});
+    });
+
+    await page.goto("/demo?desktop=1&e2e=c1-timeout");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-timeout.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/, { timeout: 5000 });
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("响应超时", { timeout: 5000 });
+    await expect(page.getByRole("button", { name: /开始检索|重新检测人脸/ })).toBeEnabled();
     expect(searchCalls).toBe(1);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);

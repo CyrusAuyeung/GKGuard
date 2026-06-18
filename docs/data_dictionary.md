@@ -72,7 +72,8 @@
 - `engine`：CampusVision C1 引擎名，预期为 `insightface`。
 - `warning`：低置信或歧义提示。
 - `ambiguous`：候选集是否歧义。
-- `queryFaces`：查询图中检测到的人脸列表；每项包含 `index`、检测置信度和人脸框。GKGuard C2 前端展示的是有效候选人脸；当存在高置信候选时，低于 `0.65` 的检测框会被隐藏以减少误检堆叠。
+- `queryFaces`：查询图中检测到的人脸列表；每项包含 `index`、检测置信度和人脸框。GKGuard C2 前端展示的是有效候选人脸；低于 `0.65` 但不低于 `0.45` 的候选会以低置信样式显示并仍可选择，低于 `0.45` 的候选不作为可选目标。
+- `diagnostics`：CampusVision C1 查询图预处理和检测重试诊断信息，包括原图尺寸、检测变体和每次尝试检测到的人脸数，用于排障。
 - `selectedQueryFace`：当前实际用于检索的查询图人脸；单人自动选择或多人手动选择后生成。
 - `person`：当前 UI 选中的候选人物。
 - `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
@@ -90,6 +91,7 @@
 - `score`：人脸检测置信度，用于判断检测质量，不等同于人物匹配相似度。
 - `imageWidth`、`imageHeight`：查询原图尺寸。
 - `bbox`：查询图人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height`、`leftPct`、`topPct`、`widthPct`、`heightPct` 和可选 `score`。GKGuard C2 兼容像素坐标、归一化坐标和百分比字段。
+- `diagnostics`：查询图级别的检测诊断信息，不属于单个人脸框本身。
 
 真实部署中的敏感字段：查询原图、人脸框位置、检测置信度和被选中的目标人脸。
 
@@ -256,7 +258,8 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `engine`: CampusVision C1 engine name, expected to be `insightface`.
 - `warning`: low-confidence or ambiguity warning.
 - `ambiguous`: whether the candidate set is ambiguous.
-- `queryFaces`: faces detected in the query image; each item includes an `index`, detection confidence, and face box. GKGuard C2 displays effective candidate faces; when higher-confidence candidates exist, boxes below `0.65` are hidden to reduce false-positive overlap.
+- `queryFaces`: faces detected in the query image; each item includes an `index`, detection confidence, and face box. GKGuard C2 displays effective candidate faces; candidates below `0.65` but at least `0.45` stay visible with a low-confidence style and remain selectable, while candidates below `0.45` are not exposed as targets.
+- `diagnostics`: CampusVision C1 query-image preprocessing and detection retry diagnostics, including original image size, detection variants, and face counts per attempt, for troubleshooting.
 - `selectedQueryFace`: query face actually used for this search, produced by single-face auto-selection or manual multi-face selection.
 - `person`: selected candidate person for the current UI.
 - `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
@@ -274,6 +277,7 @@ Sensitive in real deployments: face images, frame images, person links, movement
 - `score`: face-detection confidence for detection quality, not person-match similarity.
 - `imageWidth`, `imageHeight`: original query-image dimensions.
 - `bbox`: query-face box, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, `leftPct`, `topPct`, `widthPct`, `heightPct`, and optional `score`. GKGuard C2 accepts pixel, normalized, and percentage coordinates.
+- `diagnostics`: image-level detection diagnostics; not part of an individual face box.
 
 Sensitive in real deployments: query image, face-box position, detection confidence, and selected target face.
 

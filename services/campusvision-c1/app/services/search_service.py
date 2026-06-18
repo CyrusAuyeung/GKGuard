@@ -2,16 +2,39 @@ from __future__ import annotations
 
 import shutil
 import uuid
+from dataclasses import dataclass
 from hashlib import sha1
 from pathlib import Path
 from typing import BinaryIO
 
 import cv2
+import numpy as np
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.core.config import settings
 from app.storage import db
 from app.vision.face_engine import default_similarity_threshold, get_face_engine
 from app.vision.vector_math import cosine_similarity
+
+
+@dataclass(frozen=True)
+class QueryImageVariant:
+    label: str
+    image: np.ndarray
+    display_width: int
+    display_height: int
+    scale: float = 1.0
+    pad_x: int = 0
+    pad_y: int = 0
+
+    def to_display_box(self, box: dict) -> dict:
+        return {
+            "x1": (float(box["x1"]) - self.pad_x) / self.scale,
+            "y1": (float(box["y1"]) - self.pad_y) / self.scale,
+            "x2": (float(box["x2"]) - self.pad_x) / self.scale,
+            "y2": (float(box["y2"]) - self.pad_y) / self.scale,
+            "score": float(box.get("score") or 0),
+        }
 
 
 def save_query_image(fileobj: BinaryIO, filename: str, search_id: str) -> str:
@@ -49,49 +72,138 @@ def _bbox_payload(box: dict, image_width: int, image_height: int) -> dict:
     }
 
 
-def _query_faces_from_images(paths: list[str], include_embeddings: bool = False) -> list[dict]:
+def _pil_to_bgr(image: Image.Image) -> np.ndarray:
+    if image.mode in {"RGBA", "LA"}:
+        background = Image.new("RGBA", image.size, (255, 255, 255, 255))
+        background.alpha_composite(image.convert("RGBA"))
+        image = background.convert("RGB")
+    else:
+        image = image.convert("RGB")
+    return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
+
+
+def _load_query_image(path: str) -> Image.Image | None:
+    try:
+        with Image.open(path) as image:
+            return ImageOps.exif_transpose(image).copy()
+    except (OSError, UnidentifiedImageError):
+        return None
+
+
+def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:
+    image = _load_query_image(path)
+    if image is None:
+        return [], {"path": path, "loaded": False, "attempts": []}
+
+    width, height = image.size
+    diagnostics = {
+        "path": Path(path).name,
+        "loaded": True,
+        "width": width,
+        "height": height,
+        "attempts": [],
+    }
+
+    variants: list[QueryImageVariant] = [
+        QueryImageVariant(
+            label="normalized",
+            image=_pil_to_bgr(image),
+            display_width=width,
+            display_height=height,
+        )
+    ]
+
+    shortest_edge = max(1, min(width, height))
+    scale = max(1.0, min(2.0, 640 / shortest_edge))
+    scaled_width = int(round(width * scale))
+    scaled_height = int(round(height * scale))
+    scaled = image.resize((scaled_width, scaled_height), Image.Resampling.LANCZOS) if scale > 1.01 else image
+
+    for ratio in (0.16, 0.28):
+        pad_x = max(16, int(round(scaled_width * ratio)))
+        pad_y = max(16, int(round(scaled_height * ratio)))
+        padded = ImageOps.expand(scaled, border=(pad_x, pad_y, pad_x, pad_y), fill=(238, 244, 255))
+        variants.append(
+            QueryImageVariant(
+                label=f"padded-{int(ratio * 100)}",
+                image=_pil_to_bgr(padded),
+                display_width=width,
+                display_height=height,
+                scale=scale,
+                pad_x=pad_x,
+                pad_y=pad_y,
+            )
+        )
+
+    return variants, diagnostics
+
+
+def _query_faces_from_images(paths: list[str], include_embeddings: bool = False) -> dict:
     engine = get_face_engine()
     faces: list[dict] = []
+    diagnostics = {"images": []}
 
     for image_index, path in enumerate(paths):
-        image = cv2.imread(path)
-        if image is None:
+        variants, image_diagnostics = _query_image_variants(path)
+        diagnostics["images"].append(image_diagnostics)
+        if not variants:
             continue
-        image_height, image_width = image.shape[:2]
 
-        boxes = engine.detect_faces(image)
+        boxes: list[dict] = []
+        selected_variant: QueryImageVariant | None = None
+        for variant in variants:
+            variant_boxes = engine.detect_faces(variant.image)
+            image_diagnostics["attempts"].append(
+                {
+                    "label": variant.label,
+                    "width": int(variant.image.shape[1]),
+                    "height": int(variant.image.shape[0]),
+                    "face_count": len(variant_boxes),
+                }
+            )
+            if variant_boxes:
+                selected_variant = variant
+                boxes = variant_boxes
+                image_diagnostics["selected_attempt"] = variant.label
+                break
+
         if not boxes:
             continue
 
-        embeddings = engine.embed_faces(image, boxes) if include_embeddings else []
+        assert selected_variant is not None
+        embeddings = engine.embed_faces(selected_variant.image, boxes) if include_embeddings else []
         for face_index, box in enumerate(boxes):
+            display_box = selected_variant.to_display_box(box)
             face = {
                 "index": len(faces),
                 "image_index": image_index,
                 "face_index": face_index,
-                "bbox": _bbox_payload(box, image_width, image_height),
+                "bbox": _bbox_payload(display_box, selected_variant.display_width, selected_variant.display_height),
                 "score": round(float(box.get("score") or 0), 6),
-                "image_width": image_width,
-                "image_height": image_height,
+                "image_width": selected_variant.display_width,
+                "image_height": selected_variant.display_height,
+                "detection_attempt": selected_variant.label,
             }
             if include_embeddings and face_index < len(embeddings):
                 face["embedding"] = embeddings[face_index]
             faces.append(face)
 
-    return faces
+    return {"faces": faces, "diagnostics": diagnostics}
 
 
 def detect_query_faces(paths: list[str]) -> dict:
-    faces = _query_faces_from_images(paths, include_embeddings=False)
+    result = _query_faces_from_images(paths, include_embeddings=False)
+    faces = result["faces"]
     return {
         "engine": get_face_engine().name,
         "query_faces": faces,
         "face_count": len(faces),
+        "diagnostics": result["diagnostics"],
     }
 
 
 def load_embeddings_from_images(paths: list[str], query_face_index: int | None = None) -> list[list[float]]:
-    faces = _query_faces_from_images(paths, include_embeddings=True)
+    faces = _query_faces_from_images(paths, include_embeddings=True)["faces"]
     embeddings: list[list[float]] = []
     for face in faces:
         if query_face_index is not None and int(face["index"]) != int(query_face_index):

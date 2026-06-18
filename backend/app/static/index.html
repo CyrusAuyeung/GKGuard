@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 人脸检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=v0.1.26-ui" />
+    <link rel="stylesheet" href="/static/styles.css?v=v0.1.27-ui" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -276,6 +276,28 @@
       </div>
     </div>
 
+    <div id="queryFaceModal" class="query-face-modal" role="dialog" aria-modal="true" aria-labelledby="queryFaceModalTitle" hidden>
+      <div class="query-face-modal-surface">
+        <header class="query-face-modal-header">
+          <div>
+            <strong id="queryFaceModalTitle">选择目标人脸</strong>
+            <span id="queryFaceModalStatus">检测到多张可选人脸，请点击目标人物。</span>
+          </div>
+          <button id="queryFaceModalClose" class="media-viewer-close" type="button" aria-label="关闭目标人脸选择">×</button>
+        </header>
+        <div class="query-face-modal-toolbar" aria-label="放大选择工具">
+          <button id="queryFaceZoomOut" class="outline-action compact-action" type="button">缩小</button>
+          <button id="queryFaceZoomReset" class="outline-action compact-action" type="button">适应</button>
+          <button id="queryFaceZoomIn" class="outline-action compact-action" type="button">放大</button>
+        </div>
+        <div id="queryFaceModalFrame" class="query-face-modal-frame" tabindex="0"></div>
+        <footer class="query-face-modal-actions">
+          <button id="queryFaceModalCancel" class="outline-action" type="button">稍后选择</button>
+          <button id="queryFaceModalConfirm" class="primary-action" type="button" disabled>确认选择并检索</button>
+        </footer>
+      </div>
+    </div>
+
     <div id="toast" class="toast toast-info" role="status" aria-live="polite" aria-atomic="true" hidden>
       <span class="toast-mark" aria-hidden="true"><svg class="ui-icon toast-icon"><use id="toastIconUse" href="#icon-info"></use></svg></span>
       <span class="toast-copy">
@@ -283,6 +305,6 @@
         <span id="toastMessage" class="toast-message"></span>
       </span>
     </div>
-    <script src="/static/app.js?v=v0.1.26-ui" defer></script>
+    <script src="/static/app.js?v=v0.1.27-ui" defer></script>
   </body>
 </html>
