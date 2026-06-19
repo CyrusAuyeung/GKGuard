@@ -345,6 +345,7 @@ function faceBoxMarkup(face, options = {}) {
     <span class="${classes}" role="button" tabindex="0" data-query-face-box data-query-face-index="${escapeHtml(face.index)}"
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
       data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
+      data-image-width="${escapeHtml(face.imageWidth ?? "")}" data-image-height="${escapeHtml(face.imageHeight ?? "")}"
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
       data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
       ${style ? `style="${style}"` : ""}
@@ -429,6 +430,8 @@ function faceBoxRect(box, content) {
   const y1 = finiteNumber(box.dataset.y1);
   const boxWidth = finiteNumber(box.dataset.width);
   const boxHeight = finiteNumber(box.dataset.height);
+  const sourceWidth = finiteNumber(box.dataset.imageWidth) || content.naturalWidth;
+  const sourceHeight = finiteNumber(box.dataset.imageHeight) || content.naturalHeight;
   const leftPct = finiteNumber(box.dataset.leftPct);
   const topPct = finiteNumber(box.dataset.topPct);
   const widthPct = finiteNumber(box.dataset.widthPct);
@@ -440,16 +443,16 @@ function faceBoxRect(box, content) {
 
   const left = hasPctBox
     ? content.left + (leftPct / 100) * content.width
-    : content.left + (hasNormalizedBox ? x1 : x1 / content.naturalWidth) * content.width;
+    : content.left + (hasNormalizedBox ? x1 : x1 / sourceWidth) * content.width;
   const top = hasPctBox
     ? content.top + (topPct / 100) * content.height
-    : content.top + (hasNormalizedBox ? y1 : y1 / content.naturalHeight) * content.height;
+    : content.top + (hasNormalizedBox ? y1 : y1 / sourceHeight) * content.height;
   const width = hasPctBox
     ? (widthPct / 100) * content.width
-    : (hasNormalizedBox ? boxWidth : boxWidth / content.naturalWidth) * content.width;
+    : (hasNormalizedBox ? boxWidth : boxWidth / sourceWidth) * content.width;
   const height = hasPctBox
     ? (heightPct / 100) * content.height
-    : (hasNormalizedBox ? boxHeight : boxHeight / content.naturalHeight) * content.height;
+    : (hasNormalizedBox ? boxHeight : boxHeight / sourceHeight) * content.height;
   if (![left, top, width, height].every(Number.isFinite) || width <= 0 || height <= 0) {
     return null;
   }
@@ -546,15 +549,55 @@ function loadBrowserImage(src) {
   });
 }
 
-async function cropUploadedFace(face) {
+async function cropUploadedFace(face, sourceBox = null) {
   if (!uploadedImageUrl || !face?.bbox) return "";
   const image = await loadBrowserImage(uploadedImageUrl);
+  const cropRect = selectedQueryFaceCropRect(face, image, sourceBox);
+  if (!cropRect) return "";
+
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(cropRect.width));
+  canvas.height = Math.max(1, Math.round(cropRect.height));
+  const context = canvas.getContext("2d");
+  context.drawImage(image, cropRect.x, cropRect.y, cropRect.width, cropRect.height, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function selectedQueryFaceCropRect(face, image, sourceBox = null) {
+  const elementRect = cropRectFromSelectedFaceElement(image, sourceBox);
+  if (elementRect) return elementRect;
+  return cropRectFromFacePayload(face, image);
+}
+
+function cropRectFromSelectedFaceElement(image, sourceBox = null) {
+  const selectedBox = sourceBox || document.querySelector("[data-query-face-index].is-selected");
+  const wrap = selectedBox?.closest(".face-select-image-wrap, .portrait-frame");
+  const renderedImage = wrap?.querySelector("img");
+  if (!selectedBox || !wrap || !renderedImage) return null;
+
+  const content = imageContentRect(wrap, renderedImage);
+  if (!content) return null;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  const boxRect = selectedBox.getBoundingClientRect();
+  const contentLeft = wrapRect.left + content.left;
+  const contentTop = wrapRect.top + content.top;
+  const rawX = ((boxRect.left - contentLeft) / content.width) * image.naturalWidth;
+  const rawY = ((boxRect.top - contentTop) / content.height) * image.naturalHeight;
+  const rawWidth = (boxRect.width / content.width) * image.naturalWidth;
+  const rawHeight = (boxRect.height / content.height) * image.naturalHeight;
+  return clampCropRect(rawX, rawY, rawWidth, rawHeight, image);
+}
+
+function cropRectFromFacePayload(face, image) {
   const box = face.bbox;
   const leftPct = Number(box.leftPct);
   const topPct = Number(box.topPct);
   const widthPct = Number(box.widthPct);
   const heightPct = Number(box.heightPct);
   const hasPctBox = [leftPct, topPct, widthPct, heightPct].every(Number.isFinite);
+  const sourceWidth = finiteNumber(face.imageWidth) || image.naturalWidth;
+  const sourceHeight = finiteNumber(face.imageHeight) || image.naturalHeight;
   const x1 = finiteNumber(box.x1) ?? 0;
   const y1 = finiteNumber(box.y1) ?? 0;
   const x2 = finiteNumber(box.x2);
@@ -563,36 +606,41 @@ async function cropUploadedFace(face) {
   const boxHeight = finiteNumber(box.height);
   const hasNormalizedBox = !hasPctBox && [x1, y1, boxWidth, boxHeight].every((value) => value !== null && value >= 0 && value <= 1);
   const hasNormalizedCorners = !hasPctBox && x2 !== null && y2 !== null && [x1, y1, x2, y2].every((value) => value >= 0 && value <= 1);
-  const rawX = hasPctBox ? (leftPct / 100) * image.naturalWidth : hasNormalizedBox || hasNormalizedCorners ? x1 * image.naturalWidth : x1;
-  const rawY = hasPctBox ? (topPct / 100) * image.naturalHeight : hasNormalizedBox || hasNormalizedCorners ? y1 * image.naturalHeight : y1;
+  const rawX = hasPctBox
+    ? (leftPct / 100) * image.naturalWidth
+    : hasNormalizedBox || hasNormalizedCorners
+      ? x1 * image.naturalWidth
+      : (x1 / sourceWidth) * image.naturalWidth;
+  const rawY = hasPctBox
+    ? (topPct / 100) * image.naturalHeight
+    : hasNormalizedBox || hasNormalizedCorners
+      ? y1 * image.naturalHeight
+      : (y1 / sourceHeight) * image.naturalHeight;
   const rawWidth = hasPctBox
     ? (widthPct / 100) * image.naturalWidth
     : hasNormalizedBox
       ? boxWidth * image.naturalWidth
       : hasNormalizedCorners
         ? Math.max(0, (x2 - x1) * image.naturalWidth)
-        : boxWidth ?? Math.max(0, (x2 ?? x1) - x1);
+        : ((boxWidth ?? Math.max(0, (x2 ?? x1) - x1)) / sourceWidth) * image.naturalWidth;
   const rawHeight = hasPctBox
     ? (heightPct / 100) * image.naturalHeight
     : hasNormalizedBox
       ? boxHeight * image.naturalHeight
       : hasNormalizedCorners
         ? Math.max(0, (y2 - y1) * image.naturalHeight)
-        : boxHeight ?? Math.max(0, (y2 ?? y1) - y1);
-  const padX = 0;
-  const padY = 0;
-  const x = Math.max(0, rawX - padX);
-  const y = Math.max(0, rawY - padY);
-  const width = Math.min(image.naturalWidth - x, rawWidth + padX * 2);
-  const height = Math.min(image.naturalHeight - y, rawHeight + padY * 2);
-  if (width <= 0 || height <= 0) return "";
+        : ((boxHeight ?? Math.max(0, (y2 ?? y1) - y1)) / sourceHeight) * image.naturalHeight;
+  return clampCropRect(rawX, rawY, rawWidth, rawHeight, image);
+}
 
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(width));
-  canvas.height = Math.max(1, Math.round(height));
-  const context = canvas.getContext("2d");
-  context.drawImage(image, x, y, width, height, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL("image/jpeg", 0.92);
+function clampCropRect(rawX, rawY, rawWidth, rawHeight, image) {
+  if (![rawX, rawY, rawWidth, rawHeight].every(Number.isFinite) || rawWidth <= 0 || rawHeight <= 0) return null;
+  const x = Math.max(0, rawX);
+  const y = Math.max(0, rawY);
+  const width = Math.min(image.naturalWidth - x, rawWidth);
+  const height = Math.min(image.naturalHeight - y, rawHeight);
+  if (width <= 0 || height <= 0) return null;
+  return { x, y, width, height };
 }
 
 function clearQueryFaces() {
@@ -608,7 +656,8 @@ async function selectQueryFace(index, options = {}) {
   const face = queryFaces.find((item) => Number(item.index) === Number(index));
   if (!face) return false;
   selectedQueryFaceIndex = Number(face.index);
-  selectedQueryFaceImageUrl = await cropUploadedFace(face).catch(() => "");
+  updateQueryFaceSelectionState();
+  selectedQueryFaceImageUrl = await cropUploadedFace(face, options.sourceBox).catch(() => "");
   syncPortraits();
   updateQueryFaceSelectionState();
   if (!options.silent) {
@@ -631,7 +680,7 @@ function updateQueryFaceSelectionState() {
   }
 }
 
-function queryFaceIndexFromPoint(event, root = elements.uploadDrop) {
+function queryFaceHitFromPoint(event, root = elements.uploadDrop) {
   const boxes = Array.from(root.querySelectorAll("[data-query-face-index]"));
   const hits = boxes
     .map((box) => {
@@ -643,6 +692,7 @@ function queryFaceIndexFromPoint(event, root = elements.uploadDrop) {
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
       return {
+        box,
         index: box.dataset.queryFaceIndex,
         contains,
         area: rect.width * rect.height,
@@ -652,9 +702,14 @@ function queryFaceIndexFromPoint(event, root = elements.uploadDrop) {
     .filter((item) => item.contains);
   if (hits.length) {
     hits.sort((left, right) => left.area - right.area || left.distance - right.distance);
-    return hits[0].index;
+    return hits[0];
   }
-  return event.target.closest("[data-query-face-index]")?.dataset.queryFaceIndex;
+  const target = event.target.closest("[data-query-face-index]");
+  return target ? { box: target, index: target.dataset.queryFaceIndex } : null;
+}
+
+function queryFaceIndexFromPoint(event, root = elements.uploadDrop) {
+  return queryFaceHitFromPoint(event, root)?.index;
 }
 
 function closeQueryFaceModal() {
@@ -1415,10 +1470,10 @@ function downloadText(filename, content) {
 function bindEvents() {
   elements.uploadDrop.addEventListener("click", async (event) => {
     if (event.target.closest("#openQueryFaceModalBtn")) return;
-    const faceIndex = queryFaceIndexFromPoint(event);
-    if (faceIndex !== undefined) {
+    const faceHit = queryFaceHitFromPoint(event);
+    if (faceHit?.index !== undefined) {
       event.preventDefault();
-      await selectQueryFace(faceIndex);
+      await selectQueryFace(faceHit.index, { sourceBox: faceHit.box });
       setSearchIdleLabel("确认选择并检索");
       return;
     }
@@ -1428,7 +1483,7 @@ function bindEvents() {
     const faceTarget = event.target.closest("[data-query-face-index]");
     if (faceTarget && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
-      await selectQueryFace(faceTarget.dataset.queryFaceIndex);
+      await selectQueryFace(faceTarget.dataset.queryFaceIndex, { sourceBox: faceTarget });
       setSearchIdleLabel("确认选择并检索");
       return;
     }
@@ -1455,17 +1510,17 @@ function bindEvents() {
   });
   elements.startSearchBtn.addEventListener("click", startSearch);
   elements.queryFaceModalFrame?.addEventListener("click", async (event) => {
-    const faceIndex = queryFaceIndexFromPoint(event, elements.queryFaceModalFrame);
-    if (faceIndex === undefined) return;
+    const faceHit = queryFaceHitFromPoint(event, elements.queryFaceModalFrame);
+    if (faceHit?.index === undefined) return;
     event.preventDefault();
-    await selectQueryFace(faceIndex, { silent: true });
+    await selectQueryFace(faceHit.index, { silent: true, sourceBox: faceHit.box });
     setSearchIdleLabel("确认选择并检索");
   });
   elements.queryFaceModalFrame?.addEventListener("keydown", async (event) => {
     const faceTarget = event.target.closest("[data-query-face-index]");
     if (faceTarget && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
-      await selectQueryFace(faceTarget.dataset.queryFaceIndex, { silent: true });
+      await selectQueryFace(faceTarget.dataset.queryFaceIndex, { silent: true, sourceBox: faceTarget });
       setSearchIdleLabel("确认选择并检索");
     }
   });

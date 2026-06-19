@@ -4,6 +4,12 @@ const PNG_BUFFER = Buffer.from(
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
   "base64",
 );
+const COLOR_QUERY_IMAGE = Buffer.from(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="100" height="50" viewBox="0 0 100 50">
+    <rect width="50" height="50" fill="#e11d48"/>
+    <rect x="50" width="50" height="50" fill="#2563eb"/>
+  </svg>
+`);
 
 async function expectNoHorizontalOverflow(page) {
   const overflow = await page.evaluate(() => {
@@ -74,6 +80,28 @@ async function expectResultFaceLabelOutsideBox(page, selector = "#recordScene .r
     };
   });
   expect(placement.above || placement.below).toBe(true);
+}
+
+async function expectResultPortraitCenterBlue(page) {
+  const sample = await page.locator("#resultPortrait img").evaluate(async (image) => {
+    if (!image.complete) {
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = reject;
+      });
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const [r, g, b] = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+    return { r, g, b, width: image.naturalWidth, height: image.naturalHeight };
+  });
+  expect(sample.width).toBeGreaterThan(10);
+  expect(sample.height).toBeGreaterThan(10);
+  expect(sample.b).toBeGreaterThan(140);
+  expect(sample.r).toBeLessThan(140);
 }
 
 test.describe("GKGuard C2 demo UI", () => {
@@ -243,49 +271,43 @@ test.describe("GKGuard C2 demo UI", () => {
             {
               index: 0,
               score: 0.52,
+              imageWidth: 1000,
+              imageHeight: 500,
               bbox: {
-                x1: 0.03,
-                y1: 0.08,
-                x2: 0.18,
-                y2: 0.3,
-                width: 0.15,
-                height: 0.22,
-                leftPct: 3,
-                topPct: 8,
-                widthPct: 15,
-                heightPct: 22,
+                x1: 30,
+                y1: 40,
+                x2: 180,
+                y2: 150,
+                width: 150,
+                height: 110,
               },
             },
             {
               index: 1,
               score: 0.91,
+              imageWidth: 1000,
+              imageHeight: 500,
               bbox: {
-                x1: 0.05,
-                y1: 0.16,
-                x2: 0.32,
-                y2: 0.7,
-                width: 0.27,
-                height: 0.54,
-                leftPct: 5,
-                topPct: 16,
-                widthPct: 27,
-                heightPct: 54,
+                x1: 80,
+                y1: 160,
+                x2: 340,
+                y2: 420,
+                width: 260,
+                height: 260,
               },
             },
             {
               index: 2,
               score: 0.89,
+              imageWidth: 1000,
+              imageHeight: 500,
               bbox: {
-                x1: 0.58,
-                y1: 0.18,
-                x2: 0.9,
-                y2: 0.72,
-                width: 0.32,
-                height: 0.54,
-                leftPct: 58,
-                topPct: 18,
-                widthPct: 32,
-                heightPct: 54,
+                x1: 580,
+                y1: 90,
+                x2: 900,
+                y2: 360,
+                width: 320,
+                height: 270,
               },
             },
           ],
@@ -301,11 +323,11 @@ test.describe("GKGuard C2 demo UI", () => {
           source: "c1",
           searchId: "e2e-c1-multi",
           queryFaces: [
-            { index: 0, score: 0.52, bbox: { x1: 0.03, y1: 0.08, x2: 0.18, y2: 0.3, width: 0.15, height: 0.22 } },
-            { index: 1, score: 0.91, bbox: { x1: 0.05, y1: 0.16, x2: 0.32, y2: 0.7, width: 0.27, height: 0.54 } },
-            { index: 2, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+            { index: 0, score: 0.52, imageWidth: 1000, imageHeight: 500, bbox: { x1: 30, y1: 40, x2: 180, y2: 150, width: 150, height: 110 } },
+            { index: 1, score: 0.91, imageWidth: 1000, imageHeight: 500, bbox: { x1: 80, y1: 160, x2: 340, y2: 420, width: 260, height: 260 } },
+            { index: 2, score: 0.89, imageWidth: 1000, imageHeight: 500, bbox: { x1: 580, y1: 90, x2: 900, y2: 360, width: 320, height: 270 } },
           ],
-          selectedQueryFace: { index: 2, score: 0.89, bbox: { x1: 0.58, y1: 0.18, x2: 0.9, y2: 0.72, width: 0.32, height: 0.54 } },
+          selectedQueryFace: { index: 2, score: 0.89, imageWidth: 1000, imageHeight: 500, bbox: { x1: 580, y1: 90, x2: 900, y2: 360, width: 320, height: 270 } },
           records: [
             {
               id: 1,
@@ -339,9 +361,9 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.goto("/demo?desktop=1&e2e=c1-multi-face");
     await expectHealthyPage(page, problems);
     await page.locator("#faceFile").setInputFiles({
-      name: "query-multi.png",
-      mimeType: "image/png",
-      buffer: PNG_BUFFER,
+      name: "query-multi.svg",
+      mimeType: "image/svg+xml",
+      buffer: COLOR_QUERY_IMAGE,
     });
 
     await expect(page.locator("#queryFaceModal")).toBeVisible();
@@ -405,6 +427,7 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(searchUrl).toContain("query_face_index=2");
     await expect(page.locator("#resultPortrait img")).toBeVisible();
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
+    await expectResultPortraitCenterBlue(page);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);
