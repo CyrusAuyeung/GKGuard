@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.31` 推荐流程：
+安装版 `v0.1.32` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.31.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.32.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -82,7 +82,7 @@ CampusVision C1 已连接时期望结果：
 
 - 结果页数据来源显示 `CampusVision C1`。
 - 上传页会先检测查询图人脸；单人图会自动检索，多人图会在原图上显示人脸框和检测置信度，用户选择后只检索目标人脸。
-- 结果页人物照片优先显示选中的查询人脸裁切图；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
+- 结果页人物照片优先显示选中的查询人脸裁切图，并在人物照片方框内按原始比例完整显示；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
 - 检索记录列表优先展示 CampusVision C1 人脸裁剪缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
@@ -206,16 +206,16 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.31`:
+Recommended packaged-app flow for `v0.1.32`:
 
-1. Download and install `GKGuard-Setup-0.1.31.exe`.
+1. Download and install `GKGuard-Setup-0.1.32.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. Upload the query image. If it contains one effective candidate face, GKGuard C2 auto-selects it and searches directly; if it contains multiple effective candidates, the upload screen overlays face boxes and detection confidence on the original image and opens an enlarged selection modal before search. Candidates below `0.65` but at least `0.45` should remain visible with a low-confidence style and remain selectable.
-8. After the search finishes, confirm that the result portrait uses the selected query face; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
+8. After the search finishes, confirm that the result portrait uses the selected query face and fully fits inside the portrait frame; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 11. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
@@ -275,7 +275,7 @@ Expected result with CampusVision C1 connected:
 
 - The result source shows `CampusVision C1`.
 - The upload screen detects faces in the query image; single-face uploads search automatically, while multi-face uploads show face boxes and detection confidence on the original image so the user can search only the selected target face.
-- The result portrait shows the selected query face; if cropping is unavailable, the UI falls back to the full upload or the CampusVision C1 representative face.
+- The result portrait shows the selected query face and fully fits it inside the portrait frame; if cropping is unavailable, the UI falls back to the full upload or the CampusVision C1 representative face.
 - The search record list prefers CampusVision C1 face-crop thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
 - Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.

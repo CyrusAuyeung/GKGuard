@@ -104,6 +104,33 @@ async function expectResultPortraitCenterBlue(page) {
   expect(sample.r).toBeLessThan(140);
 }
 
+async function expectResultPortraitFitsFrame(page) {
+  const metrics = await page.locator("#resultPortrait").evaluate((frame) => {
+    const image = frame.querySelector("img");
+    if (!image) return null;
+    const frameRect = frame.getBoundingClientRect();
+    const imageRect = image.getBoundingClientRect();
+    return {
+      frameWidth: frameRect.width,
+      frameHeight: frameRect.height,
+      imageWidth: imageRect.width,
+      imageHeight: imageRect.height,
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      horizontalFit: imageRect.left >= frameRect.left && imageRect.right <= frameRect.right,
+      verticalFit: imageRect.top >= frameRect.top && imageRect.bottom <= frameRect.bottom,
+    };
+  });
+  expect(metrics).not.toBeNull();
+  const renderedRatio = metrics.imageWidth / metrics.imageHeight;
+  const naturalRatio = metrics.naturalWidth / metrics.naturalHeight;
+  expect(Math.abs(renderedRatio - naturalRatio)).toBeLessThan(0.05);
+  expect(metrics.imageWidth).toBeLessThanOrEqual(metrics.frameWidth);
+  expect(metrics.imageHeight).toBeLessThanOrEqual(metrics.frameHeight);
+  expect(metrics.horizontalFit).toBe(true);
+  expect(metrics.verticalFit).toBe(true);
+}
+
 test.describe("GKGuard C2 demo UI", () => {
   test("mock search, route navigation, and reset remain responsive", async ({ page }) => {
     const problems = collectBrowserProblems(page);
@@ -428,6 +455,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultPortrait img")).toBeVisible();
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expectResultPortraitCenterBlue(page);
+    await expectResultPortraitFitsFrame(page);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);

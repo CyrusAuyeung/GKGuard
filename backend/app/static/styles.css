@@ -292,6 +292,14 @@ input, select {
   border-radius: 9px;
 }
 .portrait-frame img { box-sizing: border-box; width: 100%; height: 100%; padding: 8px; object-fit: contain; object-position: center center; border-radius: inherit; background: #eef4ff; }
+.target-frame img {
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  padding: 0;
+  display: block;
+}
 .query-face-layer,
 .frame-face-layer {
   position: absolute;
