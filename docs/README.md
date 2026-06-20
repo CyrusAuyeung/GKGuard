@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.32` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.33` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -22,7 +22,8 @@
 
 ## 发布与版本
 
-- [releases/v0.1.32.md](releases/v0.1.32.md)：当前最新版本说明，记录结果页人物照片在方框内按原始比例完整自适应显示。
+- [releases/v0.1.33.md](releases/v0.1.33.md)：当前最新版本说明，记录结果页人物照片裁切扩边、边缘平移和方框空间利用修复。
+- [releases/v0.1.32.md](releases/v0.1.32.md)：结果页人物照片在方框内按原始比例完整自适应显示。
 - [releases/v0.1.31.md](releases/v0.1.31.md)：结果页人物照片与选中人脸框坐标来源统一、CampusVision C1 源图尺寸 bbox 换算和裁切内容回归测试。
 - [releases/v0.1.30.md](releases/v0.1.30.md)：多人选择弹窗最大无滚动适应和结果页人物照片目标框裁切修复。
 - [releases/v0.1.29.md](releases/v0.1.29.md)：上传区显式放大选人按钮、重新上传交互修复、结果页人物照片缩略图来源修复和多人选择弹窗适应/缩小行为修复。
@@ -63,7 +64,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.32`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.33`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -78,7 +79,8 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.32.md](releases/v0.1.32.md): latest release notes covering full-ratio fit for result portraits inside the portrait frame.
+- [releases/v0.1.33.md](releases/v0.1.33.md): latest release notes covering padded result-portrait crops, edge-aware crop shifting, and better portrait-frame space usage.
+- [releases/v0.1.32.md](releases/v0.1.32.md): full-ratio fit for result portraits inside the portrait frame.
 - [releases/v0.1.31.md](releases/v0.1.31.md): aligned coordinate sources for the result portrait and selected face box, CampusVision C1 source-image bbox conversion, and crop-content regression coverage.
 - [releases/v0.1.30.md](releases/v0.1.30.md): maximum no-scroll multi-face modal fit and selected-target-box result portrait crop fix.
 - [releases/v0.1.29.md](releases/v0.1.29.md): explicit enlarged face-selection button on upload, re-upload interaction fix, result portrait thumbnail-source fix, and multi-face modal fit/zoom-out behavior fix.

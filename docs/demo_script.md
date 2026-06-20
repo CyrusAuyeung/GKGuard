@@ -13,16 +13,16 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.32` 推荐流程：
+安装版 `v0.1.33` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.32.exe`。
+1. 下载并安装 `GKGuard-Setup-0.1.33.exe`。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
 5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 上传查询图片。若图片只有一张有效候选人脸，GKGuard C2 会自动选中并直接检索；若图片有多张有效候选人脸，上传页会在原图上显示人脸框和检测置信度，并自动打开放大选择弹窗，需要确认目标人脸后再检索；低于 `0.65` 但不低于 `0.45` 的候选应以低置信样式显示并仍可选择。
-8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。
+8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。
 9. 若 CampusVision C1 返回无匹配结果、请求超时或检索失败，页面应停留在上传页并显示中文提示，不应卡在“检索中”，也不应进入本地模拟结果。
 10. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 11. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
@@ -82,7 +82,7 @@ CampusVision C1 已连接时期望结果：
 
 - 结果页数据来源显示 `CampusVision C1`。
 - 上传页会先检测查询图人脸；单人图会自动检索，多人图会在原图上显示人脸框和检测置信度，用户选择后只检索目标人脸。
-- 结果页人物照片优先显示选中的查询人脸裁切图，并在人物照片方框内按原始比例完整显示；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
+- 结果页人物照片优先显示选中的查询人脸裁切图；裁切图会从选中框向外扩边，空间允许时调整为方形裁切，并在靠近图像边缘时向内平移，最终在人物照片方框内完整显示并充分利用空间；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
 - 检索记录列表优先展示 CampusVision C1 人脸裁剪缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
 - 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
@@ -206,16 +206,16 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.32`:
+Recommended packaged-app flow for `v0.1.33`:
 
-1. Download and install `GKGuard-Setup-0.1.32.exe`.
+1. Download and install `GKGuard-Setup-0.1.33.exe`.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. Upload the query image. If it contains one effective candidate face, GKGuard C2 auto-selects it and searches directly; if it contains multiple effective candidates, the upload screen overlays face boxes and detection confidence on the original image and opens an enlarged selection modal before search. Candidates below `0.65` but at least `0.45` should remain visible with a low-confidence style and remain selectable.
-8. After the search finishes, confirm that the result portrait uses the selected query face and fully fits inside the portrait frame; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
+8. After the search finishes, confirm that the result portrait uses the selected query face, fully fits inside the portrait frame, and uses the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 11. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
@@ -275,7 +275,7 @@ Expected result with CampusVision C1 connected:
 
 - The result source shows `CampusVision C1`.
 - The upload screen detects faces in the query image; single-face uploads search automatically, while multi-face uploads show face boxes and detection confidence on the original image so the user can search only the selected target face.
-- The result portrait shows the selected query face and fully fits it inside the portrait frame; if cropping is unavailable, the UI falls back to the full upload or the CampusVision C1 representative face.
+- The result portrait shows the selected query face; the crop is padded from the selected box, made square when source-image space allows, shifted inward near image edges, and rendered fully inside the portrait frame while using the available space. If cropping is unavailable, the UI falls back to the full upload or the CampusVision C1 representative face.
 - The search record list prefers CampusVision C1 face-crop thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
 - Maximized windows use more available width, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.

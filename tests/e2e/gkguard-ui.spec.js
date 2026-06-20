@@ -10,6 +10,17 @@ const COLOR_QUERY_IMAGE = Buffer.from(`
     <rect x="50" width="50" height="50" fill="#2563eb"/>
   </svg>
 `);
+const PORTRAIT_QUERY_IMAGE = Buffer.from(`
+  <svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+    <rect width="300" height="300" fill="#e0f2fe"/>
+    <rect x="105" y="58" width="90" height="54" rx="22" fill="#1f2937"/>
+    <ellipse cx="150" cy="142" rx="54" ry="62" fill="#f7c9a9"/>
+    <circle cx="132" cy="132" r="7" fill="#111827"/>
+    <circle cx="168" cy="132" r="7" fill="#111827"/>
+    <rect x="128" y="180" width="44" height="8" rx="4" fill="#9f1239"/>
+    <rect x="104" y="206" width="92" height="56" rx="20" fill="#2563eb"/>
+  </svg>
+`);
 
 async function expectNoHorizontalOverflow(page) {
   const overflow = await page.evaluate(() => {
@@ -110,6 +121,7 @@ async function expectResultPortraitFitsFrame(page) {
     if (!image) return null;
     const frameRect = frame.getBoundingClientRect();
     const imageRect = image.getBoundingClientRect();
+    const style = window.getComputedStyle(image);
     return {
       frameWidth: frameRect.width,
       frameHeight: frameRect.height,
@@ -119,16 +131,34 @@ async function expectResultPortraitFitsFrame(page) {
       naturalHeight: image.naturalHeight,
       horizontalFit: imageRect.left >= frameRect.left && imageRect.right <= frameRect.right,
       verticalFit: imageRect.top >= frameRect.top && imageRect.bottom <= frameRect.bottom,
+      objectFit: style.objectFit,
     };
   });
   expect(metrics).not.toBeNull();
-  const renderedRatio = metrics.imageWidth / metrics.imageHeight;
-  const naturalRatio = metrics.naturalWidth / metrics.naturalHeight;
-  expect(Math.abs(renderedRatio - naturalRatio)).toBeLessThan(0.05);
+  expect(metrics.objectFit).toBe("contain");
   expect(metrics.imageWidth).toBeLessThanOrEqual(metrics.frameWidth);
   expect(metrics.imageHeight).toBeLessThanOrEqual(metrics.frameHeight);
+  expect(metrics.imageWidth).toBeGreaterThanOrEqual(metrics.frameWidth - 18);
+  expect(metrics.imageHeight).toBeGreaterThanOrEqual(metrics.frameHeight - 18);
   expect(metrics.horizontalFit).toBe(true);
   expect(metrics.verticalFit).toBe(true);
+}
+
+async function expectResultPortraitCropLargerThan(page, minNaturalWidth, minNaturalHeight) {
+  const size = await page.locator("#resultPortrait img").evaluate((image) => ({
+    naturalWidth: image.naturalWidth,
+    naturalHeight: image.naturalHeight,
+  }));
+  expect(size.naturalWidth).toBeGreaterThan(minNaturalWidth);
+  expect(size.naturalHeight).toBeGreaterThan(minNaturalHeight);
+}
+
+async function expectResultPortraitCropNearSquare(page) {
+  const ratio = await page.locator("#resultPortrait img").evaluate((image) => (
+    image.naturalWidth / image.naturalHeight
+  ));
+  expect(ratio).toBeGreaterThan(0.95);
+  expect(ratio).toBeLessThan(1.05);
 }
 
 test.describe("GKGuard C2 demo UI", () => {
@@ -279,6 +309,95 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await page.keyboard.press("Escape");
     await expect(page.locator("#mediaViewer")).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("single low-confidence query face portrait crop is padded and fills the target frame", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchUrl = "";
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [
+            {
+              index: 0,
+              score: 0.51,
+              imageWidth: 300,
+              imageHeight: 300,
+              bbox: {
+                x1: 115,
+                y1: 104,
+                x2: 185,
+                y2: 188,
+                width: 70,
+                height: 84,
+              },
+            },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchUrl = route.request().url();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-single-low-confidence",
+          warning: "Low confidence match, manual confirmation recommended.",
+          selectedQueryFace: { index: 0, score: 0.51, imageWidth: 300, imageHeight: 300, bbox: { x1: 115, y1: 104, x2: 185, y2: 188, width: 70, height: 84 } },
+          records: [
+            {
+              id: 1,
+              title: "记录1",
+              time: "11:08:12",
+              fullTime: "2026-06-17 11:08:12",
+              location: "图书馆入口",
+              camera: "C1-E2E-03 图书馆摄像机",
+              cameraId: "C1-E2E-03",
+              similarity: 0.51,
+              note: "E2E 单人低置信检索结果",
+              sceneClass: "scene-2",
+              progress: 48,
+              frameUrl: "/static/icons/app-mark.png",
+              faceUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 26, y1: 22, x2: 72, y2: 78, width: 46, height: 56 },
+            },
+          ],
+          routePoints: [
+            { id: 1, time: "11:08:12", location: "图书馆入口", x: 52, y: 38, kind: "start" },
+          ],
+          person: {
+            personId: "P-E2E-low",
+            confidence: "low",
+            representativeFaceUrl: "/static/icons/app-mark.png",
+          },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=c1-single-low-confidence");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-single-low.svg",
+      mimeType: "image/svg+xml",
+      buffer: PORTRAIT_QUERY_IMAGE,
+    });
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    expect(searchUrl).toContain("query_face_index=0");
+    await expect(page.locator("#toast")).toContainText("需要人工确认");
+    await expect(page.locator("#resultPortrait img")).toBeVisible();
+    await expectResultPortraitFitsFrame(page);
+    await expectResultPortraitCropLargerThan(page, 70, 84);
+    await expectResultPortraitCropNearSquare(page);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });
@@ -456,6 +575,7 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /^data:image\/jpeg/);
     await expectResultPortraitCenterBlue(page);
     await expectResultPortraitFitsFrame(page);
+    await expectResultPortraitCropLargerThan(page, 32, 27);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("88%");
     await expectDesktopRecordListOnLeft(page);
     await expectNoHorizontalOverflow(page);
