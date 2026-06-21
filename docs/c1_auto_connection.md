@@ -82,7 +82,7 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-因此通常不需要手动创建配置文件。下面的配置文件只用于服务器地址、账号或端口变化时覆盖默认值。
+首次使用内置 SSH 隧道前，需要为 C1 SSH 服务器配置 `hostFingerprint`（也可用环境变量 `C1_SSH_HOST_FINGERPRINT` 覆盖）。GKGuard 会在发送密码前校验服务器主机密钥，避免把密码提交给伪造的 SSH 服务器。可在可信网络/控制台上运行 `ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub` 获取 OpenSSH 格式的 `SHA256:...` 指纹。下面的配置文件用于设置该指纹，或在服务器地址、账号、端口变化时覆盖默认值。
 
 配置文件示例：
 
@@ -98,7 +98,8 @@ remotePort = 8000
     "user": "speng",
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
-    "remotePort": 8000
+    "remotePort": 8000,
+    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
   }
 }
 ```
@@ -114,7 +115,7 @@ remotePort = 8000
 1. GKGuard 先探测 `candidateUrls`。
 2. 如果本机隧道未连接，弹出“连接 CampusVision C1 服务”提示；即使直连地址可达，也会优先提示建立隧道。
 3. 软件内弹出“连接 CampusVision C1 服务”窗口，展示服务器账号、隧道目标和连接原因。
-4. 你在该窗口输入服务器密码，主进程用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
+4. 你在该窗口输入服务器密码；主进程先校验 C1 SSH 主机指纹，校验通过后才用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
@@ -275,7 +276,8 @@ Example config:
     "user": "speng",
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
-    "remotePort": 8000
+    "remotePort": 8000,
+    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
   }
 }
 ```

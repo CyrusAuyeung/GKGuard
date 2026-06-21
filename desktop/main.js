@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const https = require("https");
@@ -26,6 +26,7 @@ const DEFAULT_C1_SSH_TUNNEL = {
   localPort: 18000,
   remoteHost: "127.0.0.1",
   remotePort: 8000,
+  hostFingerprint: "",
 };
 
 let backendProcess = null;
@@ -224,6 +225,46 @@ function readC1ConnectionConfig() {
   }
 }
 
+function normalizeSshHostFingerprint(value) {
+  const fingerprint = String(value || "").trim();
+  if (!fingerprint) {
+    return "";
+  }
+
+  const sha256Match = fingerprint.match(/^SHA256:([A-Za-z0-9+/]+={0,2})$/i);
+  if (sha256Match) {
+    return `sha256:${sha256Match[1].replace(/=+$/, "")}`;
+  }
+
+  const hexMatch = fingerprint.match(/^(?:sha256:)?([a-f0-9]{64})$/i);
+  if (hexMatch) {
+    return `sha256:${Buffer.from(hexMatch[1], "hex").toString("base64").replace(/=+$/, "")}`;
+  }
+
+  return "";
+}
+
+function formatSshHostFingerprintFromHex(hexDigest) {
+  return `SHA256:${Buffer.from(hexDigest, "hex").toString("base64").replace(/=+$/, "")}`;
+}
+
+function createSshHostVerifier(expectedFingerprint) {
+  const normalizedExpected = normalizeSshHostFingerprint(expectedFingerprint);
+  if (!normalizedExpected) {
+    throw new Error("未配置 C1 SSH 主机指纹。请在 c1-connection.json 的 sshTunnel.hostFingerprint 或 C1_SSH_HOST_FINGERPRINT 中配置服务器 SHA256 指纹。");
+  }
+
+  return (keyHash) => {
+    const actualFingerprint = normalizeSshHostFingerprint(keyHash);
+    if (actualFingerprint === normalizedExpected) {
+      return true;
+    }
+
+    console.warn(`C1 SSH host key mismatch. Expected ${expectedFingerprint}, got ${formatSshHostFingerprintFromHex(keyHash)}.`);
+    return false;
+  };
+}
+
 function toPort(value, fallback) {
   const port = Number(value || fallback);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
@@ -250,12 +291,13 @@ function getSshTunnelConfig() {
   const remoteHost = process.env.C1_SSH_REMOTE_HOST || tunnel.remoteHost || "127.0.0.1";
   const localPort = toPort(process.env.C1_SSH_LOCAL_PORT || tunnel.localPort, 18000);
   const remotePort = toPort(process.env.C1_SSH_REMOTE_PORT || tunnel.remotePort, 8000);
+  const hostFingerprint = process.env.C1_SSH_HOST_FINGERPRINT || tunnel.hostFingerprint || "";
 
   if (!isSafeSshToken(host) || !isSafeSshToken(user) || !isSafeSshToken(remoteHost)) {
     return null;
   }
 
-  return { host, user, remoteHost, localPort, remotePort };
+  return { host, user, remoteHost, localPort, remotePort, hostFingerprint };
 }
 
 function getJson(url, timeoutMs = 2500) {
@@ -383,6 +425,14 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
   return new Promise((resolve, reject) => {
     stopSshTunnel();
     onProgress?.({ percent: 18, message: "正在连接 SSH 服务器..." });
+    let hostVerifier;
+    try {
+      hostVerifier = createSshHostVerifier(tunnel.hostFingerprint);
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
     const client = new SshClient();
     let server = null;
     let settled = false;
@@ -454,6 +504,8 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
       port: 22,
       username: tunnel.user,
       password,
+      hostHash: "sha256",
+      hostVerifier,
       readyTimeout: 12000,
       keepaliveInterval: 15000,
       keepaliveCountMax: 3,
