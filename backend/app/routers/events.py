@@ -21,11 +21,6 @@ def event_report(event_id: str) -> dict:
     report = build_event_report(event_id)
     if not report:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})
-    record_audit(
-        action="event_report_generated",
-        target={"event_id": event_id, "report_id": report["report_id"]},
-        metadata={"severity": report["severity"], "status": report["status"]},
-    )
     return report
 
 
@@ -48,9 +43,4 @@ def event_case_package(event_id: str) -> dict:
     package = build_case_package(event_id)
     if not package:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})
-    record_audit(
-        action="case_package_exported",
-        target={"event_id": event_id, "package_id": package["package_id"]},
-        metadata={"snapshot_count": len(package["evidence_snapshots"]), "audit_log_count": len(package["audit_logs"])},
-    )
     return package

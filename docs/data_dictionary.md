@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -156,7 +156,7 @@
 - `target`：事件、报告、处置或查询对象。
 - `metadata`：非敏感操作细节。
 
-审计日志写入 `backend/runtime/audit.jsonl`，该目录已被 Git 忽略。
+审计日志写入 `backend/runtime/audit.jsonl`，该目录已被 Git 忽略。`GET /audit/logs` 需要 `GKGUARD_AUDIT_TOKEN` 对应的 `X-GKGuard-Audit-Token` 请求头；读取时只保留最近请求行数到内存，文件超过 1 MiB 后压缩保留最近 2000 行。
 
 ## CampusCar 现场复核任务
 
@@ -342,7 +342,7 @@ Sensitive in real deployments: event subjects, case description, and handling st
 - `target`: event, report, disposition, or query target.
 - `metadata`: non-sensitive action details.
 
-Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git.
+Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git. `GET /audit/logs` requires the `X-GKGuard-Audit-Token` header matching `GKGUARD_AUDIT_TOKEN`; reads keep only the requested latest lines in memory, and files above 1 MiB are compacted to the latest 2000 lines.
 
 ## campusCar review tasks
 

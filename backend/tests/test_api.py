@@ -1,10 +1,12 @@
-﻿from pathlib import Path
+from pathlib import Path
+
+import os
 
 import httpx
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.services.audit_service import clear_audit_logs
+from app.services.audit_service import AUDIT_LOG_PATH, clear_audit_logs
 
 
 client = TestClient(app)
@@ -12,7 +14,12 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def setup_function() -> None:
+    os.environ["GKGUARD_AUDIT_TOKEN"] = "test-audit-token"
     clear_audit_logs()
+
+
+def audit_headers() -> dict[str, str]:
+    return {"X-GKGuard-Audit-Token": os.environ["GKGUARD_AUDIT_TOKEN"]}
 
 
 def test_health() -> None:
@@ -594,7 +601,7 @@ def test_image_search_uses_demo_hint() -> None:
     assert body["query_hint_person_id"] == "P001"
     assert len(body["matches"]) == 3
     assert all(match["person_id"] == "P001" for match in body["matches"])
-    audit_response = client.get("/audit/logs")
+    audit_response = client.get("/audit/logs", headers=audit_headers())
     assert audit_response.status_code == 200
     assert audit_response.json()["items"][-1]["action"] == "image_search"
 
@@ -615,8 +622,7 @@ def test_event_report() -> None:
     assert body["severity"] == "high"
     assert body["evidence"]["timeline_point_count"] >= 5
     assert body["recommended_actions"]
-    audit_response = client.get("/audit/logs")
-    assert audit_response.json()["items"][-1]["action"] == "event_report_generated"
+    assert not AUDIT_LOG_PATH.exists()
 
 
 def test_event_disposition_archive() -> None:
@@ -630,8 +636,18 @@ def test_event_disposition_archive() -> None:
     assert body["status_before"] == "open"
     assert body["status_after"] == "closed"
     assert body["evidence_summary"]["last_location"] == "Dorm East Gate"
-    audit_response = client.get("/audit/logs")
+    audit_response = client.get("/audit/logs", headers=audit_headers())
     assert audit_response.json()["items"][-1]["action"] == "event_disposition_archived"
+
+
+def test_audit_logs_require_token() -> None:
+    client.post(
+        "/events/ALT-001/disposition",
+        json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
+    )
+    response = client.get("/audit/logs")
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "AUDIT_FORBIDDEN"
 
 
 def test_audit_logs_limit() -> None:
@@ -640,7 +656,7 @@ def test_audit_logs_limit() -> None:
         "/events/ALT-001/disposition",
         json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
     )
-    response = client.get("/audit/logs", params={"limit": 1})
+    response = client.get("/audit/logs", params={"limit": 1}, headers=audit_headers())
     assert response.status_code == 200
     body = response.json()
     assert body["count"] == 1
@@ -663,8 +679,8 @@ def test_case_package_export() -> None:
     assert len(body["evidence_snapshots"]) >= 5
     assert body["handoff_checklist"]
 
-    audit_response = client.get("/audit/logs", params={"limit": 1})
-    assert audit_response.json()["items"][0]["action"] == "case_package_exported"
+    audit_response = client.get("/audit/logs", params={"limit": 1}, headers=audit_headers())
+    assert audit_response.json()["items"][0]["action"] == "event_disposition_archived"
 
 
 def test_mock_car_dispatch() -> None:
