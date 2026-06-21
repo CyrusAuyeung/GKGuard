@@ -32,8 +32,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.32-ui" in response.text
-    assert "/static/app.js?v=v0.1.32-ui" in response.text
+    assert "/static/styles.css?v=v0.1.33-ui" in response.text
+    assert "/static/app.js?v=v0.1.33-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -86,6 +86,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "return Math.min(availableWidth / image.naturalWidth, availableHeight / image.naturalHeight)" in script
     assert "data-image-width" in script
     assert "function cropRectFromSelectedFaceElement" in script
+    assert "function expandQueryFacePortraitCropRect" in script
+    assert "TARGET_PORTRAIT_CROP_PADDING_TOP = 0.65" in script
+    assert "const squareSide = Math.max(paddedWidth, paddedHeight)" in script
     assert "function queryFaceHitFromPoint" in script
     assert "sourceWidth = finiteNumber" in script
     assert "x1 / sourceWidth" in script
@@ -102,10 +105,10 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "object-fit: contain" in style
     assert "object-position: center center" in style
     assert ".target-frame img" in style
-    assert "width: auto" in style
-    assert "height: auto" in style
-    assert "max-width: calc(100% - 16px)" in style
-    assert "max-height: calc(100% - 16px)" in style
+    assert "position: absolute" in style
+    assert "inset: 8px" in style
+    assert "width: calc(100% - 16px)" in style
+    assert "height: calc(100% - 16px)" in style
     assert ".query-face-layer" in style
     assert ".face-box.is-pending" in style
     assert ".face-box.is-selected" in style
@@ -231,7 +234,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.32-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.33-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script

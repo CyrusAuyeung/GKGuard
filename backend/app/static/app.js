@@ -122,6 +122,9 @@ const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FACE_HIT_PADDING_PX = 8;
 const QUERY_FACE_MODAL_MIN_ZOOM = 0.5;
 const QUERY_FACE_MODAL_MAX_ZOOM = 3;
+const TARGET_PORTRAIT_CROP_PADDING_X = 0.45;
+const TARGET_PORTRAIT_CROP_PADDING_TOP = 0.65;
+const TARGET_PORTRAIT_CROP_PADDING_BOTTOM = 0.45;
 const C1_QUERY_FACE_TIMEOUT_MS = 15000;
 const C1_SEARCH_TIMEOUT_MS = 25000;
 const SEARCH_WATCHDOG_TIMEOUT_MS = 30000;
@@ -564,9 +567,8 @@ async function cropUploadedFace(face, sourceBox = null) {
 }
 
 function selectedQueryFaceCropRect(face, image, sourceBox = null) {
-  const elementRect = cropRectFromSelectedFaceElement(image, sourceBox);
-  if (elementRect) return elementRect;
-  return cropRectFromFacePayload(face, image);
+  const baseRect = cropRectFromSelectedFaceElement(image, sourceBox) || cropRectFromFacePayload(face, image);
+  return expandQueryFacePortraitCropRect(baseRect, image);
 }
 
 function cropRectFromSelectedFaceElement(image, sourceBox = null) {
@@ -633,12 +635,27 @@ function cropRectFromFacePayload(face, image) {
   return clampCropRect(rawX, rawY, rawWidth, rawHeight, image);
 }
 
+function expandQueryFacePortraitCropRect(rect, image) {
+  if (!rect) return null;
+  const paddedX = rect.x - rect.width * TARGET_PORTRAIT_CROP_PADDING_X;
+  const paddedY = rect.y - rect.height * TARGET_PORTRAIT_CROP_PADDING_TOP;
+  const paddedWidth = rect.width * (1 + TARGET_PORTRAIT_CROP_PADDING_X * 2);
+  const paddedHeight = rect.height * (1 + TARGET_PORTRAIT_CROP_PADDING_TOP + TARGET_PORTRAIT_CROP_PADDING_BOTTOM);
+  const squareSide = Math.max(paddedWidth, paddedHeight);
+  if (squareSide <= image.naturalWidth && squareSide <= image.naturalHeight) {
+    const centerX = paddedX + paddedWidth / 2;
+    const centerY = paddedY + paddedHeight / 2;
+    return clampCropRect(centerX - squareSide / 2, centerY - squareSide / 2, squareSide, squareSide, image);
+  }
+  return clampCropRect(paddedX, paddedY, paddedWidth, paddedHeight, image);
+}
+
 function clampCropRect(rawX, rawY, rawWidth, rawHeight, image) {
   if (![rawX, rawY, rawWidth, rawHeight].every(Number.isFinite) || rawWidth <= 0 || rawHeight <= 0) return null;
-  const x = Math.max(0, rawX);
-  const y = Math.max(0, rawY);
-  const width = Math.min(image.naturalWidth - x, rawWidth);
-  const height = Math.min(image.naturalHeight - y, rawHeight);
+  const width = Math.min(image.naturalWidth, rawWidth);
+  const height = Math.min(image.naturalHeight, rawHeight);
+  const x = Math.min(Math.max(0, rawX), Math.max(0, image.naturalWidth - width));
+  const y = Math.min(Math.max(0, rawY), Math.max(0, image.naturalHeight - height));
   if (width <= 0 || height <= 0) return null;
   return { x, y, width, height };
 }
