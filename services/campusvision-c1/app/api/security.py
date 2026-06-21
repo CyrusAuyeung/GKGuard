@@ -9,19 +9,21 @@ from app.core.config import settings
 
 
 SENSITIVE_C1_PREFIXES = (
+    "/api/v1/cameras",
     "/api/v1/videos/upload",
     "/api/v1/videos/",
-    "/api/v1/persons/rebuild-index",
-    "/api/v1/persons/update-index",
+    "/api/v1/persons",
     "/api/v1/search/by-image",
     "/api/v1/search/query-faces",
     "/api/v1/search/person-by-image",
+    "/api/v1/searches/",
+    "/api/v1/media/frame/",
+    "/api/v1/media/face/",
+    "/api/v1/records",
 )
 
 
 def c1_api_key_required_for_path(path: str, method: str) -> bool:
-    if method.upper() not in {"POST", "PUT", "PATCH"}:
-        return False
     return any(path.startswith(prefix) for prefix in SENSITIVE_C1_PREFIXES)
 
 
