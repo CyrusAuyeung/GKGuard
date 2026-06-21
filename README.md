@@ -221,7 +221,7 @@ http://127.0.0.1:8002/docs
 
 从 GitHub Release 下载的最新桌面端安装文件用于 GKGuard C2 桌面端演示。Windows 下载 `GKGuard-Setup-*.exe`，macOS 下载 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 下载 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。安装或解压后直接打开即可启动内置本地 GKGuard C2 后端并进入 `/demo`，不需要另外安装 Python、Node.js 或手动启动 GKGuard C2 服务。
 
-桌面软件右上角提供 `检查更新` 入口：Windows 版发现新版时再次点击会在应用内下载更新，下载完成后点击 `重启安装` 即可完成升级；macOS/Linux 版会按当前平台打开 GitHub Release 中对应的安装文件。已安装的旧版 Windows 软件仍可通过现有入口更新到继续提供 `GKGuard-Setup-*.exe` 的新版本。
+桌面软件右上角提供 `检查更新` 入口：Windows 版发现新版时再次点击会在应用内下载更新，下载完成后点击 `重启安装` 即可完成升级；macOS/Linux 版不会使用内置 `electron-updater`，而是按当前平台打开 GitHub Release 中对应的安装文件。已安装的旧版 Windows 软件仍可通过现有入口更新到继续提供 `GKGuard-Setup-*.exe` 的新版本。
 
 本地开发或打包桌面端时建议使用 Node.js `22.12.0` 或更高版本；当前 Electron 42 依赖链要求 Node 22+。
 
@@ -256,7 +256,7 @@ git tag -a v0.1.x -m "GKGuard v0.1.x"
 git push origin v0.1.x
 ```
 
-版本标签推送后，发布工作流会安装 Python 和 Node.js 22、运行后端测试、前端/桌面端语法检查、浏览器 E2E 回归，分别在 Windows、macOS 和 Linux runner 上构建 Electron 桌面端安装文件，再由统一发布任务生成发布说明，并把安装文件和更新元数据附到 GitHub Release。
+版本标签推送后，发布工作流会安装 Python 和 Node.js 22、运行后端测试、前端/桌面端语法检查、浏览器 E2E 回归，分别在 Windows、Intel macOS 和 Linux runner 上构建 Electron 桌面端安装文件，再由统一发布任务生成发布说明，并把安装文件和更新元数据附到 GitHub Release。
 
 如果 `docs/releases/v0.1.x.md` 存在，发布工作流会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 GitHub Release 正文。
 
@@ -285,7 +285,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.1.34` 的基线结果：后端测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过；本地 Windows 打包继续生成 `GKGuard-Setup-0.1.34.exe`、`.blockmap` 和 `latest.yml`；Release workflow 会在 Windows、macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据。本版未改动远端 CampusVision C1 服务或远端半自动部署脚本。浏览器 E2E 继续覆盖本地模拟检索、CampusVision C1 单人自动检索、多人查询图放大弹窗选人、结果页人物照片按选中目标框坐标扩边裁切并填满方框安全区、低置信查询候选可见标注、查询图检测失败拦截、无匹配结果返回上传页、检索超时恢复、检索结果、桌面左侧记录列表、路线图、路线点定位、时间线定位、返回结果页、重新上传流程，以及模拟 CampusVision C1 媒体结果的关键帧预览弹窗、目标人脸框和框外相似度标注。
+当前 `v0.1.34` 的基线结果：后端测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过；本地 Windows 打包继续生成 `GKGuard-Setup-0.1.34.exe`、`.blockmap` 和 `latest.yml`；Release workflow 会在 Windows、Intel macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据。本版未改动远端 CampusVision C1 服务或远端半自动部署脚本。浏览器 E2E 继续覆盖本地模拟检索、CampusVision C1 单人自动检索、多人查询图放大弹窗选人、结果页人物照片按选中目标框坐标扩边裁切并填满方框安全区、低置信查询候选可见标注、查询图检测失败拦截、无匹配结果返回上传页、检索超时恢复、检索结果、桌面左侧记录列表、路线图、路线点定位、时间线定位、返回结果页、重新上传流程，以及模拟 CampusVision C1 媒体结果的关键帧预览弹窗、目标人脸框和框外相似度标注。
 
 只修改文档时，可至少执行：
 
@@ -539,7 +539,7 @@ If the CampusVision C1 service is not connected, the demo UI still works through
 
 The latest desktop package from GitHub Releases is for the GKGuard C2 desktop demo. On Windows, download `GKGuard-Setup-*.exe`; on macOS, download `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip`; on Linux, download `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb`. After installation or extraction, opening the app starts the bundled local GKGuard C2 backend and loads `/demo`; Python, Node.js, and manual GKGuard C2 startup are not required for the packaged app.
 
-The desktop app includes a top-right `检查更新` entry. On Windows, when a newer version is available, clicking again downloads the update inside the app; after the download finishes, click `重启安装` to complete the upgrade. On macOS/Linux, the entry opens the current platform's GitHub Release asset. Existing Windows installations can still update through the same entry as long as the new Release keeps a `GKGuard-Setup-*.exe` asset.
+The desktop app includes a top-right `检查更新` entry. On Windows, when a newer version is available, clicking again downloads the update inside the app; after the download finishes, click `重启安装` to complete the upgrade. On macOS/Linux, the app does not use the embedded `electron-updater` path and instead opens the current platform's GitHub Release asset. Existing Windows installations can still update through the same entry as long as the new Release keeps a `GKGuard-Setup-*.exe` asset.
 
 For local desktop development or packaging, use Node.js `22.12.0` or later. The current Electron 42 dependency chain requires Node 22+.
 
@@ -574,7 +574,7 @@ git tag -a v0.1.x -m "GKGuard v0.1.x"
 git push origin v0.1.x
 ```
 
-After a tag is pushed, the workflow installs Python and Node.js 22, runs backend tests, frontend/desktop syntax checks, browser E2E regression, builds Electron desktop packages on Windows, macOS, and Linux runners, then publishes one Release with the platform packages and update metadata attached.
+After a tag is pushed, the workflow installs Python and Node.js 22, runs backend tests, frontend/desktop syntax checks, browser E2E regression, builds Electron desktop packages on Windows, Intel macOS, and Linux runners, then publishes one Release with the platform packages and update metadata attached.
 
 If `docs/releases/v0.1.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
 
@@ -603,7 +603,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.1.34` baseline: backend tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The local Windows build still generates `GKGuard-Setup-0.1.34.exe`, `.blockmap`, and `latest.yml`; the Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, macOS, and Linux runners. This release does not modify the remote CampusVision C1 service or the semi-automatic remote deployment script. Browser E2E continues to cover mock search, CampusVision C1 single-face auto-search, enlarged multi-face query selection, result portraits cropped with padding from the selected target-box coordinates and filling the portrait safe area, visible low-confidence query candidates, query-face detection failure blocking, no-match upload recovery, search timeout recovery, results, the left-side desktop record list, route map, route-point locate, timeline locate, return to results, re-upload, a mocked CampusVision C1 media keyframe preview dialog, target-face overlays, and outside-box similarity labels.
+Current `v0.1.34` baseline: backend tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The local Windows build still generates `GKGuard-Setup-0.1.34.exe`, `.blockmap`, and `latest.yml`; the Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, Intel macOS, and Linux runners. This release does not modify the remote CampusVision C1 service or the semi-automatic remote deployment script. Browser E2E continues to cover mock search, CampusVision C1 single-face auto-search, enlarged multi-face query selection, result portraits cropped with padding from the selected target-box coordinates and filling the portrait safe area, visible low-confidence query candidates, query-face detection failure blocking, no-match upload recovery, search timeout recovery, results, the left-side desktop record list, route map, route-point locate, timeline locate, return to results, re-upload, a mocked CampusVision C1 media keyframe preview dialog, target-face overlays, and outside-box similarity labels.
 
 For documentation-only changes, run at least:
 

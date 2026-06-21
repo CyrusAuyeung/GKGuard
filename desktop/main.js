@@ -86,6 +86,10 @@ function getDesktopPlatformName() {
   return process.platform;
 }
 
+function shouldUseEmbeddedUpdater() {
+  return app.isPackaged && process.platform === "win32";
+}
+
 function getBackendExecutableName() {
   return process.platform === "win32" ? "gkguard-backend.exe" : "gkguard-backend";
 }
@@ -188,7 +192,7 @@ function isTrustedReleaseUrl(url) {
 }
 
 async function checkForUpdates() {
-  if (app.isPackaged) {
+  if (shouldUseEmbeddedUpdater()) {
     try {
       const update = await autoUpdater.checkForUpdates();
       cachedUpdateInfo = update?.updateInfo || null;
@@ -240,7 +244,7 @@ async function checkForManualReleaseUpdate() {
 }
 
 async function downloadUpdate() {
-  if (!app.isPackaged || cachedManualUpdateAsset) {
+  if (!shouldUseEmbeddedUpdater() || cachedManualUpdateAsset) {
     const fallbackUrl = cachedManualUpdateAsset?.browser_download_url || RELEASES_URL;
     shell.openExternal(fallbackUrl);
     return { started: true, embedded: false, fallbackUrl };

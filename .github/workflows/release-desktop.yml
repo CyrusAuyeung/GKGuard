@@ -24,7 +24,7 @@ jobs:
             artifact_name: GKGuard-Windows
           - name: macOS
             platform: macos
-            os: macos-latest
+            os: macos-15-intel
             dist_script: dist:mac
             artifact_name: GKGuard-macOS
           - name: Linux
@@ -90,7 +90,28 @@ jobs:
         run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static:app/static" --add-data "backend/data:data" backend/desktop_server.py
 
       - name: Build platform desktop package
-        run: npm run ${{ matrix.dist_script }}
+        shell: pwsh
+        env:
+          DIST_SCRIPT: ${{ matrix.dist_script }}
+        run: |
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Running npm run $env:DIST_SCRIPT (attempt $attempt of $maxAttempts)"
+            npm run $env:DIST_SCRIPT
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) {
+              exit 0
+            }
+
+            if ($attempt -eq $maxAttempts) {
+              Write-Error "Desktop package build failed after $maxAttempts attempts."
+              exit $exitCode
+            }
+
+            $delaySeconds = 20 * $attempt
+            Write-Warning "Desktop package build failed with exit code $exitCode. Retrying in $delaySeconds seconds."
+            Start-Sleep -Seconds $delaySeconds
+          }
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v6
