@@ -599,6 +599,25 @@ def test_image_search_uses_demo_hint() -> None:
     assert audit_response.json()["items"][-1]["action"] == "image_search"
 
 
+def test_image_search_rejects_oversized_upload() -> None:
+    response = client.post(
+        "/search/image",
+        files={"file": ("large.jpg", b"x" * (2 * 1024 * 1024 + 1), "image/jpeg")},
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "IMAGE_TOO_LARGE"
+
+
+def test_image_search_rejects_oversized_content_length() -> None:
+    response = client.post(
+        "/search/image",
+        headers={"content-length": str(2 * 1024 * 1024 + 1)},
+        files={"file": ("small.jpg", b"p001", "image/jpeg")},
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "IMAGE_TOO_LARGE"
+
+
 def test_event_related_records() -> None:
     response = client.get("/events/ALT-001/related-records")
     assert response.status_code == 200

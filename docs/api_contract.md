@@ -200,7 +200,7 @@ Query 参数：
 
 Multipart 表单字段：
 
-- `file`：查询图片。
+- `file`：查询图片，旧版本地模拟接口最大接受 2 MiB 上传；超过限制会返回 `413 IMAGE_TOO_LARGE`。
 
 Query 参数：
 
@@ -501,7 +501,7 @@ Returns snapshot records enriched with camera name, location, and map coordinate
 
 Multipart form field:
 
-- `file`: query image.
+- `file`: query image. The legacy local mock endpoint accepts uploads up to 2 MiB; larger uploads return `413 IMAGE_TOO_LARGE`.
 
 Query parameters:
 

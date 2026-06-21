@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, Request, UploadFile
 
 from app.services.audit_service import record_audit
 from app.services.image_search_service import search_by_image
@@ -6,6 +6,36 @@ from app.services.search_service import get_person_profile, search_persons, sear
 
 
 router = APIRouter(prefix="/search", tags=["search"])
+
+MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
+IMAGE_UPLOAD_READ_LIMIT_BYTES = MAX_IMAGE_UPLOAD_BYTES + 1
+
+
+def _image_too_large_error() -> HTTPException:
+    return HTTPException(
+        status_code=413,
+        detail={
+            "code": "IMAGE_TOO_LARGE",
+            "message": f"Uploaded image exceeds the {MAX_IMAGE_UPLOAD_BYTES} byte limit",
+            "max_bytes": MAX_IMAGE_UPLOAD_BYTES,
+        },
+    )
+
+
+def _validate_image_content_length(request: Request) -> None:
+    content_length = request.headers.get("content-length")
+    if not content_length:
+        return
+    try:
+        request_size = int(content_length)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "INVALID_CONTENT_LENGTH", "message": "Content-Length must be an integer"},
+        ) from None
+    if request_size > MAX_IMAGE_UPLOAD_BYTES:
+        raise _image_too_large_error()
+
 
 
 @router.get("/persons")
@@ -61,11 +91,15 @@ def find_records(
 
 @router.post("/image")
 async def find_by_image(
+    request: Request,
     file: UploadFile = File(...),
     top_k: int = Query(5, ge=1, le=20),
     min_similarity: float = Query(0.72, ge=0, le=1),
 ) -> dict:
-    content = await file.read()
+    _validate_image_content_length(request)
+    content = await file.read(IMAGE_UPLOAD_READ_LIMIT_BYTES)
+    if len(content) > MAX_IMAGE_UPLOAD_BYTES:
+        raise _image_too_large_error()
     if not content:
         raise HTTPException(status_code=400, detail={"code": "EMPTY_IMAGE", "message": "Uploaded file is empty"})
     result = search_by_image(file.filename or "query.jpg", content, top_k, min_similarity)
