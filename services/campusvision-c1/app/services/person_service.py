@@ -644,14 +644,21 @@ def search_persons_by_images(
 ) -> dict:
     search_id = uuid.uuid4().hex
     min_score = default_similarity_threshold() if min_score is None else float(min_score)
-    query_faces = search_service.detect_query_faces(query_paths)["query_faces"]
+    query_result = search_service._query_faces_from_images(query_paths, include_embeddings=True)
+    query_faces = query_result["faces"]
     selected_query_face = None
     if query_face_index is not None:
         selected_query_face = next(
             (face for face in query_faces if int(face["index"]) == int(query_face_index)),
             None,
         )
-    query_embeddings = search_service.load_embeddings_from_images(query_paths, query_face_index=query_face_index)
+    query_embeddings: list[list[float]] = []
+    for face in query_faces:
+        if query_face_index is not None and int(face["index"]) != int(query_face_index):
+            continue
+        embedding = face.pop("embedding", None)
+        if embedding is not None:
+            query_embeddings.append(embedding)
 
     if not query_embeddings:
         if query_face_index is not None and selected_query_face is None:

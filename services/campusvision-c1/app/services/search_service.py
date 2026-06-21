@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import shutil
 import uuid
+import warnings
 from dataclasses import dataclass
 from hashlib import sha1
 from pathlib import Path
@@ -10,11 +10,21 @@ from typing import BinaryIO
 import cv2
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL.Image import DecompressionBombError, DecompressionBombWarning
 
 from app.core.config import settings
 from app.storage import db
 from app.vision.face_engine import default_similarity_threshold, get_face_engine
 from app.vision.vector_math import cosine_similarity
+
+MAX_QUERY_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_QUERY_IMAGE_PIXELS = 4_000_000
+MAX_QUERY_IMAGE_DIMENSION = 4096
+Image.MAX_IMAGE_PIXELS = MAX_QUERY_IMAGE_PIXELS
+
+
+class QueryImageTooLarge(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -45,8 +55,17 @@ def save_query_image(fileobj: BinaryIO, filename: str, search_id: str) -> str:
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     dest = dest_dir / f"{uuid.uuid4().hex}{suffix}"
+    copied = 0
     with dest.open("wb") as f:
-        shutil.copyfileobj(fileobj, f)
+        while True:
+            chunk = fileobj.read(1024 * 1024)
+            if not chunk:
+                break
+            copied += len(chunk)
+            if copied > MAX_QUERY_UPLOAD_BYTES:
+                dest.unlink(missing_ok=True)
+                raise QueryImageTooLarge("Query image upload exceeds 8 MiB.")
+            f.write(chunk)
     return str(dest)
 
 
@@ -84,14 +103,30 @@ def _pil_to_bgr(image: Image.Image) -> np.ndarray:
 
 def _load_query_image(path: str) -> Image.Image | None:
     try:
-        with Image.open(path) as image:
-            return ImageOps.exif_transpose(image).copy()
-    except (OSError, UnidentifiedImageError):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DecompressionBombWarning)
+            with Image.open(path) as image:
+                width, height = image.size
+                if (
+                    width <= 0
+                    or height <= 0
+                    or width > MAX_QUERY_IMAGE_DIMENSION
+                    or height > MAX_QUERY_IMAGE_DIMENSION
+                    or width * height > MAX_QUERY_IMAGE_PIXELS
+                ):
+                    raise QueryImageTooLarge("Query image dimensions exceed the allowed limit.")
+                return ImageOps.exif_transpose(image).copy()
+    except QueryImageTooLarge:
+        raise
+    except (OSError, UnidentifiedImageError, DecompressionBombError, DecompressionBombWarning):
         return None
 
 
 def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:
-    image = _load_query_image(path)
+    try:
+        image = _load_query_image(path)
+    except QueryImageTooLarge as exc:
+        return [], {"path": Path(path).name, "loaded": False, "rejected": True, "reason": str(exc), "attempts": []}
     if image is None:
         return [], {"path": path, "loaded": False, "attempts": []}
 

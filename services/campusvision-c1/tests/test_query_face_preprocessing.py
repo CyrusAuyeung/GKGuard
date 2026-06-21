@@ -1,4 +1,5 @@
 from pathlib import Path
+from io import BytesIO
 import sys
 import importlib.util
 
@@ -59,3 +60,27 @@ def test_load_embeddings_uses_retry_variant(monkeypatch, tmp_path):
     embeddings = search_service.load_embeddings_from_images([str(image_path)], query_face_index=0)
 
     assert embeddings == [[1.0, 0.0, 0.0]]
+
+
+def test_save_query_image_rejects_oversized_upload(tmp_path, monkeypatch):
+    monkeypatch.setattr(search_service.settings, "query_uploads_dir", tmp_path)
+
+    with pytest.raises(search_service.QueryImageTooLarge):
+        search_service.save_query_image(
+            BytesIO(b"x" * (search_service.MAX_QUERY_UPLOAD_BYTES + 1)),
+            "too-large.jpg",
+            "search",
+        )
+
+    assert not list((tmp_path / "search").glob("*.jpg"))
+
+
+def test_query_image_variants_rejects_excessive_pixels(tmp_path):
+    image_path = tmp_path / "too-many-pixels.png"
+    Image.new("RGB", (5000, 500), (245, 248, 255)).save(image_path)
+
+    variants, diagnostics = search_service._query_image_variants(str(image_path))
+
+    assert variants == []
+    assert diagnostics["rejected"] is True
+    assert "dimensions exceed" in diagnostics["reason"]

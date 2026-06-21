@@ -175,10 +175,13 @@ async def search_by_image(
 
     temp_search_id = "upload_" + uuid.uuid4().hex
     paths = []
-    for f in files:
-        if not f.filename:
-            continue
-        paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    try:
+        for f in files:
+            if not f.filename:
+                continue
+            paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    except search_service.QueryImageTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
@@ -201,10 +204,13 @@ async def detect_query_faces(files: list[UploadFile] = File(...)):
 
     temp_search_id = "detect_" + uuid.uuid4().hex
     paths = []
-    for f in files:
-        if not f.filename:
-            continue
-        paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    try:
+        for f in files:
+            if not f.filename:
+                continue
+            paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    except search_service.QueryImageTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
@@ -224,10 +230,13 @@ async def search_person_by_image(
 
     temp_search_id = "upload_" + uuid.uuid4().hex
     paths = []
-    for f in files:
-        if not f.filename:
-            continue
-        paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    try:
+        for f in files:
+            if not f.filename:
+                continue
+            paths.append(search_service.save_query_image(f.file, f.filename, temp_search_id))
+    except search_service.QueryImageTooLarge as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
