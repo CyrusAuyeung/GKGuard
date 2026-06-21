@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 import httpx
 from fastapi.testclient import TestClient
@@ -46,6 +46,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "record.frameUrl" in script
     assert "matchedPersonImageUrl" in script
     assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
+    assert 'return `<img src="${escapeHtml(portraitUrl)}" alt="目标人物照片" />`;' in script
+    assert 'return `<img src="${portraitUrl}" alt="目标人物照片" />`;' not in script
     assert "function prepareQueryFaces" in script
     assert 'fetchWithTimeout("/c1/query-faces"' in script
     assert 'fetchWithTimeout(`/c1/search/person-by-image?' in script

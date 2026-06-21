@@ -307,7 +307,7 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
 
 function targetPortraitMarkup() {
   const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
-  if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
+  if (portraitUrl) return `<img src="${escapeHtml(portraitUrl)}" alt="目标人物照片" />`;
   return '<span class="portrait-art" aria-hidden="true"></span>';
 }
 
