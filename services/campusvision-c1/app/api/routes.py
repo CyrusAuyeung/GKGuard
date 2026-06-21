@@ -3,14 +3,24 @@ from __future__ import annotations
 from html import escape
 from typing import Optional
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
+from app.api.security import require_c1_api_key
+from app.core.config import settings
 from app.schemas import CameraCreate, CameraOut, IndexResult, PersonIndexResult, PersonOut, VideoOut
 from app.services import person_service, search_service, video_service
 from app.storage import db
 
 router = APIRouter()
+
+
+def _validate_upload_count(files: list[UploadFile]) -> None:
+    if len(files) > settings.max_query_images:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Too many query images; maximum is {settings.max_query_images}.",
+        )
 
 
 @router.post("/cameras", response_model=CameraOut)
@@ -25,6 +35,7 @@ def list_cameras():
 
 @router.post("/videos/upload", response_model=VideoOut)
 async def upload_video(
+    _: None = Depends(require_c1_api_key),
     file: UploadFile = File(...),
     camera_id: str = Form(...),
     recorded_at: Optional[str] = Form(None),
@@ -50,6 +61,7 @@ def list_videos():
 
 @router.post("/persons/rebuild-index", response_model=PersonIndexResult)
 def rebuild_person_index(
+    _: None = Depends(require_c1_api_key),
     merge_threshold: Optional[float] = Form(None),
     min_faces: int = Form(2),
     min_face_area: float = Form(2500.0),
@@ -65,6 +77,7 @@ def rebuild_person_index(
 
 @router.post("/persons/update-index", response_model=PersonIndexResult)
 def update_person_index(
+    _: None = Depends(require_c1_api_key),
     merge_threshold: Optional[float] = Form(None),
     person_match_threshold: float = Form(0.68),
     min_faces: int = Form(2),
@@ -152,7 +165,11 @@ def persons_gallery():
 
 
 @router.post("/videos/{video_id}/index", response_model=IndexResult)
-def index_video(video_id: str, frame_interval_sec: Optional[float] = None):
+def index_video(
+    video_id: str,
+    frame_interval_sec: Optional[float] = None,
+    _: None = Depends(require_c1_api_key),
+):
     try:
         return video_service.index_video(video_id, frame_interval_sec=frame_interval_sec)
     except KeyError as exc:
@@ -163,6 +180,7 @@ def index_video(video_id: str, frame_interval_sec: Optional[float] = None):
 
 @router.post("/search/by-image")
 async def search_by_image(
+    _: None = Depends(require_c1_api_key),
     files: list[UploadFile] = File(...),
     top_k: int = Form(20),
     min_score: Optional[float] = Form(None),
@@ -173,6 +191,7 @@ async def search_by_image(
 ):
     import uuid
 
+    _validate_upload_count(files)
     temp_search_id = "upload_" + uuid.uuid4().hex
     paths = []
     for f in files:
@@ -196,9 +215,13 @@ async def search_by_image(
 
 
 @router.post("/search/query-faces")
-async def detect_query_faces(files: list[UploadFile] = File(...)):
+async def detect_query_faces(
+    files: list[UploadFile] = File(...),
+    _: None = Depends(require_c1_api_key),
+):
     import uuid
 
+    _validate_upload_count(files)
     temp_search_id = "detect_" + uuid.uuid4().hex
     paths = []
     for f in files:
@@ -214,6 +237,7 @@ async def detect_query_faces(files: list[UploadFile] = File(...)):
 
 @router.post("/search/person-by-image")
 async def search_person_by_image(
+    _: None = Depends(require_c1_api_key),
     files: list[UploadFile] = File(...),
     top_k: int = Form(5),
     min_score: Optional[float] = Form(None),
@@ -222,6 +246,7 @@ async def search_person_by_image(
 ):
     import uuid
 
+    _validate_upload_count(files)
     temp_search_id = "upload_" + uuid.uuid4().hex
     paths = []
     for f in files:

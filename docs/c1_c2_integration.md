@@ -44,6 +44,8 @@ CampusVision C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/person
 
 CampusVision C1 服务依赖建议保持 `numpy<2`、`opencv-python<4.13`。当前 InsightFace / ONNXRuntime 环境可以在 NumPy 1.26.x 下通过检查；若 pip 将 NumPy 升级到 2.x，可能导致运行时依赖不一致，应按 `services/campusvision-c1/requirements.txt` 重新安装后重启服务。
 
+若必须将 CampusVision C1 绑定到 `0.0.0.0` 或 `::`，必须设置 `CAMPUSVISION_API_KEY`；上传媒体、查询图片、视频索引和人物索引接口会要求 `X-CampusVision-API-Key` 请求头。GKGuard C2 代理可通过 `C1_API_KEY` 或同名 `CAMPUSVISION_API_KEY` 环境变量向 CampusVision C1 透传该请求头。服务同时默认限制单个视频 512 MiB、单张查询图 10 MiB、单次最多 5 张查询图、单个视频索引最多 5000 个采样帧，避免暴露部署被未授权请求耗尽磁盘或计算资源。
+
 ## 已实现 GKGuard C2 代理接口
 
 | GKGuard C2 接口 | CampusVision C1 接口 | 作用 |
@@ -146,6 +148,8 @@ GKGuard C2 can then call `http://127.0.0.1:18000` without exposing CampusVision 
 CampusVision C1 must run with `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, the active uvicorn worker may still have stale environment variables. Inspect `/proc/<pid>/environ` and restart the actual worker that owns the listening port.
 
 Keep the CampusVision C1 service dependencies on `numpy<2` and `opencv-python<4.13`. The current InsightFace / ONNXRuntime environment checks pass on NumPy 1.26.x; if pip upgrades NumPy to 2.x, reinstall from `services/campusvision-c1/requirements.txt` and restart the service.
+
+If CampusVision C1 must bind to `0.0.0.0` or `::`, set `CAMPUSVISION_API_KEY`; media-upload, query-image, video-indexing, and person-indexing endpoints then require the `X-CampusVision-API-Key` request header. The GKGuard C2 proxy can forward this header by setting `C1_API_KEY` or the same `CAMPUSVISION_API_KEY` environment variable. The service also defaults to 512 MiB per video, 10 MiB per query image, 5 query images per request, and 5000 sampled frames per video indexing run to keep exposed deployments from exhausting disk or compute resources through unauthenticated requests.
 
 ## Implemented GKGuard C2 Proxy Endpoints
 

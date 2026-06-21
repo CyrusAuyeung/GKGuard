@@ -14,6 +14,7 @@ DEFAULT_C1_BASE_URL = "http://127.0.0.1:18000"
 C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
 C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
+C1_API_KEY = os.getenv("C1_API_KEY", os.getenv("CAMPUSVISION_API_KEY", "")).strip()
 _selected_base_url: str | None = None
 RETRYABLE_STATUS_CODES = {502, 503, 504}
 
@@ -399,6 +400,10 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _request_once(base_url: str, method: str, path: str, **kwargs: Any) -> httpx.Response:
     url = f"{base_url}{path}"
+    if C1_API_KEY:
+        headers = dict(kwargs.pop("headers", {}) or {})
+        headers.setdefault("X-CampusVision-API-Key", C1_API_KEY)
+        kwargs["headers"] = headers
     with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
         response = client.request(method, url, **kwargs)
         response.raise_for_status()

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 import uuid
 from dataclasses import dataclass
 from hashlib import sha1
@@ -13,6 +12,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.core.config import settings
 from app.storage import db
+from app.services.upload_limits import copy_upload_with_limit
 from app.vision.face_engine import default_similarity_threshold, get_face_engine
 from app.vision.vector_math import cosine_similarity
 
@@ -45,8 +45,7 @@ def save_query_image(fileobj: BinaryIO, filename: str, search_id: str) -> str:
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     dest = dest_dir / f"{uuid.uuid4().hex}{suffix}"
-    with dest.open("wb") as f:
-        shutil.copyfileobj(fileobj, f)
+    copy_upload_with_limit(fileobj, dest, settings.max_query_image_upload_bytes)
     return str(dest)
 
 

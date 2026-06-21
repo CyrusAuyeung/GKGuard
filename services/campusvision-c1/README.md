@@ -71,6 +71,17 @@ INSIGHTFACE_DET_SIZE=1280
 
 `INSIGHTFACE_DET_SIZE` 控制 InsightFace 检测输入尺寸，默认 1280；多人全景图或多人乐队/教室场景中，如果查询图只检测到一张人脸，优先确认该值未被旧环境覆盖。修改 `.env` 后需要重启实际监听端口的 uvicorn worker。
 
+### 资源与访问保护
+
+默认开发脚本仍绑定 `127.0.0.1`。如果将 `APP_HOST` 改为 `0.0.0.0` 或 `::` 使 CampusVision C1 暴露到网络，必须设置 `CAMPUSVISION_API_KEY`，上传媒体、查询图片、视频索引和人物索引类接口会要求请求头 `X-CampusVision-API-Key`。也可以在环回地址部署时设置 `CAMPUSVISION_REQUIRE_API_KEY=true` 强制开启同样的校验。
+
+上传与索引默认限制如下，可在 `.env` 中按部署容量调整：
+
+- `CAMPUSVISION_MAX_VIDEO_UPLOAD_BYTES=536870912`：单个视频上传最大 512 MiB。
+- `CAMPUSVISION_MAX_QUERY_IMAGE_UPLOAD_BYTES=10485760`：单张查询图片最大 10 MiB。
+- `CAMPUSVISION_MAX_QUERY_IMAGES=5`：单次查询最多 5 张图片。
+- `CAMPUSVISION_MAX_INDEX_FRAMES=5000`：单个视频索引最多处理 5000 个采样帧。
+
 ## 快速接口流程
 
 1. 创建摄像头点位。
@@ -275,6 +286,17 @@ FACE_ENGINE=insightface
 INSIGHTFACE_DET_SIZE=1280
 ```
 `INSIGHTFACE_DET_SIZE` controls the InsightFace detection input size and defaults to `1280`. If a group, classroom, or band-room image returns only one detected query face, first confirm that an old runtime environment has not overridden this value. After changing `.env`, restart the actual uvicorn worker that owns the listening port.
+
+### Resource And Access Protection
+
+The default development script still binds to `127.0.0.1`. If `APP_HOST` is changed to `0.0.0.0` or `::` so CampusVision C1 is exposed on a network, set `CAMPUSVISION_API_KEY`; media uploads, query-image uploads, video indexing, and person-index endpoints then require the `X-CampusVision-API-Key` request header. You can also set `CAMPUSVISION_REQUIRE_API_KEY=true` on loopback deployments to force the same check.
+
+Uploads and indexing use these default limits, which can be adjusted in `.env` for deployment capacity:
+
+- `CAMPUSVISION_MAX_VIDEO_UPLOAD_BYTES=536870912`: maximum 512 MiB per video upload.
+- `CAMPUSVISION_MAX_QUERY_IMAGE_UPLOAD_BYTES=10485760`: maximum 10 MiB per query image.
+- `CAMPUSVISION_MAX_QUERY_IMAGES=5`: maximum 5 images per query request.
+- `CAMPUSVISION_MAX_INDEX_FRAMES=5000`: maximum 5000 sampled frames per video indexing run.
 
 ## Quick API Flow
 
