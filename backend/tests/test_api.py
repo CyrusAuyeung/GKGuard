@@ -249,6 +249,10 @@ def test_desktop_update_bridge_wired() -> None:
     assert "isC1TunnelConnected" in main_script
     assert "waitForC1TunnelReady" in main_script
     assert "probeC1Endpoint" in main_script
+    assert 'reachable: health.status === "fulfilled"' in main_script
+    assert 'if (endpointStatus.healthOk)' in main_script
+    assert 'return { connected: true, verified: true, status: endpointStatus }' in main_script
+    assert 'reachable: openapi.status === "fulfilled" || health.status === "fulfilled"' not in main_script
     assert "gkguard:ssh-connect-progress" in main_script
     assert "autoUpdater.checkForUpdates" in main_script
     assert "autoUpdater.downloadUpdate" in main_script

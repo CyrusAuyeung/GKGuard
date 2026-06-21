@@ -419,7 +419,7 @@ async function probeC1Endpoint(baseUrl, timeoutMs = 1200) {
     getJson(`${baseUrl}/health`, timeoutMs),
   ]);
   return {
-    reachable: openapi.status === "fulfilled" || health.status === "fulfilled",
+    reachable: health.status === "fulfilled",
     openapiOk: openapi.status === "fulfilled",
     healthOk: health.status === "fulfilled",
     openapiError: openapi.status === "rejected" ? openapi.reason?.message : "",
@@ -436,8 +436,8 @@ async function waitForC1TunnelReady(tunnel, onProgress, timeoutMs = C1_CONNECT_T
     onProgress?.({ percent, message: "正在确认 C1 服务响应..." });
 
     const endpointStatus = await probeC1Endpoint(tunnelBaseUrl, 1200);
-    if (endpointStatus.reachable) {
-      return { connected: true, verified: endpointStatus.healthOk, status: endpointStatus };
+    if (endpointStatus.healthOk) {
+      return { connected: true, verified: true, status: endpointStatus };
     }
 
     await delay(450);
@@ -601,7 +601,13 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
         sendProgress({ percent: 12, message: "已收到密码，正在连接...", busy: true });
         try {
           const result = await connectWithPassword(submittedPassword, sendProgress);
-          sendProgress({ percent: 100, message: result.verified ? "CampusVision C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
+          sendProgress({
+            percent: 100,
+            message: result.connected && result.verified ? "CampusVision C1 已连接。" : "尚未确认 CampusVision C1 服务可用。",
+            busy: false,
+            done: true,
+            failed: !result.connected,
+          });
           setTimeout(() => done(result), 420);
         } catch (error) {
           connecting = false;

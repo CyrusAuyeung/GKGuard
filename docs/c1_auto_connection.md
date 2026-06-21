@@ -116,7 +116,7 @@ remotePort = 8000
 3. 软件内弹出“连接 CampusVision C1 服务”窗口，展示服务器账号、隧道目标和连接原因。
 4. 你在该窗口输入服务器密码，主进程用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
-6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
+6. 只有 CampusVision C1 `/health` 健康检查通过后，才进入可检索状态；单独的通用 `/openapi.json` 响应只用于诊断展示，不能触发真实检索重试。
 
 安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.34-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
@@ -292,7 +292,7 @@ Startup behavior:
 2. If the local tunnel is not connected, it shows a “Connect CampusVision C1 service” prompt; even when the direct URL is reachable, the app prefers establishing the tunnel.
 3. The app opens the embedded “Connect CampusVision C1 service” window.
 4. You type the server password in that window, and the main process creates the SSH tunnel with that one-time password.
-5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
+5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly. It enters the searchable state only after the CampusVision C1 `/health` check succeeds; a generic `/openapi.json` response is diagnostic only and cannot trigger a real-search retry.
 
 Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.34-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
