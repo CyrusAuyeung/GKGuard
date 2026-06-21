@@ -19,7 +19,7 @@ GKGuard C2 后端会按顺序读取候选地址并自动探测；安装版默认
 4. 默认本机隧道地址：`http://127.0.0.1:18000`。
 5. 内置服务器地址：`http://10.4.167.122:8000`。
 
-探测时会访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`。第一个健康检查通过的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。桌面端 SSH 隧道连接如果被远端重置，主进程会记录警告并关闭对应 socket，不再弹出 Electron 主进程 JavaScript 错误。
+GKGuard C2 只接受受信任主机上的候选地址，默认允许 `localhost`、`127.0.0.1`、`::1` 和 `10.4.167.122`；如需更换服务器，必须由运维通过 `C1_ALLOWED_HOSTS` 明确加入允许的主机。探测时会访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`，并校验 OpenAPI 或健康检查响应中的 `CampusVision C1` 服务身份。第一个健康检查和身份校验都通过的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。桌面端 SSH 隧道连接如果被远端重置，主进程会记录警告并关闭对应 socket，不再弹出 Electron 主进程 JavaScript 错误。
 
 ## 推荐方案 A：直连 CampusVision C1 服务
 
@@ -196,7 +196,7 @@ The GKGuard C2 backend reads and probes candidate URLs in this order; the packag
 4. Default local tunnel URL: `http://127.0.0.1:18000`.
 5. Built-in server URL: `http://10.4.167.122:8000`.
 
-During probing, GKGuard C2 calls `/openapi.json` and `/health` on each CampusVision C1 candidate. The first candidate with a healthy response is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once. If the remote side resets an SSH tunnel connection, the desktop main process records a warning and closes the socket instead of showing an Electron main-process JavaScript error dialog.
+GKGuard C2 only accepts candidate URLs on trusted hosts. By default it allows `localhost`, `127.0.0.1`, `::1`, and `10.4.167.122`; if the server changes, operations must explicitly add the host through `C1_ALLOWED_HOSTS`. During probing, GKGuard C2 calls `/openapi.json` and `/health` on each CampusVision C1 candidate and verifies the `CampusVision C1` service identity from the OpenAPI or health response. The first candidate with both a healthy response and a valid identity is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once. If the remote side resets an SSH tunnel connection, the desktop main process records a warning and closes the socket instead of showing an Electron main-process JavaScript error dialog.
 
 ## Recommended Option A: Direct CampusVision C1 Access
 

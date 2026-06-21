@@ -38,7 +38,7 @@ C1_BASE_URL=http://127.0.0.1:18000
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-这样 GKGuard C2 可以访问 `http://127.0.0.1:18000`，同时不把 CampusVision C1 直接暴露到网络。安装版默认会优先要求通过隧道连接；若直连可达但真实检索返回 503，前端会打开软件内 SSH 密码窗口并在连接后重试。密码只用于本次 SSH 连接，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
+这样 GKGuard C2 可以访问 `http://127.0.0.1:18000`，同时不把 CampusVision C1 直接暴露到网络。安装版默认会优先要求通过隧道连接；若直连可达但真实检索返回 503，前端会打开软件内 SSH 密码窗口并在连接后重试。密码只用于本次 SSH 连接，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖，并用 `C1_ALLOWED_HOSTS` 明确允许新的 CampusVision C1 主机。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
 
 CampusVision C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/persons` 正常，但 `/health` 或以图搜人返回 500，通常是运行中的 uvicorn worker 仍继承了旧环境变量，需要检查 `/proc/<pid>/environ` 并重启实际监听端口的 worker。
 
@@ -141,7 +141,7 @@ If CampusVision C1 runs on a remote server and is bound to that server's `127.0.
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-GKGuard C2 can then call `http://127.0.0.1:18000` without exposing CampusVision C1 directly on the network. By default, the packaged app prefers the tunnel; if direct CampusVision C1 is reachable but real search returns 503, the frontend opens the embedded SSH password prompt and retries after connection. The password is used only for the current SSH session, and GKGuard does not store it. Use `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json` to override this for other deployments. See [c1_auto_connection.md](c1_auto_connection.md) for automatic connection setup.
+GKGuard C2 can then call `http://127.0.0.1:18000` without exposing CampusVision C1 directly on the network. By default, the packaged app prefers the tunnel; if direct CampusVision C1 is reachable but real search returns 503, the frontend opens the embedded SSH password prompt and retries after connection. The password is used only for the current SSH session, and GKGuard does not store it. Use `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json` to override this for other deployments, and explicitly allow the new CampusVision C1 host with `C1_ALLOWED_HOSTS`. See [c1_auto_connection.md](c1_auto_connection.md) for automatic connection setup.
 
 CampusVision C1 must run with `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, the active uvicorn worker may still have stale environment variables. Inspect `/proc/<pid>/environ` and restart the actual worker that owns the listening port.
 

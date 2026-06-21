@@ -387,6 +387,60 @@ def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
     assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
 
 
+def test_c1_candidate_urls_reject_unapproved_hosts(monkeypatch, tmp_path) -> None:
+    from app.services import c1_service
+
+    config_path = tmp_path / "c1-connection.json"
+    config_path.write_text(
+        '{"candidateUrls":["http://attacker.example:8000","http://127.0.0.1:18000"]}',
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.delenv("C1_ALLOWED_HOSTS", raising=False)
+    monkeypatch.setenv("C1_CONFIG_PATH", str(config_path))
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+
+    urls = c1_service._candidate_urls()
+    assert "http://attacker.example:8000" not in urls
+    assert "http://127.0.0.1:18000" in urls
+
+
+def test_c1_status_requires_campusvision_identity(monkeypatch) -> None:
+    from app.services import c1_service
+
+    statuses = {
+        "http://127.0.0.1:9": {
+            "baseUrl": "http://127.0.0.1:9",
+            "reachable": True,
+            "healthOk": True,
+            "identityOk": False,
+        },
+        "http://10.4.167.122:8000": {
+            "baseUrl": "http://10.4.167.122:8000",
+            "reachable": True,
+            "healthOk": True,
+            "identityOk": True,
+        },
+    }
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,http://10.4.167.122:8000")
+    monkeypatch.setattr(
+        c1_service,
+        "_status_for_url",
+        lambda base_url: statuses.get(base_url, {"baseUrl": base_url, "reachable": False, "healthOk": False, "identityOk": False}),
+    )
+
+    response = client.get("/c1/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selectedBaseUrl"] == "http://10.4.167.122:8000"
+    assert body["candidates"][0]["identityOk"] is False
+
+
 def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
     from app.services import c1_service
 

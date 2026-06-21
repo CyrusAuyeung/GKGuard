@@ -167,7 +167,7 @@ C1_BASE_URL=http://127.0.0.1:18000
 
 安装版内置默认 CampusVision C1 候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，并优先使用本机 SSH 隧道。打开应用后如果尚未通过隧道连接 CampusVision C1，会在软件内弹出服务器密码窗口；窗口会显示服务器账号、隧道目标、连接原因和四步连接进度，连接失败时停留在窗口内允许重新输入。若直连服务可达但真实检索返回 503，页面也会触发同一个内嵌连接窗口并重试一次。密码只用于本次 SSH 连接，GKGuard 不保存、不落盘、不记录密码。
 
-通常不需要额外配置。若服务器地址或账号变化，可用 `%APPDATA%\GKGuard\c1-connection.json` 覆盖默认值，示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
+通常不需要额外配置。若服务器地址或账号变化，可用 `%APPDATA%\GKGuard\c1-connection.json` 覆盖默认值，并通过 `C1_ALLOWED_HOSTS` 把新 CampusVision C1 主机加入允许列表，示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
 
 如果 CampusVision C1 在远程服务器上并绑定到服务器本机 `127.0.0.1:8000`，安装版会自动建立内嵌 SSH 隧道。开发或排障时也可以在运行 GKGuard C2 的机器上手动建立 SSH 隧道：
 
@@ -485,7 +485,7 @@ C1_BASE_URL=http://127.0.0.1:18000
 
 The packaged app has built-in CampusVision C1 candidates: `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, with the local SSH tunnel first. After opening the app, it probes them automatically. If the tunnel is not connected, it shows an embedded server-password window with account, tunnel target, connection reason, and four-step progress. Failed connections stay in that window so the password can be re-entered. The password is used only for the current SSH session; GKGuard does not store it, write it to disk, or log it.
 
-Extra configuration is usually not required. If the server address or account changes, override defaults with `%APPDATA%\GKGuard\c1-connection.json`; see [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
+Extra configuration is usually not required. If the server address or account changes, override defaults with `%APPDATA%\GKGuard\c1-connection.json` and add the new CampusVision C1 host to the allowlist through `C1_ALLOWED_HOSTS`; see [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
 
 If CampusVision C1 runs on a remote server and is bound to that server's `127.0.0.1:8000`, the packaged app creates the embedded SSH tunnel for you. For development or troubleshooting, you can also create the tunnel manually on the GKGuard C2 machine:
 
