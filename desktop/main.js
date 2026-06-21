@@ -376,6 +376,24 @@ function stopSshTunnel() {
   }
 }
 
+function formatSshFingerprint(hash) {
+  return `SHA256:${Buffer.from(hash, "hex").toString("base64").replace(/=+$/, "")}`;
+}
+
+async function confirmSshHostKey(tunnel, target, fingerprint) {
+  const result = await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: "验证 C1 SSH 主机密钥",
+    message: "请先验证 SSH 主机密钥指纹",
+    detail: `在发送服务器密码前，请通过可信渠道确认 ${target} 的 SSH 主机密钥指纹：\n\n${fingerprint}\n\n只有确认该指纹属于 CampusVision C1 服务器后才继续连接。`,
+    buttons: ["指纹正确，继续连接", "取消连接"],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  return result.response === 0;
+}
+
 function startEmbeddedSshTunnel(tunnel, password, onProgress) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
@@ -454,6 +472,22 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
       port: 22,
       username: tunnel.user,
       password,
+      hostHash: "sha256",
+      hostVerifier: (hash, callback) => {
+        const fingerprint = formatSshFingerprint(hash);
+        onProgress?.({ percent: 24, message: "请验证 SSH 主机密钥指纹...", busy: true });
+        confirmSshHostKey(tunnel, target, fingerprint)
+          .then((confirmed) => {
+            if (!confirmed) {
+              onProgress?.({ percent: 24, message: "已取消：未验证 SSH 主机密钥。", busy: false, failed: true, recoverable: true });
+            }
+            callback(confirmed);
+          })
+          .catch((error) => {
+            console.warn(`SSH host key verification dialog failed: ${error.message}`);
+            callback(false);
+          });
+      },
       readyTimeout: 12000,
       keepaliveInterval: 15000,
       keepaliveCountMax: 3,
