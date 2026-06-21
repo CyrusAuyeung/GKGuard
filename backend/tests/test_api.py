@@ -647,13 +647,28 @@ def test_audit_logs_limit() -> None:
     assert body["items"][0]["action"] == "event_disposition_archived"
 
 
-def test_case_package_export() -> None:
+def test_case_package_export_requires_token(monkeypatch) -> None:
+    monkeypatch.setenv("GKGUARD_CASE_PACKAGE_EXPORT_TOKEN", "case-export-test-token")
+    denied_response = client.get("/events/ALT-001/case-package")
+    assert denied_response.status_code == 401
+    assert denied_response.json()["detail"]["code"] == "CASE_PACKAGE_EXPORT_UNAUTHORIZED"
+
+    monkeypatch.delenv("GKGUARD_CASE_PACKAGE_EXPORT_TOKEN")
+    disabled_response = client.get(
+        "/events/ALT-001/case-package", headers={"X-GKGuard-Export-Token": "case-export-test-token"}
+    )
+    assert disabled_response.status_code == 503
+    assert disabled_response.json()["detail"]["code"] == "CASE_PACKAGE_EXPORT_DISABLED"
+
+
+def test_case_package_export(monkeypatch) -> None:
+    monkeypatch.setenv("GKGUARD_CASE_PACKAGE_EXPORT_TOKEN", "case-export-test-token")
     client.get("/events/ALT-001/report")
     client.post(
         "/events/ALT-001/disposition",
         json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
     )
-    response = client.get("/events/ALT-001/case-package")
+    response = client.get("/events/ALT-001/case-package", headers={"X-GKGuard-Export-Token": "case-export-test-token"})
     assert response.status_code == 200
     body = response.json()
     assert body["package_id"] == "PKG-ALT-001"

@@ -247,7 +247,7 @@ Query 参数：
 
 `GET /events/{event_id}/case-package`
 
-返回案件包，包括事件、对象信息、报告、时间线、证据快照、审计日志和处理清单。
+导出前必须在服务端设置环境变量 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN`，并在请求头传入 `X-GKGuard-Export-Token: <token>`；未配置时返回 `503 CASE_PACKAGE_EXPORT_DISABLED`，令牌缺失或错误时返回 `401 CASE_PACKAGE_EXPORT_UNAUTHORIZED`。验证通过后返回案件包，包括事件、对象信息、报告、时间线、证据快照、审计日志和处理清单。
 
 ## 审计日志
 
@@ -548,7 +548,7 @@ Returns a mock archived disposition record.
 
 `GET /events/{event_id}/case-package`
 
-Returns a case package containing event detail, subject data, report, timeline, evidence snapshots, audit logs, and an action checklist.
+The server must set the `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` environment variable before export, and callers must send `X-GKGuard-Export-Token: <token>` in the request header. The endpoint returns `503 CASE_PACKAGE_EXPORT_DISABLED` when the server token is not configured and `401 CASE_PACKAGE_EXPORT_UNAUTHORIZED` when the token is missing or invalid. After validation, it returns a case package containing event detail, subject data, report, timeline, evidence snapshots, audit logs, and an action checklist.
 
 ## Audit Logs
 

@@ -181,9 +181,10 @@ POST /events/ALT-001/disposition
 
 ```text
 GET /events/ALT-001/case-package
+X-GKGuard-Export-Token: <GKGUARD_CASE_PACKAGE_EXPORT_TOKEN>
 ```
 
-期望结果：返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和处理清单。
+期望结果：服务端已设置 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` 且请求头令牌匹配时返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和处理清单；未配置或令牌错误时拒绝导出。
 
 ## 维护备注
 
@@ -374,9 +375,10 @@ Expected result: a mock archive record with `status_after=closed`.
 
 ```text
 GET /events/ALT-001/case-package
+X-GKGuard-Export-Token: <GKGUARD_CASE_PACKAGE_EXPORT_TOKEN>
 ```
 
-Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and an action checklist.
+Expected result: when the server has `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` configured and the request header token matches, the endpoint returns `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and an action checklist; missing configuration or an invalid token blocks the export.
 
 ## Maintenance Notes
 
