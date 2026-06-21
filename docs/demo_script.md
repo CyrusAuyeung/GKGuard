@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.33` 推荐流程：
+安装版 `v0.1.34` 推荐流程：
 
-1. 下载并安装 `GKGuard-Setup-0.1.33.exe`。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.34.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -25,7 +25,7 @@
 8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。
 9. 若 CampusVision C1 返回无匹配结果、请求超时或检索失败，页面应停留在上传页并显示中文提示，不应卡在“检索中”，也不应进入本地模拟结果。
 10. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
-11. 后续需要升级时，点击右上角 `检查更新`，发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
+11. 后续需要升级时，点击右上角 `检查更新`。Windows 版发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；macOS/Linux 版会打开当前平台的 GitHub Release 安装文件。重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
 12. 在最大化窗口、常规桌面窗口、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
@@ -206,9 +206,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.33`:
+Recommended packaged-app flow for `v0.1.34`:
 
-1. Download and install `GKGuard-Setup-0.1.33.exe`.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.34.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -218,7 +218,7 @@ Recommended packaged-app flow for `v0.1.33`:
 8. After the search finishes, confirm that the result portrait uses the selected query face, fully fits inside the portrait frame, and uses the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
-11. For future upgrades, click the top-right `检查更新`; if a newer version is found, click again to download inside the app, then click `重启安装`. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
+11. For future upgrades, click the top-right `检查更新`. On Windows, if a newer version is found, click again to download inside the app, then click `重启安装`. On macOS/Linux, the app opens the current platform's GitHub Release package. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
 12. Check maximized, regular desktop, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
 
 GKGuard does not store, read, or log the SSH password.

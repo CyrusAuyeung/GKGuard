@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.1.33` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.1.34` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -22,7 +22,8 @@
 
 ## 发布与版本
 
-- [releases/v0.1.33.md](releases/v0.1.33.md)：当前最新版本说明，记录结果页人物照片裁切扩边、边缘平移和方框空间利用修复。
+- [releases/v0.1.34.md](releases/v0.1.34.md)：当前最新版本说明，记录 Windows/macOS/Linux 桌面端发布、平台化后端可执行文件和更新资产选择。
+- [releases/v0.1.33.md](releases/v0.1.33.md)：结果页人物照片裁切扩边、边缘平移和方框空间利用修复。
 - [releases/v0.1.32.md](releases/v0.1.32.md)：结果页人物照片在方框内按原始比例完整自适应显示。
 - [releases/v0.1.31.md](releases/v0.1.31.md)：结果页人物照片与选中人脸框坐标来源统一、CampusVision C1 源图尺寸 bbox 换算和裁切内容回归测试。
 - [releases/v0.1.30.md](releases/v0.1.30.md)：多人选择弹窗最大无滚动适应和结果页人物照片目标框裁切修复。
@@ -33,11 +34,12 @@
 - [releases/v0.1.22.md](releases/v0.1.22.md)：移动端 UI 精修、空 toast 修复和静态资源版本命名。
 - [releases/](releases/)：历史版本发布记录。
 - 每次发布新版本标签前，应同步更新 README、相关当前状态文档和对应 `docs/releases/vX.Y.Z.md`。
-- 发布后需要核对 GitHub Release 正文、安装包、`.blockmap` 和 `latest.yml`。
+- 发布后需要核对 GitHub Release 正文、Windows 安装包、macOS dmg/zip、Linux AppImage/deb、`.blockmap` 和 `latest*.yml`。
 
 ## 仓库协作与管理
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md)：分支、Pull Request、验证命令和文档同步要求。
+- [AGENTS.md](../AGENTS.md)：AI agent 修改仓库前必须遵守的开发、验证、文档、Project 和发布规则。
 - [GOVERNANCE.md](../GOVERNANCE.md)：A组机械结构、B组嵌入式控制、C组算法感知的维护职责，以及 `main` 保护、审查、CI、标签和 Project 规则。
 - [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
 - [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
@@ -64,7 +66,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.33`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.1.34`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -79,7 +81,8 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.33.md](releases/v0.1.33.md): latest release notes covering padded result-portrait crops, edge-aware crop shifting, and better portrait-frame space usage.
+- [releases/v0.1.34.md](releases/v0.1.34.md): latest release notes covering Windows/macOS/Linux desktop releases, platform-specific backend executables, and update asset selection.
+- [releases/v0.1.33.md](releases/v0.1.33.md): padded result-portrait crops, edge-aware crop shifting, and better portrait-frame space usage.
 - [releases/v0.1.32.md](releases/v0.1.32.md): full-ratio fit for result portraits inside the portrait frame.
 - [releases/v0.1.31.md](releases/v0.1.31.md): aligned coordinate sources for the result portrait and selected face box, CampusVision C1 source-image bbox conversion, and crop-content regression coverage.
 - [releases/v0.1.30.md](releases/v0.1.30.md): maximum no-scroll multi-face modal fit and selected-target-box result portrait crop fix.
@@ -90,11 +93,12 @@ Use this page to locate maintenance material quickly. The current-state document
 - [releases/v0.1.22.md](releases/v0.1.22.md): mobile UI polish, empty-toast cleanup, and static asset version naming.
 - [releases/](releases/): historical release records.
 - Before publishing a new tag, update README, relevant current-state docs, and the matching `docs/releases/vX.Y.Z.md`.
-- After publishing, verify the GitHub Release body, installer, `.blockmap`, and `latest.yml`.
+- After publishing, verify the GitHub Release body, Windows installer, macOS dmg/zip, Linux AppImage/deb, `.blockmap`, and `latest*.yml`.
 
 ## Repository Collaboration And Management
 
 - [CONTRIBUTING.md](../CONTRIBUTING.md): branch, Pull Request, validation command, and documentation synchronization requirements.
+- [AGENTS.md](../AGENTS.md): repository-level rules that AI agents must follow before changing code, docs, Project items, or Releases.
 - [GOVERNANCE.md](../GOVERNANCE.md): Group A mechanical structure, Group B embedded control, and Group C algorithm perception ownership, plus `main` protection, review, CI, label, and Project rules.
 - [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
 - [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.

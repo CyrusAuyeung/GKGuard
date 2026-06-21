@@ -1152,7 +1152,7 @@ async function initDesktopUpdateEntry() {
           updateStage = "idle";
           setUpdateStatus("检查更新");
           elements.checkUpdateBtn.disabled = false;
-          showToast("已打开 GitHub Release。正式安装版会在应用内更新。", { tone: "info", title: "已打开发布页" });
+          showToast("已打开当前平台安装文件下载地址。", { tone: "info", title: "已打开下载页" });
           return;
         }
         if (updateStage !== "downloaded") {
@@ -1174,8 +1174,14 @@ async function initDesktopUpdateEntry() {
       latestUpdate = await desktopBridge.checkForUpdates();
       if (latestUpdate.updateAvailable) {
         updateStage = latestUpdate.downloaded ? "downloaded" : "available";
-        setUpdateStatus(updateStage === "downloaded" ? "重启安装" : `应用内更新 ${latestUpdate.latestVersion}`, false, updateStage === "downloaded" ? "success" : "available");
-        showToast(updateStage === "downloaded" ? "新版已下载完成，点击即可重启安装。" : `发现新版 ${latestUpdate.latestVersion}，再次点击将在应用内下载。`, { tone: "success", title: updateStage === "downloaded" ? "更新已下载" : "发现新版" });
+        const manualDownload = latestUpdate.embedded === false;
+        setUpdateStatus(updateStage === "downloaded" ? "重启安装" : `${manualDownload ? "下载新版" : "应用内更新"} ${latestUpdate.latestVersion}`, false, updateStage === "downloaded" ? "success" : "available");
+        showToast(
+          updateStage === "downloaded"
+            ? "新版已下载完成，点击即可重启安装。"
+            : `发现新版 ${latestUpdate.latestVersion}，再次点击将${manualDownload ? "打开当前平台安装文件" : "在应用内下载"}。`,
+          { tone: "success", title: updateStage === "downloaded" ? "更新已下载" : "发现新版" },
+        );
       } else {
         updateStage = "idle";
         setUpdateStatus("已是最新版", true, "success");

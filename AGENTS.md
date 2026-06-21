@@ -1,0 +1,392 @@
+<p align="right">
+  <a href="#中文"><kbd>中文</kbd></a>
+  <a href="#english"><kbd>English</kbd></a>
+</p>
+
+<a id="中文"></a>
+
+# AGENTS.md
+
+本文档是 GKGuard 仓库的 AI agent 开发规范。Codex、Copilot、ChatGPT 或其他自动化开发助手在修改本仓库前必须先阅读本文件，并把这里的规则作为仓库级约束。
+
+## 项目定位
+
+- GKGuard C2 是校园安防 AI 搜索工作台，负责本地 FastAPI 后端、静态前端、Electron 桌面端、本地模拟回退、CampusVision C1 代理、结果展示、路线可视化、发布工程和文档体系。
+- CampusVision C1 是独立视频检索服务，负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。GKGuard C2 通过 `/c1/...` 代理访问它。
+- CampusCar、ROS2、UE Bridge 目前只保留占位接口规范。不要把占位接口写成已经接入真实车辆、真实 ROS2 节点或真实 UE 运行时。
+- A组负责机械结构，B组负责嵌入式控制，C组负责算法感知。文档中需要提到分组时使用这些明确名称，不要使用数字编号等含混表述。
+
+## 必读文件
+
+开始任务前至少阅读：
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `GOVERNANCE.md`
+- `SECURITY.md`
+- `docs/README.md`
+- 与当前任务直接相关的源码、测试和文档
+
+涉及发布或安装包时还要读：
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release-desktop.yml`
+- `docs/releases/` 中最新版本说明
+
+涉及 CampusVision C1 时还要读：
+
+- `docs/api_contract.md`
+- `docs/c1_c2_integration.md`
+- `docs/c1_auto_connection.md`
+- `docs/c1_remote_deploy.md`
+- `services/campusvision-c1/README.md`
+
+## 分支与提交
+
+- `main` 是稳定基线，受保护。非琐碎改动必须从最新 `main` 新建短期分支。
+- Codex 协助的分支默认使用 `codex/...`，例如 `codex/cross-platform-desktop`。
+- 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 `main`，但必须保留清晰提交记录。
+- 不要混入无关改动。提交前必须检查 `git status --short --branch` 和 diff。
+- 不要重写 `main` 历史、force push `main`、删除 `main` 或回滚用户未要求回滚的改动。
+- Commit message 使用简洁工程语义，例如 `feat(desktop): add cross-platform packaging`、`docs: update release guide`。
+
+## Pull Request 规范
+
+- PR 标题必须使用 `type(scope): summary`。
+- 不要在 PR 标题或 commit 标题中使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀。
+- 如果需要说明 AI agent 参与，写在 PR 正文或评论中。
+- PR 正文必须保留并填写 `.github/PULL_REQUEST_TEMPLATE.md` 的中英双语结构。
+- 影响范围、验证项、安全与数据检查必须按实际情况勾选；未运行的验证必须说明原因。
+- CI 未通过、审查未完成、对话未解决时不要合并。
+- 仓库使用 squash merge；合并后删除源分支。
+
+## GitHub Project 规范
+
+- Issue 和 PR 应加入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2)。
+- Project item 必须补齐：
+  - `Status`
+  - `Area`
+  - `Type`
+  - `Priority`
+  - `Blocked`
+  - `Start date`
+  - `End date`
+  - `Timeline order`
+  - 必要的 `Target version`
+- `Timeline order` 按真实时间和同日内先后顺序递增。
+- 不要只依赖 PR/Issue 页面显示的 Project 关联。必须确认 item 在 GKGuard Roadmap 或 Project 主列表可见。
+- 可使用：
+
+```powershell
+gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json
+```
+
+- 如果 PR/Issue 侧显示已关联 Project，但 Roadmap 或 `item-list` 不显示，等待后重查；仍不显示时重建 Project item，必要时创建可见 Draft item 并在正文链接原 PR/Issue。
+- 可使用 `scripts/Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。
+
+## 文档同步
+
+任何影响当前行为的改动都必须同步相关文档：
+
+| 改动类型 | 必查文档 |
+|---|---|
+| API 或字段变化 | `docs/api_contract.md`、`docs/data_dictionary.md` |
+| CampusVision C1 / GKGuard C2 接入 | `docs/c1_c2_integration.md`、`docs/c1_auto_connection.md` |
+| CampusVision C1 远端部署 | `docs/c1_remote_deploy.md` |
+| 演示流程 | `docs/demo_script.md` |
+| CampusCar / UE 占位接口 | `docs/campuscar_ue_integration.md` |
+| 桌面端、安装包或更新行为 | `README.md`、`docs/README.md`、对应 Release note |
+| 协作流程、PR、Project 或 AI agent 规则 | `CONTRIBUTING.md`、`GOVERNANCE.md`、`AGENTS.md`、`.github/PULL_REQUEST_TEMPLATE.md` |
+| 新版本发布 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、README、GitHub Release 正文 |
+
+文档维护规则：
+
+- 面向仓库用户的文档默认中文在前、English 在后。
+- 当前状态文档描述最新版本行为。
+- 历史 Release notes 保留发布时语境，除非修复术语错误、明显事实错误或翻译问题。
+- 使用“API 规范”和“接口规范”，保持术语一致。
+- 使用“管理”表达项目管理、协作管理和发布管理等语境。
+- 不要单独写孤立的 `C1` 或 `C2`，除非同段近处已经出现过 `CampusVision C1` 或 `GKGuard C2`。优先写完整名称。
+
+## 测试与验证
+
+按改动范围选择验证。常用命令：
+
+```powershell
+python -m pytest backend
+python -m py_compile backend/desktop_server.py
+node --check backend/app/static/app.js
+node --check desktop/main.js
+node --check desktop/preload.js
+node --check tests/e2e/gkguard-ui.spec.js
+npm run test:e2e
+npm audit --audit-level=low
+git diff --check
+```
+
+桌面打包相关：
+
+```powershell
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
+```
+
+注意：macOS/Linux 安装包通常需要对应系统 runner 才能完整验证。Windows 本地环境不能替代 macOS/Linux runner 的最终打包验证。
+
+## 发布流程
+
+- 普通协作者和 AI agent 不要自行推送 `v*` tag 或创建 GitHub Release，除非用户明确要求，或当前任务就是发布准备且验证已完成。
+- 发布版本按递增版本号推进，例如 `v0.1.34`。
+- 发布前必须：
+  - 更新 `package.json` 和 `package-lock.json`。
+  - 新增或更新 `docs/releases/vX.Y.Z.md`。
+  - 同步 README、docs index、演示脚本和相关当前状态文档。
+  - 跑完相关本地验证。
+  - 推送 PR 并等待 CI。
+  - 合并后推送 tag。
+- 发布后必须核对：
+  - GitHub Release 正文是否使用对应 release note。
+  - Windows 是否仍有 `GKGuard-Setup-*.exe`，保证旧 Windows 客户端可以继续检查更新。
+  - macOS 是否有 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`。
+  - Linux 是否有 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。
+  - `.blockmap` 和 `latest*.yml` 是否齐全。
+  - Project item 是否进入 `Done`，日期和 `Timeline order` 是否正确。
+
+## 安全与隐私
+
+禁止提交或公开：
+
+- 真实监控视频、真实查询图片、抽帧图、人脸裁剪图。
+- 真实姓名、学号/工号、手机号、车牌、轨迹、案件材料。
+- `.env`、数据库、模型缓存、运行日志中的敏感内容。
+- CampusVision C1 服务器密码、SSH 私钥、token、API key。
+
+如果疑似提交了敏感内容：
+
+1. 立刻停止继续 push。
+2. 通知维护者。
+3. 按 `SECURITY.md` 处理公开内容、历史、Release 附件和凭据轮换。
+
+不要依赖 secret scanning 替代人工检查。
+
+## UI 与前端约束
+
+- 保持当前 Electron/静态前端壳体的视觉方向，不要无需求大改视觉体系。
+- 优先修复可用性、状态反馈、文案一致性、真实数据适配和响应式布局。
+- 结果页记录列表在桌面端位于左侧；移动端可使用横向滑动提示。
+- 关键帧、人脸框、人物照片和缩略图必须按实际图片内容区域定位，避免落到黑边、左上角或错误裁切区域。
+- 按钮、弹窗、toast、加载态和错误态都要可恢复，不允许长时间卡在“检索中”。
+- 修改 UI 后要用 Playwright 或浏览器实际检查桌面、紧凑窗口和移动视口。
+
+## CampusVision C1 规则
+
+- 当前真实环境默认仍以 `speng@10.4.167.122`、远端 `127.0.0.1:8000`、本地隧道 `127.0.0.1:18000` 为准，除非用户提供新环境。
+- GKGuard C2 只能通过代理接口接入 CampusVision C1，不要让前端直接依赖多个外部服务。
+- CampusVision C1 远端服务、查询图预处理、真实数据索引和 SSH 部署脚本的改动必须同步相关文档。
+- 不要把本地 mock 命中写成真实 CampusVision C1 命中。
+
+## 回复用户时
+
+- 用中文回答，直接说明事实、风险、验证和下一步。
+- 不要只给建议而不执行，除非用户明确要求先给计划或需要确认。
+- 如果用户要求“先给方案”，不要改文件；等确认后再执行。
+- 如果用户要求标准流程，完成实现后应继续检查文档、Project、PR、CI、合并和 Release，不要等待用户重复提醒。
+- 如果存在权限、外部服务、签名证书、macOS 公证、移动端应用商店账号等无法自行完成的事项，明确说明阻塞点和替代方案。
+
+<p align="right"><a href="#中文">返回中文顶部</a></p>
+
+---
+
+<a id="english"></a>
+
+# AGENTS.md
+
+This file is the repository-level development guide for AI agents working on GKGuard. Codex, Copilot, ChatGPT, or any other automated development assistant must read this file before modifying this repository, and must treat these rules as repository-level constraints.
+
+## Project Positioning
+
+- GKGuard C2 is the campus-security AI search workbench. It owns the local FastAPI backend, static frontend, Electron desktop app, local mock fallback, CampusVision C1 proxy, result presentation, route visualization, release engineering, and documentation system.
+- CampusVision C1 is the separate video-search service. It owns video upload, frame sampling, face embeddings, the person index, image-based person search, keyframes, and trajectory output. GKGuard C2 accesses it through the `/c1/...` proxy.
+- CampusCar, ROS2, and UE Bridge currently remain placeholder interface specifications only. Do not describe placeholder interfaces as completed integrations with real vehicles, real ROS2 nodes, or a real UE runtime.
+- Group A owns mechanical structure, Group B owns embedded control, and Group C owns algorithm perception. When documents need to reference team groups, use these explicit names instead of ambiguous numeric-only labels.
+
+## Required Reading
+
+Before starting a task, read at least:
+
+- `README.md`
+- `CONTRIBUTING.md`
+- `GOVERNANCE.md`
+- `SECURITY.md`
+- `docs/README.md`
+- Source code, tests, and documents directly related to the current task
+
+For release or installer work, also read:
+
+- `.github/workflows/ci.yml`
+- `.github/workflows/release-desktop.yml`
+- The latest release note under `docs/releases/`
+
+For CampusVision C1 work, also read:
+
+- `docs/api_contract.md`
+- `docs/c1_c2_integration.md`
+- `docs/c1_auto_connection.md`
+- `docs/c1_remote_deploy.md`
+- `services/campusvision-c1/README.md`
+
+## Branches And Commits
+
+- `main` is the protected stable baseline. Non-trivial changes must start from the latest `main` on a short-lived branch.
+- Codex-assisted branches should use `codex/...` by default, for example `codex/cross-platform-desktop`.
+- Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to `main`, but the commit history must remain clear.
+- Do not mix unrelated changes. Before committing, check `git status --short --branch` and the diff.
+- Do not rewrite `main` history, force push `main`, delete `main`, or revert changes the user did not ask to revert.
+- Commit messages should use concise engineering wording, for example `feat(desktop): add cross-platform packaging` or `docs: update release guide`.
+
+## Pull Request Rules
+
+- PR titles must use `type(scope): summary`.
+- Do not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:` in PR titles or commit titles.
+- If AI agent participation needs to be disclosed, put it in the PR body or a comment.
+- PR bodies must keep and fill the bilingual structure from `.github/PULL_REQUEST_TEMPLATE.md`.
+- Scope, validation, security, and data-check boxes must be checked according to the actual change. Any skipped validation must be explained.
+- Do not merge while CI is failing, review is incomplete, or conversations remain unresolved.
+- The repository uses squash merge. Delete the source branch after merge.
+
+## GitHub Project Rules
+
+- Issues and PRs should be added to [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2).
+- Each Project item must include:
+  - `Status`
+  - `Area`
+  - `Type`
+  - `Priority`
+  - `Blocked`
+  - `Start date`
+  - `End date`
+  - `Timeline order`
+  - Required `Target version` where applicable
+- `Timeline order` increases by real chronological order and same-day sequence.
+- Do not rely only on the PR/Issue page showing a Project association. Confirm the item is visible in GKGuard Roadmap or the Project main item list.
+- You may use:
+
+```powershell
+gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json
+```
+
+- If the PR/Issue side shows a Project association but Roadmap or `item-list` does not show it, wait and query again. If it still does not appear, recreate the Project item. If needed, create a visible Draft item and link the original PR/Issue in its body.
+- You may use `scripts/Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but dates, versions, and order still require human confirmation.
+
+## Documentation Synchronization
+
+Any change that affects current behavior must synchronize the related documents:
+
+| Change Type | Documents To Check |
+|---|---|
+| API or field changes | `docs/api_contract.md`, `docs/data_dictionary.md` |
+| CampusVision C1 / GKGuard C2 integration | `docs/c1_c2_integration.md`, `docs/c1_auto_connection.md` |
+| CampusVision C1 remote deployment | `docs/c1_remote_deploy.md` |
+| Demo flow | `docs/demo_script.md` |
+| CampusCar / UE placeholder interface | `docs/campuscar_ue_integration.md` |
+| Desktop app, installer, or update behavior | `README.md`, `docs/README.md`, matching Release note |
+| Collaboration flow, PR, Project, or AI agent rules | `CONTRIBUTING.md`, `GOVERNANCE.md`, `AGENTS.md`, `.github/PULL_REQUEST_TEMPLATE.md` |
+| New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, README, GitHub Release body |
+
+Documentation maintenance rules:
+
+- User-facing documents should be Chinese first and English second.
+- Current-state documents describe the latest release behavior.
+- Historical Release notes keep release-time context unless fixing terminology, clear factual errors, or translation problems.
+- Use "API 规范" and "接口规范" consistently in Chinese terminology.
+- Use "管理" for Chinese project, collaboration, and release management wording.
+- Do not write isolated `C1` or `C2` unless `CampusVision C1` or `GKGuard C2` appears nearby in the same section. Prefer the full names.
+
+## Validation
+
+Choose validation according to the change scope. Common commands:
+
+```powershell
+python -m pytest backend
+python -m py_compile backend/desktop_server.py
+node --check backend/app/static/app.js
+node --check desktop/main.js
+node --check desktop/preload.js
+node --check tests/e2e/gkguard-ui.spec.js
+npm run test:e2e
+npm audit --audit-level=low
+git diff --check
+```
+
+Packaging checks:
+
+```powershell
+npm run dist:win
+npm run dist:mac
+npm run dist:linux
+```
+
+Note: macOS/Linux packages usually require matching system runners for full verification. A local Windows environment does not replace final macOS/Linux runner verification.
+
+## Release Flow
+
+- Regular contributors and AI agents must not push `v*` tags or create GitHub Releases unless the user explicitly asks, or the current task is release preparation and validation is complete.
+- Release versions advance incrementally, for example `v0.1.34`.
+- Before release:
+  - Update `package.json` and `package-lock.json`.
+  - Add or update `docs/releases/vX.Y.Z.md`.
+  - Synchronize README, docs index, demo script, and relevant current-state docs.
+  - Run the relevant local validation.
+  - Push the PR and wait for CI.
+  - Push the tag after merge.
+- After release, verify:
+  - The GitHub Release body uses the matching release note.
+  - Windows still has `GKGuard-Setup-*.exe`, so old Windows clients can continue checking updates.
+  - macOS has `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip`.
+  - Linux has `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb`.
+  - `.blockmap` and `latest*.yml` are present.
+  - The Project item is `Done`, with correct dates and `Timeline order`.
+
+## Security And Privacy
+
+Do not commit or disclose:
+
+- Real surveillance videos, real query images, extracted frames, or face crops.
+- Real names, student/staff IDs, phone numbers, license plates, trajectories, or case material.
+- `.env`, databases, model caches, or sensitive runtime logs.
+- CampusVision C1 server passwords, SSH private keys, tokens, or API keys.
+
+If sensitive content may have been committed:
+
+1. Stop pushing immediately.
+2. Notify the maintainer.
+3. Follow `SECURITY.md` for public content cleanup, history/Release asset handling, and credential rotation.
+
+Do not rely on secret scanning as a substitute for manual review.
+
+## UI And Frontend Constraints
+
+- Keep the current Electron/static-frontend visual direction. Do not redesign the visual system without a clear requirement.
+- Prioritize usability, state feedback, copy consistency, real-data adaptation, and responsive layout.
+- On desktop result pages, the record list stays on the left. Mobile views may use horizontal-scroll hints.
+- Keyframes, face boxes, person portraits, and thumbnails must be positioned against the actual rendered image content area, not black bars, the top-left corner, or an incorrect crop region.
+- Buttons, dialogs, toasts, loading states, and error states must be recoverable. The UI must not stay indefinitely in `检索中`.
+- After UI changes, inspect desktop, compact-window, and mobile viewports with Playwright or a real browser.
+
+## CampusVision C1 Rules
+
+- Unless the user provides a new environment, the current real environment remains `speng@10.4.167.122`, remote `127.0.0.1:8000`, and local tunnel `127.0.0.1:18000`.
+- GKGuard C2 must integrate CampusVision C1 through proxy endpoints. Do not make the frontend directly depend on multiple external services.
+- Changes to the CampusVision C1 remote service, query-image preprocessing, real data indexing, or SSH deployment scripts must synchronize the related documents.
+- Do not describe local mock hits as real CampusVision C1 hits.
+
+## Responding To The User
+
+- Reply in Chinese. State facts, risks, validation, and next steps directly.
+- Do not stop at suggestions when the user expects execution, unless the user explicitly asks for a plan first or confirmation is required.
+- If the user asks for a plan first, do not edit files until the user confirms.
+- If the user asks for the standard workflow, after implementation continue through docs, Project, PR, CI, merge, and Release checks instead of waiting for repeated reminders.
+- If permissions, external services, signing certificates, macOS notarization, or mobile app-store accounts block completion, state the blocker and the practical alternative.
+
+<p align="right"><a href="#english">Back to English top</a></p>

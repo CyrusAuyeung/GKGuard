@@ -45,8 +45,8 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 - 维护者可直接处理低风险文档勘误、Release 正文同步和紧急小修，但仍需保留可追溯提交记录。
 - 影响安装包的变更需要更新版本号和 `docs/releases/vX.Y.Z.md`。
 - 影响当前行为或仓库边界的变更需要同步 README、`docs/README.md`、API/集成/演示/支持/安全等相关文档。
-- `v*` 版本标签会触发 `.github/workflows/release-desktop.yml` 构建 Windows 安装包。
-- 发布后检查 GitHub Release 正文、`.exe`、`.blockmap` 和 `latest.yml`。
+- `v*` 版本标签会触发 `.github/workflows/release-desktop.yml` 在 Windows、macOS 和 Linux runner 上构建桌面端安装文件。
+- 发布后检查 GitHub Release 正文、Windows `.exe`、macOS dmg/zip、Linux AppImage/deb、`.blockmap` 和 `latest*.yml`。
 
 ## 敏感数据管理
 
@@ -103,8 +103,8 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 - Maintainers may commit low-risk documentation corrections, Release-body synchronization, and urgent small fixes directly, while keeping traceable commits.
 - Installer-impacting changes must update the version and `docs/releases/vX.Y.Z.md`.
 - Changes that affect current behavior or repository boundaries must also update README, `docs/README.md`, and relevant API/integration/demo/support/security docs.
-- Tags matching `v*` trigger `.github/workflows/release-desktop.yml` to build the Windows installer.
-- After publishing, check the Release body, `.exe`, `.blockmap`, and `latest.yml`.
+- Tags matching `v*` trigger `.github/workflows/release-desktop.yml` to build desktop packages on Windows, macOS, and Linux runners.
+- After publishing, check the Release body, Windows `.exe`, macOS dmg/zip, Linux AppImage/deb, `.blockmap`, and `latest*.yml`.
 
 ## Sensitive Data Management
 

@@ -1,6 +1,6 @@
 {
   "name": "gkguard-desktop",
-  "version": "0.1.33",
+  "version": "0.1.34",
   "description": "GKGuard campus security AI dashboard desktop shell.",
   "main": "desktop/main.js",
   "author": "GKGuard Team",
@@ -8,8 +8,14 @@
   "scripts": {
     "desktop": "electron .",
     "desktop:dev": "electron . --devtools",
-    "pack": "electron-builder --win --x64 --dir",
-    "dist": "electron-builder --win --x64 --publish never",
+    "pack": "npm run pack:win",
+    "pack:win": "electron-builder --win --x64 --dir",
+    "pack:mac": "electron-builder --mac --x64 --dir",
+    "pack:linux": "electron-builder --linux --x64 --dir",
+    "dist": "npm run dist:win",
+    "dist:win": "electron-builder --win --x64 --publish never",
+    "dist:mac": "electron-builder --mac --x64 --publish never",
+    "dist:linux": "electron-builder --linux --x64 --publish never",
     "test:backend": "cd backend && python -m pytest",
     "test:e2e": "playwright test"
   },
@@ -32,8 +38,8 @@
         "repo": "GKGuard"
       }
     ],
-    "artifactName": "GKGuard-Setup-${version}.${ext}",
-    "icon": "desktop/assets/icons/app-mark.ico",
+    "artifactName": "GKGuard-${os}-${arch}-${version}.${ext}",
+    "icon": "desktop/assets/icons/app-mark.png",
     "files": [
       "desktop/**/*",
       "package.json"
@@ -58,7 +64,28 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "artifactName": "GKGuard-Setup-${version}.${ext}",
+      "icon": "desktop/assets/icons/app-mark.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "GKGuard-macOS-${arch}-${version}.${ext}",
+      "category": "public.app-category.productivity",
+      "icon": "desktop/assets/icons/app-mark.icns",
+      "identity": null
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "artifactName": "GKGuard-Linux-${arch}-${version}.${ext}",
+      "category": "Utility",
+      "icon": "desktop/assets/icons/app-mark.png"
     },
     "nsis": {
       "oneClick": false,
