@@ -85,6 +85,7 @@
       ],
       "artifactName": "GKGuard-Linux-${arch}-${version}.${ext}",
       "category": "Utility",
+      "maintainer": "CyrusAuyeung <cyrusauyeung@users.noreply.github.com>",
       "icon": "desktop/assets/icons/app-mark.png"
     },
     "nsis": {
