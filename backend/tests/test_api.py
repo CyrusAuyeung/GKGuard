@@ -1,6 +1,7 @@
 ﻿from pathlib import Path
 
 import httpx
+import os
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -12,7 +13,17 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 
 
 def setup_function() -> None:
+    os.environ["GKGUARD_AUDIT_TOKEN"] = "test-audit-token"
+    os.environ["GKGUARD_CASE_PACKAGE_EXPORT_TOKEN"] = "test-export-token"
     clear_audit_logs()
+
+
+def audit_headers() -> dict[str, str]:
+    return {"X-GKGuard-Audit-Token": os.environ["GKGUARD_AUDIT_TOKEN"]}
+
+
+def export_headers() -> dict[str, str]:
+    return {"X-GKGuard-Export-Token": os.environ["GKGUARD_CASE_PACKAGE_EXPORT_TOKEN"]}
 
 
 def test_health() -> None:
@@ -32,8 +43,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.34-ui" in response.text
-    assert "/static/app.js?v=v0.1.34-ui" in response.text
+    assert "/static/styles.css?v=v0.1.35-ui" in response.text
+    assert "/static/app.js?v=v0.1.35-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -234,7 +245,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.34-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.35-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -245,10 +256,21 @@ def test_desktop_update_bridge_wired() -> None:
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
     assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
-    assert "`${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`" in main_script
+    assert "C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || DEFAULT_C1_TUNNEL_URL" in main_script
+    assert "DEFAULT_C1_DIRECT_URL" not in main_script
+    assert "hostHash: \"sha256\"" in main_script
+    assert "hostVerifier" in main_script
+    assert "readyTimeout: tunnel.hostFingerprint ? 20000 : 120000" in main_script
+    assert "approvedFingerprint" in main_script
+    assert "connectWithPassword(submittedPassword, sendProgress, modal)" in main_script
+    assert "return Boolean(status?.selectedBaseUrl)" in main_script
+    assert "confirmSshHostKey" in main_script
     assert "isC1TunnelConnected" in main_script
     assert "waitForC1TunnelReady" in main_script
     assert "probeC1Endpoint" in main_script
+    assert 'reachable: health.status === "fulfilled"' in main_script
+    assert 'if (endpointStatus.healthOk)' in main_script
+    assert 'return { connected: true, verified: true, status: endpointStatus }' in main_script
     assert "gkguard:ssh-connect-progress" in main_script
     assert "autoUpdater.checkForUpdates" in main_script
     assert "autoUpdater.downloadUpdate" in main_script
@@ -301,7 +323,7 @@ def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["baseUrl"] == "http://10.4.167.122:8000"
+    assert body["baseUrl"] == "http://127.0.0.1:9"
     assert body["reachable"] is False
     assert body["selectedBaseUrl"] is None
 
@@ -312,21 +334,23 @@ def test_c1_status_selects_first_healthy_candidate(monkeypatch) -> None:
     def fake_status_for_url(base_url: str):
         return {
             "baseUrl": base_url,
-            "reachable": base_url.endswith(":8000"),
-            "healthOk": base_url.endswith(":8000"),
+            "reachable": base_url == "https://c1.example.test",
+            "healthOk": base_url == "https://c1.example.test",
+            "identityOk": base_url == "https://c1.example.test",
         }
 
     monkeypatch.setattr(c1_service, "_selected_base_url", None)
     monkeypatch.delenv("C1_BASE_URL", raising=False)
     monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
-    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,http://10.4.167.122:8000")
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1,c1.example.test")
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,https://c1.example.test")
     monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
 
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["selectedBaseUrl"] == "http://10.4.167.122:8000"
-    assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "http://10.4.167.122:8000"]
+    assert body["selectedBaseUrl"] == "https://c1.example.test"
+    assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "https://c1.example.test"]
 
 
 def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> None:
@@ -339,25 +363,27 @@ def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> N
             return {"ok": True}
 
     def fake_status_for_url(base_url: str):
-        return {"baseUrl": base_url, "reachable": True, "healthOk": True}
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
 
     def fake_request_once(base_url: str, method: str, path: str, **kwargs):
         attempts.append(base_url)
-        if base_url == "http://10.4.167.122:8000":
+        if base_url == "https://c1.example.test":
             request = httpx.Request(method, f"{base_url}{path}")
             response = httpx.Response(503, request=request)
             raise httpx.HTTPStatusError("Service unavailable", request=request, response=response)
         return FakeResponse()
 
     monkeypatch.setattr(c1_service, "_selected_base_url", None)
-    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://10.4.167.122:8000,http://127.0.0.1:18000")
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1,c1.example.test")
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "https://c1.example.test,http://127.0.0.1:18000")
     monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
     monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
 
     response = c1_service._request("POST", "/api/v1/search/person-by-image")
 
     assert response.json() == {"ok": True}
-    assert attempts[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert attempts[:2] == ["https://c1.example.test", "http://127.0.0.1:18000"]
     assert c1_service._selected_base_url == "http://127.0.0.1:18000"
 
 
@@ -365,17 +391,18 @@ def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:
     from app.services import c1_service
 
     config_path = tmp_path / "c1-connection.json"
-    config_path.write_text('{"candidateUrls":["http://10.4.167.122:8000","http://127.0.0.1:18000"]}', encoding="utf-8")
+    config_path.write_text('{"candidateUrls":["https://c1.example.test","http://127.0.0.1:18000"]}', encoding="utf-8")
     monkeypatch.delenv("C1_BASE_URL", raising=False)
     monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
     monkeypatch.setenv("C1_CONFIG_PATH", str(config_path))
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1,c1.example.test")
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
 
     urls = c1_service._candidate_urls()
-    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert urls == ["https://c1.example.test", "http://127.0.0.1:18000"]
 
 
-def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
+def test_c1_candidate_urls_include_loopback_default(monkeypatch) -> None:
     from app.services import c1_service
 
     monkeypatch.delenv("C1_BASE_URL", raising=False)
@@ -384,7 +411,50 @@ def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
 
     urls = c1_service._candidate_urls()
-    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert urls == ["http://127.0.0.1:18000"]
+
+
+def test_c1_candidate_urls_fail_closed_when_disallowed(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "c1.example.test")
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+
+    assert c1_service._candidate_urls() == []
+    response = client.get("/c1/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selectedBaseUrl"] is None
+    assert body["candidateUrls"] == []
+
+
+def test_c1_status_requires_campusvision_identity(monkeypatch) -> None:
+    from app.services import c1_service
+
+    statuses = {
+        "http://127.0.0.1:18000": {
+            "baseUrl": "http://127.0.0.1:18000",
+            "reachable": True,
+            "healthOk": True,
+            "identityOk": False,
+        }
+    }
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", lambda base_url: statuses[base_url])
+
+    response = client.get("/c1/status")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["selectedBaseUrl"] is None
+    assert body["reachable"] is False
+    assert body["candidates"][0]["identityOk"] is False
 
 
 def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
@@ -504,6 +574,20 @@ def test_c1_query_faces_proxy_maps_query_metadata(monkeypatch) -> None:
     assert body["queryFaces"][1]["score"] == 0.88
 
 
+def test_static_assets_avoid_c1_xss_sinks() -> None:
+    script_response = client.get("/static/app.js")
+    assert script_response.status_code == 200
+    script = script_response.text
+    assert "function safeImageUrl" in script
+    assert "new URL(raw, window.location.origin)" in script
+    assert "function renderTargetPortrait" in script
+    assert "image.src = safeUrl" in script
+    assert 'src="${portraitUrl}"' not in script
+    assert 'src="${uploadedImageUrl}"' not in script
+    assert 'querySelector(".scene-time").textContent' in script
+    assert 'querySelector(".scene-time").innerHTML = record.fullTime.replace' not in script
+
+
 def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
     from app.services import c1_service
 
@@ -594,9 +678,18 @@ def test_image_search_uses_demo_hint() -> None:
     assert body["query_hint_person_id"] == "P001"
     assert len(body["matches"]) == 3
     assert all(match["person_id"] == "P001" for match in body["matches"])
-    audit_response = client.get("/audit/logs")
+    audit_response = client.get("/audit/logs", headers=audit_headers())
     assert audit_response.status_code == 200
     assert audit_response.json()["items"][-1]["action"] == "image_search"
+
+
+def test_image_search_rejects_oversized_upload() -> None:
+    response = client.post(
+        "/search/image",
+        files={"file": ("large.jpg", b"x" * (2 * 1024 * 1024 + 1), "image/jpeg")},
+    )
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "IMAGE_TOO_LARGE"
 
 
 def test_event_related_records() -> None:
@@ -615,7 +708,7 @@ def test_event_report() -> None:
     assert body["severity"] == "high"
     assert body["evidence"]["timeline_point_count"] >= 5
     assert body["recommended_actions"]
-    audit_response = client.get("/audit/logs")
+    audit_response = client.get("/audit/logs", headers=audit_headers())
     assert audit_response.json()["items"][-1]["action"] == "event_report_generated"
 
 
@@ -630,7 +723,7 @@ def test_event_disposition_archive() -> None:
     assert body["status_before"] == "open"
     assert body["status_after"] == "closed"
     assert body["evidence_summary"]["last_location"] == "Dorm East Gate"
-    audit_response = client.get("/audit/logs")
+    audit_response = client.get("/audit/logs", headers=audit_headers())
     assert audit_response.json()["items"][-1]["action"] == "event_disposition_archived"
 
 
@@ -640,11 +733,27 @@ def test_audit_logs_limit() -> None:
         "/events/ALT-001/disposition",
         json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
     )
-    response = client.get("/audit/logs", params={"limit": 1})
+    response = client.get("/audit/logs", params={"limit": 1}, headers=audit_headers())
     assert response.status_code == 200
     body = response.json()
     assert body["count"] == 1
     assert body["items"][0]["action"] == "event_disposition_archived"
+
+
+def test_audit_logs_require_token() -> None:
+    client.post(
+        "/events/ALT-001/disposition",
+        json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
+    )
+    response = client.get("/audit/logs")
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "AUDIT_FORBIDDEN"
+
+
+def test_case_package_export_requires_token() -> None:
+    denied_response = client.get("/events/ALT-001/case-package")
+    assert denied_response.status_code == 401
+    assert denied_response.json()["detail"]["code"] == "CASE_PACKAGE_EXPORT_UNAUTHORIZED"
 
 
 def test_case_package_export() -> None:
@@ -653,7 +762,7 @@ def test_case_package_export() -> None:
         "/events/ALT-001/disposition",
         json={"result": "confirmed_safe", "handler": "security_desk_demo", "notes": "closed in demo"},
     )
-    response = client.get("/events/ALT-001/case-package")
+    response = client.get("/events/ALT-001/case-package", headers=export_headers())
     assert response.status_code == 200
     body = response.json()
     assert body["package_id"] == "PKG-ALT-001"
@@ -663,7 +772,7 @@ def test_case_package_export() -> None:
     assert len(body["evidence_snapshots"]) >= 5
     assert body["handoff_checklist"]
 
-    audit_response = client.get("/audit/logs", params={"limit": 1})
+    audit_response = client.get("/audit/logs", params={"limit": 1}, headers=audit_headers())
     assert audit_response.json()["items"][0]["action"] == "case_package_exported"
 
 

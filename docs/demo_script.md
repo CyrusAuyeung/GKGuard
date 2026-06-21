@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.34` 推荐流程：
+安装版 `v0.1.35` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.34.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.35.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -183,7 +183,16 @@ POST /events/ALT-001/disposition
 GET /events/ALT-001/case-package
 ```
 
-期望结果：返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和处理清单。
+期望结果：服务端配置 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` 且请求带 `X-GKGuard-Export-Token` 时返回 `PKG-ALT-001`，包含事件详情、对象信息、报告、时间线点、证据快照、审计日志和处理清单。未配置或未携带 token 时应返回结构化错误。
+
+### 读取审计日志
+
+```text
+GET /audit/logs
+X-GKGuard-Audit-Token: <configured-token>
+```
+
+期望结果：服务端配置 `GKGUARD_AUDIT_TOKEN` 且请求带 `X-GKGuard-Audit-Token` 时返回脱敏审计日志；未携带 token 时返回 403。审计日志文件应按长度和字节上限自动压缩保留。
 
 ## 维护备注
 
@@ -206,9 +215,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.34`:
+Recommended packaged-app flow for `v0.1.35`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.34.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.35.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -376,7 +385,16 @@ Expected result: a mock archive record with `status_after=closed`.
 GET /events/ALT-001/case-package
 ```
 
-Expected result: `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and an action checklist.
+Expected result: when the server sets `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` and the request includes `X-GKGuard-Export-Token`, returns `PKG-ALT-001` with event detail, subject data, report, timeline points, evidence snapshots, audit logs, and an action checklist. Missing server-side or request token should return a structured error.
+
+### Read Audit Logs
+
+```text
+GET /audit/logs
+X-GKGuard-Audit-Token: <configured-token>
+```
+
+Expected result: when the server sets `GKGUARD_AUDIT_TOKEN` and the request includes `X-GKGuard-Audit-Token`, returns redacted audit logs; missing request token returns 403. The audit log file should be compacted automatically by length and byte limits.
 
 ## Maintenance Notes
 

@@ -228,6 +228,15 @@ def add_face_record(record: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def delete_face_records_for_video(video_id: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM person_faces WHERE face_id IN (SELECT face_id FROM face_records WHERE video_id = ?)",
+            (video_id,),
+        )
+        conn.execute("DELETE FROM face_records WHERE video_id = ?", (video_id,))
+
+
 def get_face_record(face_id: str) -> dict[str, Any] | None:
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM face_records WHERE face_id = ?", (face_id,)).fetchone()

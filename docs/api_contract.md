@@ -21,7 +21,9 @@ CampusVision C1 适配器默认本机隧道地址：
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版 `v0.1.34` 还内置候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，优先使用本机 SSH 隧道。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内连接窗口展示服务器账号、隧道目标、四步连接进度、失败重试和密码安全说明，并用本次输入的服务器密码建立 SSH 隧道。真实检索遇到 CampusVision C1 502/503/504 时，适配器会尝试下一个候选地址。本版继续收紧查询图人脸检测与选中人脸检索：CampusVision C1 会对查询图做 EXIF 转正、RGB 标准化、透明通道处理、贴边/大脸补边和小图放大重试；上传图只有一张有效候选人脸时自动检索，多张有效候选人脸时必须选择目标人脸，上传区提供显式放大选择按钮，点击上传区本身仍可重新选择文件，低置信候选会标注但不直接隐藏，检测失败、无匹配、超时或真实检索失败时停留在上传页而不展示模拟命中；多人选择弹窗默认按可见容器内最大无滚动尺寸完整适配原图，`适应` 会回到该尺寸；结果页人物照片优先使用用户点击的目标框生成查询人脸裁切图，并按 CampusVision C1 返回的 `imageWidth` / `imageHeight` 将像素 bbox 映射到浏览器实际图片尺寸，裁切时会横向和纵向扩边，空间允许时调整为方形裁切，靠近图像边缘时向内平移以保留完整人脸，最终图片固定在人物照片方框的 8px 安全边距内并用 `object-fit: contain` 充分利用可见空间，缺失时才回退 CampusVision C1 返回的人脸缩略图；桌面端记录列表保持在左侧并继续优先使用 CampusVision C1 人脸缩略图，结果关键帧和预览弹窗会按实际图片内容区域框出目标人脸，并把相似度显示在框外，避免遮挡人脸、落在左上角或受黑边偏移。Electron 桌面端会在加载页面前清理 renderer cache，并通过 `asset=v0.1.34-ui` 页面参数避免安装更新后继续显示旧页面。其余响应式布局、关键帧预览、路线联动、统一状态提示、应用内更新和旧后台资源复用保护继续保留。
+安装版 `v0.1.35` 默认只内置本机隧道候选地址 `http://127.0.0.1:18000`；校园网直连地址必须通过 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 显式配置。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内连接窗口展示服务器账号、隧道目标、四步连接进度、失败重试和密码安全说明。主进程会在发送服务器密码前校验 SSH 主机密钥：若配置了 `sshTunnel.hostFingerprint` 或 `C1_SSH_HOST_FINGERPRINT`，会自动比对；未配置时会弹窗展示服务器指纹并要求人工确认。真实检索遇到 CampusVision C1 502/503/504 时，适配器会尝试下一个显式候选地址。本版继续收紧查询图人脸检测与选中人脸检索：CampusVision C1 会对查询图做 EXIF 转正、RGB 标准化、透明通道处理、贴边/大脸补边和小图放大重试，同时限制查询图上传不超过 16 MiB、解码后不超过 16MP 且单边不超过 8192 像素；上传图只有一张有效候选人脸时自动检索，多张有效候选人脸时必须选择目标人脸，上传区提供显式放大选择按钮，点击上传区本身仍可重新选择文件，低置信候选会标注但不直接隐藏，检测失败、无匹配、超时或真实检索失败时停留在上传页而不展示模拟命中；多人选择弹窗默认按可见容器内最大无滚动尺寸完整适配原图，`适应` 会回到该尺寸；结果页人物照片优先使用用户点击的目标框生成查询人脸裁切图，并按 CampusVision C1 返回的 `imageWidth` / `imageHeight` 将像素 bbox 映射到浏览器实际图片尺寸，裁切时会横向和纵向扩边，空间允许时调整为方形裁切，靠近图像边缘时向内平移以保留完整人脸，最终图片固定在人物照片方框的 8px 安全边距内并用 `object-fit: contain` 充分利用可见空间，缺失时才回退 CampusVision C1 返回的人脸缩略图；桌面端记录列表保持在左侧并继续优先使用 CampusVision C1 人脸缩略图，结果关键帧和预览弹窗会按实际图片内容区域框出目标人脸，并把相似度显示在框外，避免遮挡人脸、落在左上角或受黑边偏移。前端不再把 CampusVision C1 返回的图片 URL 或时间字段写入危险 DOM sink；Electron 桌面端会在加载页面前清理 renderer cache，并通过 `asset=v0.1.35-ui` 页面参数避免安装更新后继续显示旧页面。其余响应式布局、关键帧预览、路线联动、统一状态提示、应用内更新和旧后台资源复用保护继续保留。
+
+安全边界：GKGuard C2 只会选择通过 `C1_ALLOWED_HOSTS` 允许列表、OpenAPI 身份检查和 `/health` 检查的 CampusVision C1 候选地址；如果 CampusVision C1 绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，CampusVision C1 要求 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`，GKGuard C2 通过 `X-CampusVision-API-Key` 转发密钥。旧版模拟图片搜索限制单个文件不超过 2 MiB，并在缺失或超出 `Content-Length` 时提前拒绝请求。案件包导出和审计日志读取属于本地敏感接口，分别需要 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` 和 `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`。
 
 GKGuard C2 前端只访问 GKGuard C2 API。真实 CampusVision C1 检索通过 GKGuard C2 的 `/c1/...` 代理完成；旧版模拟 API 继续保留用于离线演示和非 CampusVision C1 流程。
 
@@ -43,6 +45,7 @@ GKGuard C2 前端只访问 GKGuard C2 API。真实 CampusVision C1 检索通过 
 - `selectedBaseUrl`：自动探测后选中的健康 CampusVision C1 地址；未选中时为 `null`。
 - `candidateUrls`：本次探测的候选 CampusVision C1 地址列表。
 - `candidates[]`：每个候选地址的 OpenAPI 与 `/health` 探测结果。
+- `candidates[].identityOk`：候选地址是否通过 CampusVision C1 OpenAPI 身份检查；未通过的候选不会被选中，也不会接收检索请求。
 - `reachable`：当前 `baseUrl` 是否能读取 CampusVision C1 OpenAPI。
 - `healthOk`：当前 `baseUrl` 的 CampusVision C1 `/health` 是否成功。
 - `health`：CampusVision C1 health 响应内容。
@@ -209,6 +212,12 @@ Query 参数：
 
 返回本地 Top-K 模拟图片检索结果。真实 CampusVision C1 人脸检索请使用 `/c1/search/person-by-image`。
 
+限制：
+
+- `Content-Length` 必须存在且不超过文件上限加固定 multipart 开销。
+- 单个图片文件最多 `2 MiB`。
+- 超限返回 HTTP 413。
+
 ## 时间线（模拟）
 
 `GET /persons/{person_id}/timeline`
@@ -249,6 +258,12 @@ Query 参数：
 
 返回案件包，包括事件、对象信息、报告、时间线、证据快照、审计日志和处理清单。
 
+安全要求：
+
+- 服务端必须配置 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN`。
+- 请求必须携带 `X-GKGuard-Export-Token`。
+- 未配置 token 返回 HTTP 503；token 缺失或错误返回 HTTP 401。
+
 ## 审计日志
 
 `GET /audit/logs`
@@ -258,6 +273,13 @@ Query 参数：
 - `limit`：默认 `20`，最大 `100`。
 
 返回敏感演示操作产生的审计日志。
+
+安全要求：
+
+- 服务端必须配置 `GKGUARD_AUDIT_TOKEN`。
+- 请求必须携带 `X-GKGuard-Audit-Token`。
+- token 缺失或错误返回 HTTP 403。
+- 审计日志按单条字段长度、总行数和总字节数做压缩保留，避免日志文件无限增长。
 
 ## CampusCar / UE 占位
 
@@ -322,7 +344,9 @@ Default local CampusVision C1 tunnel URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged `v0.1.34` app also has built-in candidates `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, preferring the local SSH tunnel. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app, shows connection progress, and creates the SSH tunnel. When real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL. This version further tightens query-face detection and selected-face search: CampusVision C1 applies EXIF orientation normalization, RGB conversion, alpha compositing, padding retries for tight or large faces, and small-image upscale retries; uploads with one effective candidate face auto-search; uploads with multiple effective candidates require selecting the target face, the upload area provides an explicit enlarged-selection button, and clicking the upload area itself still opens the file picker; low-confidence candidates are labeled instead of being hidden outright; detection failures, no-match results, timeouts, or real-search failures stay on the upload screen instead of showing mock hits. The multi-face selection modal defaults to the largest no-scroll full-image fit inside the visible frame, and `适应` returns to that fit. The result portrait prefers a query-face crop generated from the clicked target box and maps CampusVision C1 pixel bboxes through `imageWidth` / `imageHeight` to the browser image dimensions before cropping; the crop is padded horizontally and vertically, made square when the source image has enough room, shifted inward near image edges to preserve the full face, fixed inside the portrait frame with an 8px safe margin, and rendered with `object-fit: contain` so the available frame space is used consistently. It falls back to the CampusVision C1 face thumbnail only when needed. The desktop record list stays on the left side and keeps preferring CampusVision C1 face thumbnails, and result keyframes plus the preview dialog position the target overlay against the rendered image content with the similarity label outside the box so it does not cover the face or drift into the top-left corner or letterbox area. Electron clears the renderer cache before loading the page and appends `asset=v0.1.34-ui` so installed updates do not reuse stale HTML/CSS/JS. The responsive layout, keyframe preview, route selection sync, unified status feedback, in-app updates, and stale-backend asset protection remain in place.
+The packaged `v0.1.35` app includes only the local tunnel candidate `http://127.0.0.1:18000` by default; campus-network direct URLs must be configured explicitly through `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json`. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app and shows connection progress. Before sending the password, the main process verifies the SSH host key: it compares `sshTunnel.hostFingerprint` or `C1_SSH_HOST_FINGERPRINT` automatically when configured, or shows the server fingerprint for manual confirmation when no pinned fingerprint is configured. When real search hits CampusVision C1 502/503/504, the adapter tries the next explicitly configured candidate URL. This version further tightens query-face detection and selected-face search: CampusVision C1 applies EXIF orientation normalization, RGB conversion, alpha compositing, padding retries for tight or large faces, and small-image upscale retries, while limiting query-image uploads to 16 MiB, decoded images to 16MP, and each side to 8192 pixels; uploads with one effective candidate face auto-search; uploads with multiple effective candidates require selecting the target face, the upload area provides an explicit enlarged-selection button, and clicking the upload area itself still opens the file picker; low-confidence candidates are labeled instead of being hidden outright; detection failures, no-match results, timeouts, or real-search failures stay on the upload screen instead of showing mock hits. The multi-face selection modal defaults to the largest no-scroll full-image fit inside the visible frame, and `适应` returns to that fit. The result portrait prefers a query-face crop generated from the clicked target box and maps CampusVision C1 pixel bboxes through `imageWidth` / `imageHeight` to the browser image dimensions before cropping; the crop is padded horizontally and vertically, made square when the source image has enough room, shifted inward near image edges to preserve the full face, fixed inside the portrait frame with an 8px safe margin, and rendered with `object-fit: contain` so the available frame space is used consistently. It falls back to the CampusVision C1 face thumbnail only when needed. The desktop record list stays on the left side and keeps preferring CampusVision C1 face thumbnails, and result keyframes plus the preview dialog position the target overlay against the rendered image content with the similarity label outside the box so it does not cover the face or drift into the top-left corner or letterbox area. The frontend no longer writes CampusVision C1-returned image URLs or time fields into dangerous DOM sinks. Electron clears the renderer cache before loading the page and appends `asset=v0.1.35-ui` so installed updates do not reuse stale HTML/CSS/JS. The responsive layout, keyframe preview, route selection sync, unified status feedback, in-app updates, and stale-backend asset protection remain in place.
+
+Security boundary: GKGuard C2 selects only CampusVision C1 candidates that pass the `C1_ALLOWED_HOSTS` allowlist, OpenAPI identity check, and `/health` check. If CampusVision C1 binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, CampusVision C1 requires `CAMPUSVISION_API_KEY` or `C1_API_KEY`, and GKGuard C2 forwards it through `X-CampusVision-API-Key`. Legacy mock image search limits one uploaded file to 2 MiB and rejects missing or over-limit `Content-Length` before endpoint handling. Case-package export and audit-log readback are sensitive local endpoints: they require `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` and `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`, respectively.
 
 The GKGuard C2 frontend calls GKGuard C2 APIs only. Real CampusVision C1 search is exposed through GKGuard C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-CampusVision C1 workflows.
 
@@ -344,6 +368,7 @@ Important fields:
 - `selectedBaseUrl`: healthy CampusVision C1 URL selected by auto-probing, or `null` if none is selected.
 - `candidateUrls`: candidate CampusVision C1 URLs checked during this probe.
 - `candidates[]`: OpenAPI and `/health` probe result for each candidate.
+- `candidates[].identityOk`: whether the candidate passed the CampusVision C1 OpenAPI identity check; candidates that fail it are not selected and do not receive search requests.
 - `reachable`: whether the current `baseUrl` can read CampusVision C1 OpenAPI metadata.
 - `healthOk`: whether the current `baseUrl` succeeds on CampusVision C1 `/health`.
 - `health`: CampusVision C1 health payload.
@@ -510,6 +535,12 @@ Query parameters:
 
 Returns local Top-K mock image-search matches. Use `/c1/search/person-by-image` for real CampusVision C1 face search.
 
+Limits:
+
+- `Content-Length` must be present and fit within the file limit plus fixed multipart overhead.
+- One image file may be at most `2 MiB`.
+- Over-limit requests return HTTP 413.
+
 ## Timeline (Mock)
 
 `GET /persons/{person_id}/timeline`
@@ -550,6 +581,12 @@ Returns a mock archived disposition record.
 
 Returns a case package containing event detail, subject data, report, timeline, evidence snapshots, audit logs, and an action checklist.
 
+Security requirements:
+
+- The server must set `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN`.
+- The request must include `X-GKGuard-Export-Token`.
+- Missing server-side token returns HTTP 503; missing or invalid request token returns HTTP 401.
+
 ## Audit Logs
 
 `GET /audit/logs`
@@ -559,6 +596,13 @@ Query parameters:
 - `limit`: default `20`, max `100`.
 
 Returns audit logs generated by sensitive demo actions.
+
+Security requirements:
+
+- The server must set `GKGUARD_AUDIT_TOKEN`.
+- The request must include `X-GKGuard-Audit-Token`.
+- Missing or invalid tokens return HTTP 403.
+- Audit logs are compacted by per-field size, total line count, and total byte count so the log file cannot grow unbounded.
 
 ## CampusCar / UE Placeholder
 

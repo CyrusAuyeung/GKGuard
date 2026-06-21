@@ -6,6 +6,20 @@ from app.services.search_service import get_person_profile, search_persons, sear
 
 
 router = APIRouter(prefix="/search", tags=["search"])
+MAX_IMAGE_UPLOAD_BYTES = 2 * 1024 * 1024
+MAX_IMAGE_MULTIPART_OVERHEAD_BYTES = 64 * 1024
+IMAGE_UPLOAD_READ_LIMIT_BYTES = MAX_IMAGE_UPLOAD_BYTES + 1
+
+
+def image_too_large_error() -> HTTPException:
+    return HTTPException(
+        status_code=413,
+        detail={
+            "code": "IMAGE_TOO_LARGE",
+            "message": f"Uploaded image exceeds the {MAX_IMAGE_UPLOAD_BYTES} byte limit.",
+            "max_bytes": MAX_IMAGE_UPLOAD_BYTES,
+        },
+    )
 
 
 @router.get("/persons")
@@ -65,7 +79,9 @@ async def find_by_image(
     top_k: int = Query(5, ge=1, le=20),
     min_similarity: float = Query(0.72, ge=0, le=1),
 ) -> dict:
-    content = await file.read()
+    content = await file.read(IMAGE_UPLOAD_READ_LIMIT_BYTES)
+    if len(content) > MAX_IMAGE_UPLOAD_BYTES:
+        raise image_too_large_error()
     if not content:
         raise HTTPException(status_code=400, detail={"code": "EMPTY_IMAGE", "message": "Uploaded file is empty"})
     result = search_by_image(file.filename or "query.jpg", content, top_k, min_similarity)

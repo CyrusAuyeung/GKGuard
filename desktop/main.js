@@ -10,13 +10,12 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "v0.1.34-ui";
+const STATIC_ASSET_VERSION = "v0.1.35-ui";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
 const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/releases/latest";
 const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
-const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
 const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
 const APP_ICON_PATH = getAppIconPath();
 const DEFAULT_C1_SSH_TUNNEL = {
@@ -26,6 +25,7 @@ const DEFAULT_C1_SSH_TUNNEL = {
   localPort: 18000,
   remoteHost: "127.0.0.1",
   remotePort: 8000,
+  hostFingerprint: "",
 };
 
 let backendProcess = null;
@@ -289,7 +289,7 @@ function getBackendEnv() {
     PYTHONUNBUFFERED: "1",
     GKGUARD_PORT: String(activeBackendPort),
     C1_CONFIG_PATH: getC1ConfigPath(),
-    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`,
+    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || DEFAULT_C1_TUNNEL_URL,
   };
 }
 
@@ -303,6 +303,80 @@ function readC1ConnectionConfig() {
   } catch {
     return {};
   }
+}
+
+function normalizeSshHostFingerprint(value) {
+  const fingerprint = String(value || "").trim();
+  if (!fingerprint) return "";
+
+  const hexMatch = fingerprint.match(/^(?:sha256:)?([a-f0-9]{64})$/i);
+  if (hexMatch) {
+    return `sha256:${Buffer.from(hexMatch[1], "hex").toString("base64").replace(/=+$/, "")}`;
+  }
+
+  const sha256Match = fingerprint.match(/^SHA256:([A-Za-z0-9+/]+={0,2})$/i);
+  if (sha256Match) {
+    return `sha256:${sha256Match[1].replace(/=+$/, "")}`;
+  }
+
+  return "";
+}
+
+function formatSshHostFingerprintFromHex(hexDigest) {
+  return `SHA256:${Buffer.from(String(hexDigest || ""), "hex").toString("base64").replace(/=+$/, "")}`;
+}
+
+async function confirmSshHostKey(tunnel, target, fingerprint, parentWindow = mainWindow) {
+  const result = await dialog.showMessageBox(parentWindow || mainWindow, {
+    type: "warning",
+    title: "验证 CampusVision C1 SSH 主机密钥",
+    message: "请先验证 SSH 主机密钥指纹",
+    detail: `在发送服务器密码前，请通过可信渠道确认 ${target} 的 SSH 主机密钥指纹：\n\n${fingerprint}\n\n只有确认该指纹属于 CampusVision C1 服务器后才继续连接。`,
+    buttons: ["指纹正确，继续连接", "取消连接"],
+    defaultId: 1,
+    cancelId: 1,
+    noLink: true,
+  });
+  return result.response === 0;
+}
+
+function createSshHostVerifier(tunnel, target, onProgress, parentWindow = mainWindow) {
+  const expected = normalizeSshHostFingerprint(tunnel.hostFingerprint);
+  let approvedFingerprint = "";
+  return (keyHash, callback) => {
+    const actual = normalizeSshHostFingerprint(keyHash);
+    const displayFingerprint = formatSshHostFingerprintFromHex(keyHash);
+
+    if (approvedFingerprint && actual === approvedFingerprint) {
+      callback(true);
+      return;
+    }
+
+    if (expected) {
+      const verified = actual === expected;
+      if (!verified) {
+        onProgress?.({ percent: 24, message: "SSH 主机密钥指纹不匹配。", busy: false, failed: true, recoverable: true });
+        console.warn(`C1 SSH host key mismatch. Expected ${tunnel.hostFingerprint}, got ${displayFingerprint}.`);
+      }
+      callback(verified);
+      return;
+    }
+
+    onProgress?.({ percent: 24, message: "请验证 SSH 主机密钥指纹...", busy: true });
+    confirmSshHostKey(tunnel, target, displayFingerprint, parentWindow)
+      .then((confirmed) => {
+        if (!confirmed) {
+          onProgress?.({ percent: 24, message: "已取消：未验证 SSH 主机密钥。", busy: false, failed: true, recoverable: true });
+        } else {
+          approvedFingerprint = actual;
+        }
+        callback(confirmed);
+      })
+      .catch((error) => {
+        console.warn(`SSH host key verification dialog failed: ${error.message}`);
+        callback(false);
+      });
+  };
 }
 
 function toPort(value, fallback) {
@@ -331,12 +405,13 @@ function getSshTunnelConfig() {
   const remoteHost = process.env.C1_SSH_REMOTE_HOST || tunnel.remoteHost || "127.0.0.1";
   const localPort = toPort(process.env.C1_SSH_LOCAL_PORT || tunnel.localPort, 18000);
   const remotePort = toPort(process.env.C1_SSH_REMOTE_PORT || tunnel.remotePort, 8000);
+  const hostFingerprint = process.env.C1_SSH_HOST_FINGERPRINT || tunnel.hostFingerprint || "";
 
   if (!isSafeSshToken(host) || !isSafeSshToken(user) || !isSafeSshToken(remoteHost)) {
     return null;
   }
 
-  return { host, user, remoteHost, localPort, remotePort };
+  return { host, user, remoteHost, localPort, remotePort, hostFingerprint };
 }
 
 function getJson(url, timeoutMs = 2500) {
@@ -368,7 +443,7 @@ function getJson(url, timeoutMs = 2500) {
 }
 
 function isC1Connected(status) {
-  return Boolean(status && (status.selectedBaseUrl || (status.reachable && status.healthOk)));
+  return Boolean(status?.selectedBaseUrl);
 }
 
 function getTunnelBaseUrl(tunnel) {
@@ -419,7 +494,7 @@ async function probeC1Endpoint(baseUrl, timeoutMs = 1200) {
     getJson(`${baseUrl}/health`, timeoutMs),
   ]);
   return {
-    reachable: openapi.status === "fulfilled" || health.status === "fulfilled",
+    reachable: health.status === "fulfilled",
     openapiOk: openapi.status === "fulfilled",
     healthOk: health.status === "fulfilled",
     openapiError: openapi.status === "rejected" ? openapi.reason?.message : "",
@@ -436,8 +511,8 @@ async function waitForC1TunnelReady(tunnel, onProgress, timeoutMs = C1_CONNECT_T
     onProgress?.({ percent, message: "正在确认 C1 服务响应..." });
 
     const endpointStatus = await probeC1Endpoint(tunnelBaseUrl, 1200);
-    if (endpointStatus.reachable) {
-      return { connected: true, verified: endpointStatus.healthOk, status: endpointStatus };
+    if (endpointStatus.healthOk) {
+      return { connected: true, verified: true, status: endpointStatus };
     }
 
     await delay(450);
@@ -457,13 +532,14 @@ function stopSshTunnel() {
   }
 }
 
-function startEmbeddedSshTunnel(tunnel, password, onProgress) {
+function startEmbeddedSshTunnel(tunnel, password, onProgress, parentWindow = mainWindow) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
 
   return new Promise((resolve, reject) => {
     stopSshTunnel();
     onProgress?.({ percent: 18, message: "正在连接 SSH 服务器..." });
+    const hostVerifier = createSshHostVerifier(tunnel, target, onProgress, parentWindow);
     const client = new SshClient();
     let server = null;
     let settled = false;
@@ -535,7 +611,9 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress) {
       port: 22,
       username: tunnel.user,
       password,
-      readyTimeout: 12000,
+      hostHash: "sha256",
+      hostVerifier,
+      readyTimeout: tunnel.hostFingerprint ? 20000 : 120000,
       keepaliveInterval: 15000,
       keepaliveCountMax: 3,
     });
@@ -600,8 +678,14 @@ function promptForSshPassword(tunnel, reason, connectWithPassword) {
         lastProgressPercent = 12;
         sendProgress({ percent: 12, message: "已收到密码，正在连接...", busy: true });
         try {
-          const result = await connectWithPassword(submittedPassword, sendProgress);
-          sendProgress({ percent: 100, message: result.verified ? "CampusVision C1 已连接。" : "隧道已建立，可继续检索。", busy: false, done: true });
+          const result = await connectWithPassword(submittedPassword, sendProgress, modal);
+          sendProgress({
+            percent: 100,
+            message: result.connected && result.verified ? "CampusVision C1 已连接。" : "尚未确认 CampusVision C1 服务可用。",
+            busy: false,
+            done: true,
+            failed: !result.connected,
+          });
           setTimeout(() => done(result), 420);
         } catch (error) {
           connecting = false;
@@ -643,8 +727,8 @@ async function promptForC1Tunnel(reason = "未检测到 CampusVision C1 服务")
     return false;
   }
 
-  const result = await promptForSshPassword(tunnel, reason, async (password, onProgress) => {
-    await startEmbeddedSshTunnel(tunnel, password, onProgress);
+  const result = await promptForSshPassword(tunnel, reason, async (password, onProgress, modal) => {
+    await startEmbeddedSshTunnel(tunnel, password, onProgress, modal);
     return waitForC1TunnelReady(tunnel, onProgress);
   });
 

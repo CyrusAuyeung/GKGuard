@@ -71,6 +71,21 @@ INSIGHTFACE_DET_SIZE=1280
 
 `INSIGHTFACE_DET_SIZE` 控制 InsightFace 检测输入尺寸，默认 1280；多人全景图或多人乐队/教室场景中，如果查询图只检测到一张人脸，优先确认该值未被旧环境覆盖。修改 `.env` 后需要重启实际监听端口的 uvicorn worker。
 
+## 安全与资源限制
+
+默认本地开发绑定 `127.0.0.1`，不要求 API key。若服务绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`；受保护的上传、索引、人物库和检索接口会在读取 multipart 请求体前校验 `X-CampusVision-API-Key`。不要把 API key 写入仓库或日志。
+
+`.env` 可配置以下资源上限：
+
+```bash
+CAMPUSVISION_MAX_QUERY_IMAGE_UPLOAD_BYTES=16777216
+CAMPUSVISION_MAX_QUERY_IMAGES=5
+CAMPUSVISION_MAX_VIDEO_UPLOAD_BYTES=536870912
+CAMPUSVISION_MAX_INDEX_FRAMES=5000
+```
+
+查询图会限制上传体积、解码像素数和单边尺寸；视频上传和索引会限制体积与最大抽帧数量。超限请求返回结构化错误，并清理已经保存的临时文件或部分索引结果。
+
 ## 快速接口流程
 
 1. 创建摄像头点位。
@@ -275,6 +290,21 @@ FACE_ENGINE=insightface
 INSIGHTFACE_DET_SIZE=1280
 ```
 `INSIGHTFACE_DET_SIZE` controls the InsightFace detection input size and defaults to `1280`. If a group, classroom, or band-room image returns only one detected query face, first confirm that an old runtime environment has not overridden this value. After changing `.env`, restart the actual uvicorn worker that owns the listening port.
+
+## Security And Resource Limits
+
+Local development binds to `127.0.0.1` by default and does not require an API key. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, set `CAMPUSVISION_API_KEY` or `C1_API_KEY`; protected upload, indexing, person-index, and search endpoints validate `X-CampusVision-API-Key` before reading multipart request bodies. Do not write API keys to the repository or logs.
+
+These resource limits can be configured in `.env`:
+
+```bash
+CAMPUSVISION_MAX_QUERY_IMAGE_UPLOAD_BYTES=16777216
+CAMPUSVISION_MAX_QUERY_IMAGES=5
+CAMPUSVISION_MAX_VIDEO_UPLOAD_BYTES=536870912
+CAMPUSVISION_MAX_INDEX_FRAMES=5000
+```
+
+Query images are limited by upload size, decoded pixel count, and maximum side length; video upload and indexing are limited by upload size and maximum indexed frames. Over-limit requests return structured errors and clean up saved temporary files or partial indexing results.
 
 ## Quick API Flow
 

@@ -66,7 +66,7 @@
 
 - `source`：当前为 `c1`。
 - `baseUrl`：适配器当前使用或展示的 CampusVision C1 地址。
-- `selectedBaseUrl`：自动探测后选中的健康 CampusVision C1 地址，可能为内置服务器地址 `http://10.4.167.122:8000`、本机隧道地址 `http://127.0.0.1:18000` 或自定义地址。
+- `selectedBaseUrl`：自动探测后选中的健康 CampusVision C1 地址。候选地址必须来自显式配置或默认本机隧道，且通过 `C1_ALLOWED_HOSTS` 允许列表、OpenAPI 身份检查和 `/health` 检查；默认安装版只内置本机隧道地址 `http://127.0.0.1:18000`。
 - `candidateUrls`：本次探测的 CampusVision C1 候选地址列表。
 - `searchId`：CampusVision C1 search ID。
 - `engine`：CampusVision C1 引擎名，预期为 `insightface`。
@@ -156,7 +156,7 @@
 - `target`：事件、报告、处置或查询对象。
 - `metadata`：非敏感操作细节。
 
-审计日志写入 `backend/runtime/audit.jsonl`，该目录已被 Git 忽略。
+审计日志写入 `backend/runtime/audit.jsonl`，该目录已被 Git 忽略。`GET /audit/logs` 需要 `GKGUARD_AUDIT_TOKEN` 和 `X-GKGuard-Audit-Token`；日志写入会限制单字段长度，并按总行数和总字节数压缩保留。
 
 ## CampusCar 现场复核任务
 
@@ -252,7 +252,7 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 
 - `source`: currently `c1`.
 - `baseUrl`: CampusVision C1 URL currently used or displayed by the adapter.
-- `selectedBaseUrl`: healthy CampusVision C1 URL selected by auto-probing. It may be the built-in server URL `http://10.4.167.122:8000`, the local tunnel URL `http://127.0.0.1:18000`, or a custom URL.
+- `selectedBaseUrl`: healthy CampusVision C1 URL selected by auto-probing. Candidate URLs must come from explicit configuration or the default local tunnel and must pass the `C1_ALLOWED_HOSTS` allowlist, OpenAPI identity check, and `/health` check. The packaged app includes only the local tunnel URL `http://127.0.0.1:18000` by default.
 - `candidateUrls`: CampusVision C1 candidate URL list checked during the probe.
 - `searchId`: CampusVision C1 search ID.
 - `engine`: CampusVision C1 engine name, expected to be `insightface`.
@@ -342,7 +342,7 @@ Sensitive in real deployments: event subjects, case description, and handling st
 - `target`: event, report, disposition, or query target.
 - `metadata`: non-sensitive action details.
 
-Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git.
+Audit logs are written to `backend/runtime/audit.jsonl`, which is ignored by Git. `GET /audit/logs` requires `GKGUARD_AUDIT_TOKEN` and `X-GKGuard-Audit-Token`; writes limit per-field length and compact the file by total line count and total byte count.
 
 ## campusCar review tasks
 
