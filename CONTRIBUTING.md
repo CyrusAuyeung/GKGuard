@@ -527,7 +527,7 @@ git push
 文档同步：
 13. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md 和对应 Release note。
 14. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。
-15. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
+15. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
 
 发布与收尾：
 16. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
@@ -1034,7 +1034,7 @@ Implementation and validation:
 Documentation synchronization:
 13. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, and the matching Release note.
 14. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem.
-15. For repository-facing Markdown, keep Chinese first and English second. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
+15. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
 
 Release and closeout:
 16. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.

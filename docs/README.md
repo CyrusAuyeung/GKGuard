@@ -54,6 +54,7 @@
 ## 文档维护要求
 
 - 面向仓库用户的文档默认中文在前、English 在后。
+- 任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。
 - 当前状态文档描述最新版本行为；历史发布说明不回写成最新状态。
 - 涉及真实 CampusVision C1、校园网、VPN、SSH 或服务器访问时，必须写明网络前提和密码处理方式。
 - 不在文档示例中放入真实密码、token、SSH 私钥、真实人脸、真实视频或个人信息。
@@ -113,6 +114,7 @@ Use this page to locate maintenance material quickly. The current-state document
 ## Documentation Maintenance Rules
 
 - User-facing documentation should be Chinese first and English second.
+- Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned. Any added or removed rule, step, constraint, or validation item must be synchronized in both languages.
 - Current-state docs describe the latest behavior; historical Release notes should not be rewritten into the latest context.
 - When documenting real CampusVision C1, campus network, VPN, SSH, or server access, state the network prerequisite and password-handling behavior.
 - Do not put real passwords, tokens, SSH private keys, real faces, real videos, or personal information in documentation examples.

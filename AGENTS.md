@@ -102,7 +102,7 @@ gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json
 文档维护规则：
 
 - 面向仓库用户的文档默认中文在前、English 在后。
-- 修改 `AGENTS.md` 时必须保持中文与 English 章节结构一致、语义一致；新增或删除规则时要同步两种语言版本。
+- 修改任何中英双语文档时必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。
 - 当前状态文档描述最新版本行为。
 - 历史 Release notes 保留发布时语境，除非修复术语错误、明显事实错误或翻译问题。
 - 使用“API 规范”和“接口规范”，保持术语一致。
@@ -298,7 +298,7 @@ Any change that affects current behavior must synchronize the related documents:
 Documentation maintenance rules:
 
 - User-facing documents should be Chinese first and English second.
-- When changing `AGENTS.md`, keep the Chinese and English sections structurally and semantically aligned. Any added or removed rule must be synchronized in both languages.
+- When changing any Chinese/English bilingual document, keep the Chinese and English sections structurally and semantically aligned. Any added or removed rule, step, constraint, or validation item must be synchronized in both languages.
 - Current-state documents describe the latest release behavior.
 - Historical Release notes keep release-time context unless fixing terminology, clear factual errors, or translation problems.
 - Use "API 规范" and "接口规范" consistently in Chinese terminology.
