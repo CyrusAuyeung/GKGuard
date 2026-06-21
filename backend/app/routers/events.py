@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException
+import hmac
+import os
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from app.models import EventDispositionRequest, EventDispositionResponse
 from app.services.audit_service import record_audit
@@ -6,6 +9,24 @@ from app.services.event_service import archive_event_disposition, build_case_pac
 
 
 router = APIRouter(prefix="/events", tags=["events"])
+CASE_PACKAGE_EXPORT_TOKEN_ENV = "GKGUARD_CASE_PACKAGE_EXPORT_TOKEN"
+
+
+def require_case_package_export_token(x_gkguard_export_token: str | None = Header(default=None)) -> None:
+    expected_token = os.getenv(CASE_PACKAGE_EXPORT_TOKEN_ENV, "")
+    if not expected_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": "CASE_PACKAGE_EXPORT_DISABLED",
+                "message": "Set GKGUARD_CASE_PACKAGE_EXPORT_TOKEN before exporting case packages.",
+            },
+        )
+    if not x_gkguard_export_token or not hmac.compare_digest(x_gkguard_export_token, expected_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": "CASE_PACKAGE_EXPORT_UNAUTHORIZED", "message": "Valid export authorization is required."},
+        )
 
 
 @router.get("/{event_id}/related-records")
@@ -44,7 +65,7 @@ def event_disposition(event_id: str, request: EventDispositionRequest) -> EventD
 
 
 @router.get("/{event_id}/case-package")
-def event_case_package(event_id: str) -> dict:
+def event_case_package(event_id: str, _: None = Depends(require_case_package_export_token)) -> dict:
     package = build_case_package(event_id)
     if not package:
         raise HTTPException(status_code=404, detail={"code": "EVENT_NOT_FOUND", "message": event_id})

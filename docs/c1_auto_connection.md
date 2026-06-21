@@ -11,15 +11,14 @@
 
 ## 当前实现
 
-GKGuard C2 后端会按顺序读取候选地址并自动探测；安装版默认优先本机 SSH 隧道，其次再尝试校园网直连地址：
+GKGuard C2 后端会按顺序读取候选地址并自动探测；安装版默认只内置本机 SSH 隧道地址。校园网直连地址必须通过环境变量或配置文件显式提供：
 
 1. 环境变量 `C1_BASE_URL`。
 2. 环境变量 `C1_CANDIDATE_URLS`，多个地址用逗号或分号分隔。
 3. 桌面端传入的配置文件：`%APPDATA%\GKGuard\c1-connection.json`。
 4. 默认本机隧道地址：`http://127.0.0.1:18000`。
-5. 内置服务器地址：`http://10.4.167.122:8000`。
 
-探测时会访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`。第一个健康检查通过的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。桌面端 SSH 隧道连接如果被远端重置，主进程会记录警告并关闭对应 socket，不再弹出 Electron 主进程 JavaScript 错误。
+探测时会先用 `C1_ALLOWED_HOSTS` 过滤候选主机，再访问每个候选 CampusVision C1 服务的 `/openapi.json` 和 `/health`。第一个通过允许列表、OpenAPI 身份检查和健康检查的地址会被选中，后续上传照片时会直接转发到这个 CampusVision C1 服务实例。真实检索如果遇到 CampusVision C1 502/503/504，适配器会继续尝试下一个显式候选地址；桌面 UI 也会打开软件内 SSH 密码窗口并重试一次。桌面端 SSH 隧道连接如果被远端重置，主进程会记录警告并关闭对应 socket，不再弹出 Electron 主进程 JavaScript 错误。
 
 ## 推荐方案 A：直连 CampusVision C1 服务
 
@@ -31,7 +30,7 @@ GKGuard C2 后端会按顺序读取候选地址并自动探测；安装版默认
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-同时需要用防火墙、反向代理或校园网策略限制访问范围，避免把识别服务暴露到不可信网络。
+同时需要用防火墙、反向代理或校园网策略限制访问范围，避免把识别服务暴露到不可信网络。CampusVision C1 绑定到 `0.0.0.0` 或 `::` 时会要求 API key；服务器配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY` 后，GKGuard C2 侧也要配置同一密钥，并通过 `X-CampusVision-API-Key` 转发。
 
 客户端配置文件：
 
@@ -51,6 +50,12 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 如果确认 CampusVision C1 服务已经安全开放给校园网，可以把直连地址放在候选列表第一位。默认安装版仍优先本机 SSH 隧道，避免“直连健康但搜索返回 503”时静默回退。
+
+直连地址还需要加入 GKGuard C2 允许列表，例如：
+
+```powershell
+$env:C1_ALLOWED_HOSTS = "127.0.0.1,localhost,10.4.167.122"
+```
 
 ## 推荐方案 B：自动识别已有 SSH 隧道
 
@@ -82,14 +87,19 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-因此通常不需要手动创建配置文件。下面的配置文件只用于服务器地址、账号或端口变化时覆盖默认值。
+首次使用内置 SSH 隧道时，GKGuard 会在发送服务器密码前校验 SSH 主机密钥。建议在可信网络或服务器控制台运行以下命令获取 OpenSSH `SHA256:...` 指纹，并写入 `sshTunnel.hostFingerprint`：
+
+```bash
+ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+如果没有配置 `hostFingerprint`，软件会在连接时弹窗展示本次 SSH 服务器指纹，并要求人工确认后才继续发送密码。下面的配置文件用于固定指纹，或在服务器地址、账号、端口变化时覆盖默认值。
 
 配置文件示例：
 
 ```json
 {
   "candidateUrls": [
-    "http://10.4.167.122:8000",
     "http://127.0.0.1:18000"
   ],
   "sshTunnel": {
@@ -98,7 +108,8 @@ remotePort = 8000
     "user": "speng",
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
-    "remotePort": 8000
+    "remotePort": 8000,
+    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
   }
 }
 ```
@@ -114,11 +125,11 @@ remotePort = 8000
 1. GKGuard 先探测 `candidateUrls`。
 2. 如果本机隧道未连接，弹出“连接 CampusVision C1 服务”提示；即使直连地址可达，也会优先提示建立隧道。
 3. 软件内弹出“连接 CampusVision C1 服务”窗口，展示服务器账号、隧道目标和连接原因。
-4. 你在该窗口输入服务器密码，主进程用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
+4. 你在该窗口输入服务器密码；主进程会先校验 CampusVision C1 SSH 主机密钥，校验通过后才用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
-安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.34-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.35-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -173,6 +184,7 @@ http://127.0.0.1:8002/c1/status
 
 - `selectedBaseUrl`：当前自动选中的 CampusVision C1 地址。
 - `candidateUrls`：当前候选地址列表。
+- `candidates[].identityOk`：候选地址是否通过 CampusVision C1 OpenAPI 身份检查。
 - `candidates[].healthOk`：各候选 CampusVision C1 服务的健康检查结果。
 - `health.face_engine`：应为 `insightface`。
 
@@ -188,15 +200,14 @@ Here, CampusVision C1 means the video-search service, and GKGuard C2 means the d
 
 ## Current Implementation
 
-The GKGuard C2 backend reads and probes candidate URLs in this order; the packaged app prefers the local SSH tunnel before the campus-network direct URL:
+The GKGuard C2 backend reads and probes candidate URLs in this order; the packaged app only includes the local SSH tunnel by default. Campus-network direct URLs must be provided explicitly through environment variables or the config file:
 
 1. Environment variable `C1_BASE_URL`.
 2. Environment variable `C1_CANDIDATE_URLS`, separated by commas or semicolons.
 3. Desktop-provided config file: `%APPDATA%\GKGuard\c1-connection.json`.
 4. Default local tunnel URL: `http://127.0.0.1:18000`.
-5. Built-in server URL: `http://10.4.167.122:8000`.
 
-During probing, GKGuard C2 calls `/openapi.json` and `/health` on each CampusVision C1 candidate. The first candidate with a healthy response is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once. If the remote side resets an SSH tunnel connection, the desktop main process records a warning and closes the socket instead of showing an Electron main-process JavaScript error dialog.
+During probing, GKGuard C2 first filters candidate hosts with `C1_ALLOWED_HOSTS`, then calls `/openapi.json` and `/health` on each CampusVision C1 candidate. The first candidate that passes the allowlist, OpenAPI identity check, and health check is selected, and image uploads are forwarded to that CampusVision C1 instance. If real search hits CampusVision C1 502/503/504, the adapter tries the next explicitly configured candidate URL; the desktop UI also opens the embedded SSH password prompt and retries once. If the remote side resets an SSH tunnel connection, the desktop main process records a warning and closes the socket instead of showing an Electron main-process JavaScript error dialog.
 
 ## Recommended Option A: Direct CampusVision C1 Access
 
@@ -208,7 +219,7 @@ On the server, CampusVision C1 should listen on an address reachable from campus
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-Use firewall rules, reverse proxy rules, or campus network policy to restrict access. Do not expose the recognition service to untrusted networks.
+Use firewall rules, reverse proxy rules, or campus network policy to restrict access. Do not expose the recognition service to untrusted networks. When CampusVision C1 binds to `0.0.0.0` or `::`, it requires an API key; after setting `CAMPUSVISION_API_KEY` or `C1_API_KEY` on the server, configure the same key on GKGuard C2 so it can forward `X-CampusVision-API-Key`.
 
 Client config file:
 
@@ -228,6 +239,12 @@ The packaged desktop app reads this path by default:
 ```
 
 If CampusVision C1 is safely exposed to the campus network, put the direct URL first in this candidate list. The default packaged app still prefers the local SSH tunnel to avoid silently falling back when direct access is healthy but real search returns 503.
+
+The direct host must also be included in the GKGuard C2 allowlist, for example:
+
+```powershell
+$env:C1_ALLOWED_HOSTS = "127.0.0.1,localhost,10.4.167.122"
+```
 
 ## Recommended Option B: Auto-Detect SSH Tunnel
 
@@ -259,14 +276,19 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-So normally you do not need to create a config file manually. The config below is only for overriding defaults when the server address, account, or ports change.
+Before sending the server password, GKGuard verifies the SSH host key. Prefer obtaining the OpenSSH `SHA256:...` fingerprint from a trusted network or the server console and storing it in `sshTunnel.hostFingerprint`:
+
+```bash
+ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
+```
+
+If `hostFingerprint` is not configured, the app shows the SSH server fingerprint during connection and requires manual confirmation before sending the password. The config below is for pinning that fingerprint or overriding defaults when the server address, account, or ports change.
 
 Example config:
 
 ```json
 {
   "candidateUrls": [
-    "http://10.4.167.122:8000",
     "http://127.0.0.1:18000"
   ],
   "sshTunnel": {
@@ -275,7 +297,8 @@ Example config:
     "user": "speng",
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
-    "remotePort": 8000
+    "remotePort": 8000,
+    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
   }
 }
 ```
@@ -291,10 +314,10 @@ Startup behavior:
 1. GKGuard probes `candidateUrls` first.
 2. If the local tunnel is not connected, it shows a “Connect CampusVision C1 service” prompt; even when the direct URL is reachable, the app prefers establishing the tunnel.
 3. The app opens the embedded “Connect CampusVision C1 service” window.
-4. You type the server password in that window, and the main process creates the SSH tunnel with that one-time password.
+4. You type the server password in that window; the main process verifies the CampusVision C1 SSH host key before using the one-time password to create the SSH tunnel.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 
-Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.34-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.35-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 
@@ -349,6 +372,7 @@ Check these fields:
 
 - `selectedBaseUrl`: currently selected CampusVision C1 URL.
 - `candidateUrls`: current candidate URL list.
+- `candidates[].identityOk`: whether the candidate passed the CampusVision C1 OpenAPI identity check.
 - `candidates[].healthOk`: health-check result for each candidate.
 - `health.face_engine`: should be `insightface`.
 

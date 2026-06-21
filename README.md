@@ -9,11 +9,11 @@
 
 GKGuard 是面向校园安防场景的 GKGuard C2 桌面工作台，负责本地后端、桌面界面、人脸检索结果展示、人物路线可视化、本地模拟回退、审计能力和外部服务代理。CampusVision C1 是独立的视频检索服务，负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。
 
-本仓库集成了 GKGuard C2 的本地模拟演示、FastAPI 服务接口、Electron 桌面运行环境、CampusVision C1 真实检索接入、查询图目标人脸选择、结果关键帧标注、人物路线联动、Windows/macOS/Linux 桌面端发布、协作流程管理和配套文档体系。当前最新版本是 `v0.1.34`。
+本仓库集成了 GKGuard C2 的本地模拟演示、FastAPI 服务接口、Electron 桌面运行环境、CampusVision C1 真实检索接入、查询图目标人脸选择、结果关键帧标注、人物路线联动、Windows/macOS/Linux 桌面端发布、安全加固、协作流程管理和配套文档体系。当前最新版本是 `v0.1.35`。
 
 ## 仓库版本
 
-- 当前最新版本：`v0.1.34`。
+- 当前最新版本：`v0.1.35`。
 - 桌面安装包：GitHub Release 中包含 Windows 安装包、macOS dmg/zip、Linux AppImage/deb、`.blockmap` 和 `latest*.yml`。
 - 代码形态：仓库同时保留可本地运行的 FastAPI 后端、静态前端、Electron 桌面壳和导入的 CampusVision C1 源码。
 - 文档形态：仓库内维护中英双语 README、API 规范、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和管理文档。
@@ -49,10 +49,10 @@ GKGuard 是面向校园安防场景的 GKGuard C2 桌面工作台，负责本地
 
 ## 当前稳定基线
 
-- 当前稳定基线为 `v0.1.34`：主流程已覆盖本地 mock 演示和 CampusVision C1 真实检索两种模式，Windows/macOS/Linux 桌面端发布链路和本地开发后端都可进入 `/demo`。
+- 当前稳定基线为 `v0.1.35`：主流程已覆盖本地 mock 演示和 CampusVision C1 真实检索两种模式，Windows/macOS/Linux 桌面端发布链路和本地开发后端都可进入 `/demo`。
 - GKGuard C2 前端已完成三屏人脸检索工作流：上传页处理单人/多人查询图和异常状态，结果页展示人物照片、命中记录、关键帧和相似度标注，路线页展示轨迹点、时间线和当前轨迹摘要。
 - 人脸选择与结果展示已针对真实照片场景做稳定性处理：多人图必须确认目标人物，低置信候选保留可见提示，无匹配/超时/检测失败会回到可继续操作的上传状态，结果页人物照片和关键帧标注按实际目标框与图片内容区域定位。
-- 桌面端已包含 CampusVision C1 自动连接、内嵌 SSH 密码窗口、连接进度、ECONNRESET 抑制、页面缓存清理、静态资源版本参数和应用内更新入口。
+- 桌面端已包含 CampusVision C1 自动连接、内嵌 SSH 密码窗口、SSH 主机密钥校验、连接进度、ECONNRESET 抑制、页面缓存清理、静态资源版本参数和应用内更新入口。
 - 测试与发布基线包括后端 pytest、前端/桌面脚本语法检查、Playwright E2E、npm audit、GitHub Actions CI、`v*` 标签触发的 Windows/macOS/Linux 桌面端构建，以及 release note / GitHub Release 正文同步。
 
 ## 架构概览
@@ -64,8 +64,7 @@ Desktop App (Electron; Windows/macOS/Linux)
   -> /c1/... adapter endpoints
   -> CampusVision C1 candidate URLs
        -> local SSH tunnel http://127.0.0.1:18000
-       -> campus direct URL http://10.4.167.122:8000
-       -> custom URLs from environment or c1-connection.json
+       -> explicit campus direct URLs from environment or c1-connection.json
 
 External integration boundary:
   -> /car-tasks/... placeholder interface specification
@@ -165,7 +164,7 @@ scripts/
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版内置默认 CampusVision C1 候选地址 `http://127.0.0.1:18000` 和 `http://10.4.167.122:8000`，并优先使用本机 SSH 隧道。打开应用后如果尚未通过隧道连接 CampusVision C1，会在软件内弹出服务器密码窗口；窗口会显示服务器账号、隧道目标、连接原因和四步连接进度，连接失败时停留在窗口内允许重新输入。若直连服务可达但真实检索返回 503，页面也会触发同一个内嵌连接窗口并重试一次。密码只用于本次 SSH 连接，GKGuard 不保存、不落盘、不记录密码。
+安装版内置默认 CampusVision C1 候选地址为本机 SSH 隧道 `http://127.0.0.1:18000`；校园网直连地址必须通过环境变量或 `%APPDATA%\GKGuard\c1-connection.json` 显式配置。打开应用后如果尚未通过隧道连接 CampusVision C1，会在软件内弹出服务器密码窗口；窗口会显示服务器账号、隧道目标、连接原因和四步连接进度。主进程会在发送服务器密码前校验 SSH 主机密钥：若配置了 `sshTunnel.hostFingerprint` 或 `C1_SSH_HOST_FINGERPRINT`，会自动比对；未配置时会弹窗展示服务器指纹并要求人工确认。连接失败时窗口会停留在当前界面并允许重新输入。密码只用于本次 SSH 连接，GKGuard 不保存、不落盘、不记录密码。
 
 通常不需要额外配置。若服务器地址或账号变化，可用 `%APPDATA%\GKGuard\c1-connection.json` 覆盖默认值，示例见 [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json)。
 
@@ -280,12 +279,13 @@ python -m py_compile backend/desktop_server.py
 node --check backend/app/static/app.js
 node --check desktop/main.js
 node --check desktop/preload.js
+Push-Location services/campusvision-c1; python -m pytest tests/test_security_config.py tests/test_query_face_preprocessing.py; Pop-Location
 npm run test:e2e
 npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.1.34` 的基线结果：后端测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过；本地 Windows 打包继续生成 `GKGuard-Setup-0.1.34.exe`、`.blockmap` 和 `latest.yml`；Release workflow 会在 Windows、Intel macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据。本版未改动远端 CampusVision C1 服务或远端半自动部署脚本。浏览器 E2E 继续覆盖本地模拟检索、CampusVision C1 单人自动检索、多人查询图放大弹窗选人、结果页人物照片按选中目标框坐标扩边裁切并填满方框安全区、低置信查询候选可见标注、查询图检测失败拦截、无匹配结果返回上传页、检索超时恢复、检索结果、桌面左侧记录列表、路线图、路线点定位、时间线定位、返回结果页、重新上传流程，以及模拟 CampusVision C1 媒体结果的关键帧预览弹窗、目标人脸框和框外相似度标注。
+当前 `v0.1.35` 的基线结果：GKGuard C2 后端测试、CampusVision C1 服务端安全配置测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过；本地 Windows 打包继续生成 `GKGuard-Setup-0.1.35.exe`、`.blockmap` 和 `latest.yml`；Release workflow 会在 Windows、Intel macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据。本版收紧 GKGuard C2 / CampusVision C1 集成安全边界：桌面后端固定绑定 loopback，默认 CampusVision C1 候选不再包含硬编码远端 HTTP，CampusVision C1 候选地址需要通过允许列表和服务身份检查，内嵌 SSH 隧道会在发送密码前验证主机密钥，CampusVision C1 在外部暴露或显式开启时要求 API key，查询图、视频上传、图像解码和视频索引有资源上限，审计日志和案件包导出需要本地保护 token，前端避免把 CampusVision C1 返回字段写入危险 DOM sink，Release workflow 默认只读权限并把发布写权限隔离到发布 job。浏览器 E2E 继续覆盖本地模拟检索、CampusVision C1 单人自动检索、多人查询图放大弹窗选人、结果页人物照片按选中目标框坐标扩边裁切并填满方框安全区、低置信查询候选可见标注、查询图检测失败拦截、无匹配结果返回上传页、检索超时恢复、检索结果、桌面左侧记录列表、路线图、路线点定位、时间线定位、返回结果页、重新上传流程，以及模拟 CampusVision C1 媒体结果的关键帧预览弹窗、目标人脸框和框外相似度标注。
 
 只修改文档时，可至少执行：
 
@@ -325,11 +325,11 @@ python -m pytest
 
 GKGuard is the GKGuard C2 desktop workbench for campus-security AI search. It owns the local backend, desktop UI, face-search result presentation, person-route visualization, mock fallback, audit capability, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output.
 
-This repository integrates GKGuard C2's local mock demo, FastAPI service APIs, Electron desktop runtime, CampusVision C1 real-search integration, query-face target selection, result keyframe overlays, person-route synchronization, Windows/macOS/Linux desktop release flow, collaboration workflow management, and supporting documentation. The latest version is `v0.1.34`.
+This repository integrates GKGuard C2's local mock demo, FastAPI service APIs, Electron desktop runtime, CampusVision C1 real-search integration, query-face target selection, result keyframe overlays, person-route synchronization, Windows/macOS/Linux desktop release flow, security hardening, collaboration workflow management, and supporting documentation. The latest version is `v0.1.35`.
 
 ## Repository Version
 
-- Latest version: `v0.1.34`.
+- Latest version: `v0.1.35`.
 - Desktop packages: GitHub Releases contain the Windows installer, macOS dmg/zip, Linux AppImage/deb, `.blockmap`, and `latest*.yml`.
 - Code shape: the repository keeps the locally runnable FastAPI backend, static frontend, Electron desktop shell, and imported CampusVision C1 source.
 - Documentation shape: the repository maintains bilingual README, API specification, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and management documents.
@@ -367,10 +367,10 @@ This repository currently covers:
 
 ## Current Stable Baseline
 
-- The current stable baseline is `v0.1.34`: the main flow supports both local mock demonstration and CampusVision C1 real search, and the Windows/macOS/Linux desktop release flow plus the local development backend can enter `/demo`.
+- The current stable baseline is `v0.1.35`: the main flow supports both local mock demonstration and CampusVision C1 real search, and the Windows/macOS/Linux desktop release flow plus the local development backend can enter `/demo`.
 - The GKGuard C2 frontend has the complete three-screen face-search workflow: the upload screen handles single-face, multi-face, and error states; the result screen shows the portrait, matched records, keyframes, and similarity overlays; the route screen shows trajectory points, timeline, and current-route summary.
 - Face selection and result rendering are hardened for real-photo cases: multi-face images require a confirmed target, low-confidence candidates remain visibly marked, no-match/timeout/detection-failure states return to an actionable upload screen, and result portraits plus keyframe overlays are positioned from the actual target box and rendered image-content area.
-- The desktop app includes CampusVision C1 auto-connection, the embedded SSH password window, connection progress, ECONNRESET suppression, page-cache clearing, static asset version parameters, and the in-app update entry.
+- The desktop app includes CampusVision C1 auto-connection, the embedded SSH password window, SSH host-key verification, connection progress, ECONNRESET suppression, page-cache clearing, static asset version parameters, and the in-app update entry.
 - The testing and release baseline includes backend pytest, frontend/desktop syntax checks, Playwright E2E, npm audit, GitHub Actions CI, `v*` tag-triggered Windows/macOS/Linux desktop builds, and release note / GitHub Release body synchronization.
 
 ## Architecture Overview
@@ -382,8 +382,7 @@ Desktop App (Electron; Windows/macOS/Linux)
   -> /c1/... adapter endpoints
   -> CampusVision C1 candidate URLs
        -> local SSH tunnel http://127.0.0.1:18000
-       -> campus direct URL http://10.4.167.122:8000
-       -> custom URLs from environment or c1-connection.json
+       -> explicit campus direct URLs from environment or c1-connection.json
 
 External integration boundary:
   -> /car-tasks/... placeholder interface specifications
@@ -483,7 +482,7 @@ Default local adapter URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged app has built-in CampusVision C1 candidates: `http://127.0.0.1:18000` and `http://10.4.167.122:8000`, with the local SSH tunnel first. After opening the app, it probes them automatically. If the tunnel is not connected, it shows an embedded server-password window with account, tunnel target, connection reason, and four-step progress. Failed connections stay in that window so the password can be re-entered. The password is used only for the current SSH session; GKGuard does not store it, write it to disk, or log it.
+The packaged app has one built-in CampusVision C1 candidate by default: the local SSH tunnel `http://127.0.0.1:18000`. Campus-network direct URLs must be explicitly configured through environment variables or `%APPDATA%\GKGuard\c1-connection.json`. If the tunnel is not connected, the app shows an embedded server-password window with account, tunnel target, connection reason, and four-step progress. Before sending the server password, the main process verifies the SSH host key: it compares the configured `sshTunnel.hostFingerprint` or `C1_SSH_HOST_FINGERPRINT` automatically, or shows the server fingerprint for manual confirmation when no pinned fingerprint is configured. Failed connections stay in that window so the password can be re-entered. The password is used only for the current SSH session; GKGuard does not store it, write it to disk, or log it.
 
 Extra configuration is usually not required. If the server address or account changes, override defaults with `%APPDATA%\GKGuard\c1-connection.json`; see [docs/examples/c1-connection.example.json](docs/examples/c1-connection.example.json).
 
@@ -598,12 +597,13 @@ python -m py_compile backend/desktop_server.py
 node --check backend/app/static/app.js
 node --check desktop/main.js
 node --check desktop/preload.js
+Push-Location services/campusvision-c1; python -m pytest tests/test_security_config.py tests/test_query_face_preprocessing.py; Pop-Location
 npm run test:e2e
 npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.1.34` baseline: backend tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The local Windows build still generates `GKGuard-Setup-0.1.34.exe`, `.blockmap`, and `latest.yml`; the Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, Intel macOS, and Linux runners. This release does not modify the remote CampusVision C1 service or the semi-automatic remote deployment script. Browser E2E continues to cover mock search, CampusVision C1 single-face auto-search, enlarged multi-face query selection, result portraits cropped with padding from the selected target-box coordinates and filling the portrait safe area, visible low-confidence query candidates, query-face detection failure blocking, no-match upload recovery, search timeout recovery, results, the left-side desktop record list, route map, route-point locate, timeline locate, return to results, re-upload, a mocked CampusVision C1 media keyframe preview dialog, target-face overlays, and outside-box similarity labels.
+Current `v0.1.35` baseline: GKGuard C2 backend tests, CampusVision C1 service-side security configuration tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The local Windows build still generates `GKGuard-Setup-0.1.35.exe`, `.blockmap`, and `latest.yml`; the Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, Intel macOS, and Linux runners. This release tightens the GKGuard C2 / CampusVision C1 integration boundary: the desktop backend binds only to loopback, default CampusVision C1 candidates no longer include a hardcoded remote HTTP URL, CampusVision C1 candidate URLs must pass allowlist and service-identity checks, embedded SSH verifies the host key before sending the password, CampusVision C1 requires an API key when externally exposed or explicitly configured to do so, query-image uploads, video uploads, image decoding, and video indexing have resource limits, audit logs and case-package export require local protection tokens, the frontend avoids writing CampusVision C1-returned fields into dangerous DOM sinks, and the Release workflow defaults to read-only permissions while isolating write access to the publish job. Browser E2E continues to cover mock search, CampusVision C1 single-face auto-search, enlarged multi-face query selection, result portraits cropped with padding from the selected target-box coordinates and filling the portrait safe area, visible low-confidence query candidates, query-face detection failure blocking, no-match upload recovery, search timeout recovery, results, the left-side desktop record list, route map, route-point locate, timeline locate, return to results, re-upload, a mocked CampusVision C1 media keyframe preview dialog, target-face overlays, and outside-box similarity labels.
 
 For documentation-only changes, run at least:
 

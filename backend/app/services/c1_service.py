@@ -2,18 +2,21 @@ from __future__ import annotations
 
 import os
 import json
+import ipaddress
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
 
-DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000"
 DEFAULT_C1_BASE_URL = "http://127.0.0.1:18000"
 C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
 C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
+C1_API_KEY = (os.getenv("C1_API_KEY") or os.getenv("CAMPUSVISION_API_KEY") or "").strip()
+DEFAULT_C1_ALLOWED_HOSTS = "localhost,127.0.0.1,::1"
 _selected_base_url: str | None = None
 RETRYABLE_STATUS_CODES = {502, 503, 504}
 
@@ -28,9 +31,43 @@ def _normalize_base_url(value: str | None) -> str | None:
     if not value:
         return None
     normalized = value.strip().rstrip("/")
-    if not normalized or not normalized.startswith(("http://", "https://")):
+    parsed = urlparse(normalized)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path not in {"", "/"}:
+        return None
+    if not _host_allowed(parsed.hostname):
         return None
     return normalized
+
+
+def _allowed_c1_hosts() -> set[str]:
+    configured_hosts = os.getenv("C1_ALLOWED_HOSTS", DEFAULT_C1_ALLOWED_HOSTS)
+    return {host.strip().strip("[]").lower() for host in configured_hosts.replace(";", ",").split(",") if host.strip()}
+
+
+def _looks_like_ip_address(value: str) -> bool:
+    try:
+        ipaddress.ip_address(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _host_allowed(hostname: str | None) -> bool:
+    if not hostname:
+        return False
+    host = hostname.strip().strip("[]").lower()
+    allowed_hosts = _allowed_c1_hosts()
+    if host in allowed_hosts:
+        return True
+    try:
+        ip_address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return any(
+        ip_address == ipaddress.ip_address(allowed_host)
+        for allowed_host in allowed_hosts
+        if _looks_like_ip_address(allowed_host)
+    )
 
 
 def _split_urls(value: str | None) -> list[str]:
@@ -86,33 +123,54 @@ def _candidate_urls() -> list[str]:
     urls.extend(_split_urls(os.getenv("C1_BASE_URL")))
     urls.extend(_split_urls(os.getenv("C1_CANDIDATE_URLS")))
     urls.extend(_load_config_candidate_urls())
-    urls.extend(_split_urls(DEFAULT_C1_DIRECT_URL))
     urls.extend(_split_urls(C1_BASE_URL))
 
     deduped: list[str] = []
     for url in urls:
         if url not in deduped:
             deduped.append(url)
-    return deduped or [DEFAULT_C1_BASE_URL]
+    return deduped
 
 
 def _current_base_url() -> str:
-    return _selected_base_url or _candidate_urls()[0]
+    candidates = _candidate_urls()
+    return _selected_base_url or (candidates[0] if candidates else DEFAULT_C1_BASE_URL)
+
+
+def _is_campusvision_identity(openapi_body: Any, health_body: Any) -> bool:
+    openapi_info = openapi_body.get("info", {}) if isinstance(openapi_body, dict) else {}
+    if not isinstance(openapi_info, dict):
+        openapi_info = {}
+    title = str(openapi_info.get("title") or "").strip()
+    description = ""
+    if isinstance(openapi_body, dict):
+        description = str(openapi_body.get("description") or openapi_info.get("description") or "")
+    health_app = str(health_body.get("app") or "").strip() if isinstance(health_body, dict) else ""
+    return "CampusVision C1" in {title, health_app} or "CampusVision C1" in description
+
+
+def _is_healthy_c1_status(status: dict[str, Any]) -> bool:
+    return bool(status.get("reachable") and status.get("healthOk") and status.get("identityOk"))
 
 
 def _status_for_url(base_url: str) -> dict[str, Any]:
-    status: dict[str, Any] = {"baseUrl": base_url, "reachable": False}
+    status: dict[str, Any] = {"baseUrl": base_url, "reachable": False, "identityOk": False}
+    openapi_body: Any = None
+    health_body: Any = None
     try:
         with httpx.Client(timeout=C1_PROBE_TIMEOUT) as client:
             openapi = client.get(f"{base_url}/openapi.json")
             openapi.raise_for_status()
             openapi_body = openapi.json()
+            openapi_info = openapi_body.get("info", {}) if isinstance(openapi_body, dict) else {}
+            if not isinstance(openapi_info, dict):
+                openapi_info = {}
             status.update({
                 "reachable": True,
-                "title": openapi_body.get("info", {}).get("title"),
-                "version": openapi_body.get("info", {}).get("version"),
+                "title": openapi_info.get("title"),
+                "version": openapi_info.get("version"),
             })
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ValueError, AttributeError) as exc:
         status["error"] = str(exc)
 
     try:
@@ -120,11 +178,13 @@ def _status_for_url(base_url: str) -> dict[str, Any]:
             health = client.get(f"{base_url}/health")
             health.raise_for_status()
             status["reachable"] = True
-            status["health"] = health.json()
+            health_body = health.json()
+            status["health"] = health_body
             status["healthOk"] = True
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         status["healthOk"] = False
         status["healthError"] = str(exc)
+    status["identityOk"] = _is_campusvision_identity(openapi_body, health_body)
     return status
 
 
@@ -132,17 +192,22 @@ def _resolve_base_url() -> str:
     global _selected_base_url
 
     candidates = _candidate_urls()
+    if not candidates:
+        _selected_base_url = None
+        raise C1ServiceError("No allowed CampusVision C1 candidate URLs are configured.", 400)
     if _selected_base_url in candidates:
-        return _selected_base_url
+        selected_status = _status_for_url(_selected_base_url)
+        if _is_healthy_c1_status(selected_status):
+            return _selected_base_url
 
     for base_url in candidates:
         status = _status_for_url(base_url)
-        if status.get("reachable") and status.get("healthOk"):
+        if _is_healthy_c1_status(status):
             _selected_base_url = base_url
             return base_url
 
     _selected_base_url = None
-    return candidates[0]
+    raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
 
 def _absolute_media_url(path: str | None) -> str | None:
@@ -399,16 +464,29 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _request_once(base_url: str, method: str, path: str, **kwargs: Any) -> httpx.Response:
     url = f"{base_url}{path}"
+    if C1_API_KEY:
+        headers = dict(kwargs.pop("headers", {}) or {})
+        headers.setdefault("X-CampusVision-API-Key", C1_API_KEY)
+        kwargs["headers"] = headers
     with httpx.Client(timeout=REQUEST_TIMEOUT) as client:
         response = client.request(method, url, **kwargs)
         response.raise_for_status()
         return response
 
 
-def _ordered_request_urls(primary_url: str) -> list[str]:
+def _ordered_request_urls(primary_url: str | None = None) -> list[str]:
     urls: list[str] = []
     for url in [primary_url, *_candidate_urls()]:
-        if url not in urls:
+        if url and url not in urls:
+            urls.append(url)
+    return urls
+
+
+def _healthy_request_urls(primary_url: str | None = None) -> list[str]:
+    urls: list[str] = []
+    for url in _ordered_request_urls(primary_url):
+        status = _status_for_url(url)
+        if _is_healthy_c1_status(status):
             urls.append(url)
     return urls
 
@@ -418,8 +496,12 @@ def _request(method: str, path: str, **kwargs: Any) -> httpx.Response:
 
     base_url = _resolve_base_url()
     last_error: Exception | None = None
+    request_urls = _healthy_request_urls(base_url)
+    if not request_urls:
+        _selected_base_url = None
+        raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
-    for request_url in _ordered_request_urls(base_url):
+    for request_url in request_urls:
         try:
             response = _request_once(request_url, method, path, **kwargs)
             _selected_base_url = request_url
@@ -446,15 +528,27 @@ def get_status() -> dict[str, Any]:
     global _selected_base_url
 
     candidates = _candidate_urls()
+    if not candidates:
+        _selected_base_url = None
+        return {
+            "baseUrl": None,
+            "selectedBaseUrl": None,
+            "reachable": False,
+            "healthOk": False,
+            "identityOk": False,
+            "error": "No allowed CampusVision C1 candidate URLs are configured.",
+            "candidateUrls": [],
+            "candidates": [],
+        }
     candidate_statuses = [_status_for_url(base_url) for base_url in candidates]
     selected = next(
-        (item for item in candidate_statuses if item.get("reachable") and item.get("healthOk")),
-        candidate_statuses[0],
+        (item for item in candidate_statuses if _is_healthy_c1_status(item)),
+        None,
     )
-    _selected_base_url = selected["baseUrl"] if selected.get("reachable") and selected.get("healthOk") else None
-    status = dict(selected)
-    status["baseUrl"] = selected["baseUrl"]
-    status["selectedBaseUrl"] = selected["baseUrl"] if selected.get("reachable") and selected.get("healthOk") else None
+    _selected_base_url = selected["baseUrl"] if selected else None
+    status = dict(selected or {"baseUrl": candidates[0], "reachable": False, "healthOk": False, "identityOk": False})
+    status["baseUrl"] = selected["baseUrl"] if selected else candidates[0]
+    status["selectedBaseUrl"] = selected["baseUrl"] if selected else None
     status["candidateUrls"] = candidates
     status["candidates"] = candidate_statuses
     return status

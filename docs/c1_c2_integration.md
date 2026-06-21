@@ -7,7 +7,7 @@
 
 # CampusVision C1 / GKGuard C2 集成说明
 
-本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.34` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路、查询图人脸检测预处理与重试、多人显式放大选人按钮、放大弹窗选人、弹窗最大无滚动适应、低置信候选可见标注、选中人脸检索、结果页目标查询人脸按选中框坐标扩边裁切、空间允许时调整为方形裁切、靠边平移并充分利用人物照片方框展示、无匹配和超时状态恢复、结果关键帧目标框和框外相似度标注：GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
+本文记录 CampusVision C1 服务与 GKGuard C2 工作台的职责边界、运行连接方式、已实现代理接口、字段映射和联调检查。CampusVision C1 是视频检索服务，负责视频索引、人脸向量、人物库、以图搜人、关键帧和轨迹输出；GKGuard C2 是桌面工作台和本地代理层，负责 UI、CampusVision C1 连接、结果归一化、路线展示、本地模拟回退和 CampusCar/UE 占位接口规范。当前 `v0.1.35` 已包含 GKGuard C2 到 CampusVision C1 的真实检索链路、查询图人脸检测预处理与重试、多人显式放大选人按钮、放大弹窗选人、弹窗最大无滚动适应、低置信候选可见标注、选中人脸检索、结果页目标查询人脸按选中框坐标扩边裁切、空间允许时调整为方形裁切、靠边平移并充分利用人物照片方框展示、无匹配和超时状态恢复、结果关键帧目标框和框外相似度标注，以及 CampusVision C1 候选地址允许列表、服务身份检查、外部暴露时 API key、上传和索引资源上限。GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端再通过 `/c1/...` 代理访问 CampusVision C1。
 
 ## 职责边界
 
@@ -26,7 +26,7 @@
 
 ## 运行连接
 
-GKGuard C2 适配器支持 CampusVision C1 候选地址自动探测；安装版默认候选地址优先本机隧道 `http://127.0.0.1:18000`，再尝试内置服务器地址 `http://10.4.167.122:8000`。完整读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json`、默认本机隧道地址、内置服务器地址。
+GKGuard C2 适配器支持 CampusVision C1 候选地址自动探测；安装版默认只内置本机隧道 `http://127.0.0.1:18000`。校园网直连地址或其他远端地址必须通过 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或安装版配置文件 `%APPDATA%\GKGuard\c1-connection.json` 显式提供，并且主机名必须通过 `C1_ALLOWED_HOSTS` 允许列表。完整读取顺序为 `C1_BASE_URL`、`C1_CANDIDATE_URLS`、安装版配置文件和默认本机隧道地址。
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -38,9 +38,9 @@ C1_BASE_URL=http://127.0.0.1:18000
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-这样 GKGuard C2 可以访问 `http://127.0.0.1:18000`，同时不把 CampusVision C1 直接暴露到网络。安装版默认会优先要求通过隧道连接；若直连可达但真实检索返回 503，前端会打开软件内 SSH 密码窗口并在连接后重试。密码只用于本次 SSH 连接，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
+这样 GKGuard C2 可以访问 `http://127.0.0.1:18000`，同时不把 CampusVision C1 直接暴露到网络。安装版默认会优先要求通过隧道连接；若直连可达但真实检索返回 503，前端会打开软件内 SSH 密码窗口并在连接后重试。密码只用于本次 SSH 连接，GKGuard 不保存密码。若部署环境不同，用 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 覆盖，并同步设置 `C1_ALLOWED_HOSTS`。自动连接配置见 [c1_auto_connection.md](c1_auto_connection.md)。
 
-CampusVision C1 必须以 `FACE_ENGINE=insightface` 运行。若 `/api/v1/persons` 正常，但 `/health` 或以图搜人返回 500，通常是运行中的 uvicorn worker 仍继承了旧环境变量，需要检查 `/proc/<pid>/environ` 并重启实际监听端口的 worker。
+CampusVision C1 必须以 `FACE_ENGINE=insightface` 运行。若服务绑定 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`，GKGuard C2 会通过 `X-CampusVision-API-Key` 转发。若 `/api/v1/persons` 正常，但 `/health` 或以图搜人返回 500，通常是运行中的 uvicorn worker 仍继承了旧环境变量，需要检查 `/proc/<pid>/environ` 并重启实际监听端口的 worker。
 
 CampusVision C1 服务依赖建议保持 `numpy<2`、`opencv-python<4.13`。当前 InsightFace / ONNXRuntime 环境可以在 NumPy 1.26.x 下通过检查；若 pip 将 NumPy 升级到 2.x，可能导致运行时依赖不一致，应按 `services/campusvision-c1/requirements.txt` 重新安装后重启服务。
 
@@ -82,7 +82,9 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 ```
 
 - 前端只调用 GKGuard C2 后端，不直接访问 CampusVision C1。
+- GKGuard C2 只会向通过允许列表、OpenAPI 身份检查和 `/health` 检查的 CampusVision C1 候选地址发送查询图、视频或检索请求。
 - 上传图片后，前端先调用 `/c1/query-faces`；CampusVision C1 会对查询图做 EXIF 转正、RGB 标准化、透明通道处理、贴边/大脸补边和小图放大重试；检测到一张有效候选人脸时自动检索，多张有效候选人脸时在放大原图弹窗中选择目标人脸；低于 `0.65` 但不低于 `0.45` 的候选以低置信样式显示并仍可选择，低于 `0.45` 的候选不作为可选目标。
+- CampusVision C1 会限制查询图数量、查询图上传体积、视频上传体积、解码后图片尺寸和视频索引帧数；超限请求返回结构化错误并清理已经保存的临时上传。
 - 前端调用 `/c1/search/person-by-image` 时会在需要时附带 `query_face_index`，CampusVision C1 只用选中的查询图人脸 embedding 检索。
 - GKGuard C2 将 CampusVision C1 相对媒体 URL 改写为 `/c1/media/...`。
 - GKGuard C2 将 CampusVision C1 `query_faces`、`selected_query_face`、`matches`、`trajectory` 和人物元数据转换为上传页、结果页与路线图可用的数据结构。
@@ -93,6 +95,8 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 ## 联调检查
 
 - CampusVision C1 确认正式端口，以及服务绑定 `127.0.0.1` 还是 `0.0.0.0`。
+- 若 CampusVision C1 绑定到外部地址，确认 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY` 已配置，GKGuard C2 侧同步配置相同密钥，并确认未把密钥写入仓库。
+- GKGuard C2 确认 `C1_ALLOWED_HOSTS` 覆盖所有显式候选地址，且 `/c1/status` 中只有通过服务身份检查的候选会被选为 `selectedBaseUrl`。
 - CampusVision C1 `/health` 返回 HTTP 200，且 `face_engine=insightface`。
 - CampusVision C1 完成完整流程：创建摄像头、上传视频、索引视频、重建或更新人物库、以图搜人。
 - GKGuard C2 验证 `/c1/status`、`/c1/persons`、`/c1/query-faces`、`/c1/search/person-by-image` 和 `/c1/media/...`。
@@ -110,7 +114,7 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 
 # CampusVision C1 / GKGuard C2 Integration Notes
 
-This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder interface specifications. As of `v0.1.34`, the real GKGuard C2-to-CampusVision C1 search path is included, with query-face preprocessing and retry, an explicit enlarged face-selection button, enlarged multi-face selection, maximum no-scroll modal fit, visible low-confidence candidate labels, selected-face search, padded selected query-face portrait crops generated from the selected-box coordinates, square crops when source-image space allows, edge-aware crop shifting, consistent portrait-frame space usage, no-match and timeout recovery, and target-face overlays with outside-box similarity labels on result keyframes: the GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
+This document records the responsibility boundary, runtime connection, implemented proxy endpoints, field mapping, and integration checklist between the CampusVision C1 service and the GKGuard C2 workbench. CampusVision C1 is the video-search service for video indexing, face embeddings, person indexing, image search, keyframes, and trajectory output. GKGuard C2 is the desktop workbench and local proxy layer for UI, CampusVision C1 connectivity, result normalization, route display, mock fallback, and CampusCar/UE placeholder interface specifications. As of `v0.1.35`, the real GKGuard C2-to-CampusVision C1 search path is included, with query-face preprocessing and retry, an explicit enlarged face-selection button, enlarged multi-face selection, maximum no-scroll modal fit, visible low-confidence candidate labels, selected-face search, padded selected query-face portrait crops generated from the selected-box coordinates, square crops when source-image space allows, edge-aware crop shifting, consistent portrait-frame space usage, no-match and timeout recovery, target-face overlays with outside-box similarity labels on result keyframes, CampusVision C1 candidate URL allowlisting, service-identity checks, API-key protection when CampusVision C1 is exposed, and upload/indexing resource limits. The GKGuard C2 frontend talks only to the GKGuard C2 backend, and the GKGuard C2 backend accesses CampusVision C1 through `/c1/...` proxy endpoints.
 
 ## Ownership
 
@@ -129,7 +133,7 @@ The repository should track only source code, documentation, scripts, examples, 
 
 ## Runtime Connection
 
-The GKGuard C2 adapter supports CampusVision C1 candidate URL auto-detection in this order: `C1_BASE_URL`, `C1_CANDIDATE_URLS`, packaged-app config file `%APPDATA%\GKGuard\c1-connection.json`, default local tunnel URL `http://127.0.0.1:18000`, and finally built-in server URL `http://10.4.167.122:8000`:
+The GKGuard C2 adapter supports CampusVision C1 candidate URL auto-detection. The packaged app includes only the local tunnel URL `http://127.0.0.1:18000` by default. Campus-network direct URLs or other remote URLs must be explicitly provided through `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or packaged-app config file `%APPDATA%\GKGuard\c1-connection.json`, and their hostnames must pass the `C1_ALLOWED_HOSTS` allowlist. The full read order is `C1_BASE_URL`, `C1_CANDIDATE_URLS`, packaged-app config file, and the default local tunnel URL:
 
 ```text
 C1_BASE_URL=http://127.0.0.1:18000
@@ -141,9 +145,9 @@ If CampusVision C1 runs on a remote server and is bound to that server's `127.0.
 ssh -L 18000:127.0.0.1:8000 <user>@<c1-server>
 ```
 
-GKGuard C2 can then call `http://127.0.0.1:18000` without exposing CampusVision C1 directly on the network. By default, the packaged app prefers the tunnel; if direct CampusVision C1 is reachable but real search returns 503, the frontend opens the embedded SSH password prompt and retries after connection. The password is used only for the current SSH session, and GKGuard does not store it. Use `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json` to override this for other deployments. See [c1_auto_connection.md](c1_auto_connection.md) for automatic connection setup.
+GKGuard C2 can then call `http://127.0.0.1:18000` without exposing CampusVision C1 directly on the network. By default, the packaged app prefers the tunnel; if direct CampusVision C1 is reachable but real search returns 503, the frontend opens the embedded SSH password prompt and retries after connection. The password is used only for the current SSH session, and GKGuard does not store it. Use `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json` to override this for other deployments, and update `C1_ALLOWED_HOSTS` accordingly. See [c1_auto_connection.md](c1_auto_connection.md) for automatic connection setup.
 
-CampusVision C1 must run with `FACE_ENGINE=insightface`. If `/api/v1/persons` works but `/health` or image search returns 500, the active uvicorn worker may still have stale environment variables. Inspect `/proc/<pid>/environ` and restart the actual worker that owns the listening port.
+CampusVision C1 must run with `FACE_ENGINE=insightface`. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, configure `CAMPUSVISION_API_KEY` or `C1_API_KEY`; GKGuard C2 forwards it through `X-CampusVision-API-Key`. If `/api/v1/persons` works but `/health` or image search returns 500, the active uvicorn worker may still have stale environment variables. Inspect `/proc/<pid>/environ` and restart the actual worker that owns the listening port.
 
 Keep the CampusVision C1 service dependencies on `numpy<2` and `opencv-python<4.13`. The current InsightFace / ONNXRuntime environment checks pass on NumPy 1.26.x; if pip upgrades NumPy to 2.x, reinstall from `services/campusvision-c1/requirements.txt` and restart the service.
 
@@ -185,7 +189,9 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 ```
 
 - The frontend calls only the GKGuard C2 backend and never calls CampusVision C1 directly.
+- GKGuard C2 sends query images, videos, and search requests only to CampusVision C1 candidates that pass the host allowlist, OpenAPI identity check, and `/health` check.
 - After upload, the frontend calls `/c1/query-faces`; CampusVision C1 applies EXIF orientation normalization, RGB conversion, alpha compositing, padding retries for tight or large faces, and small-image upscale retries. One effective candidate face is auto-selected and searched, while multiple effective candidates require selecting a target in an enlarged original-image modal. Candidates below `0.65` but at least `0.45` stay visible with a low-confidence style and remain selectable, while candidates below `0.45` are not exposed as targets.
+- CampusVision C1 limits query-image count, query-image upload size, video upload size, decoded image dimensions, and video indexing frames; over-limit requests return structured errors and clean up saved temporary uploads.
 - When needed, the frontend calls `/c1/search/person-by-image` with `query_face_index`, so CampusVision C1 searches with only the selected query-face embedding.
 - GKGuard C2 rewrites CampusVision C1 relative media URLs to `/c1/media/...`.
 - GKGuard C2 converts CampusVision C1 `query_faces`, `selected_query_face`, `matches`, `trajectory`, and person metadata into upload, result, and route view models.
@@ -195,6 +201,8 @@ C1_BASE_URL -> health check -> image search -> normalize result -> GKGuard C2 vi
 ## Integration Checklist
 
 - CampusVision C1 confirms the official port and whether the service binds to `127.0.0.1` or `0.0.0.0`.
+- If CampusVision C1 binds to an external address, confirm `CAMPUSVISION_API_KEY` or `C1_API_KEY` is configured, GKGuard C2 uses the same key, and no key is written to the repository.
+- GKGuard C2 confirms that `C1_ALLOWED_HOSTS` covers all explicit candidate URLs, and `/c1/status` selects only candidates that pass service identity checks as `selectedBaseUrl`.
 - CampusVision C1 `/health` returns HTTP 200 with `face_engine=insightface`.
 - CampusVision C1 completes the full flow: create camera, upload video, index video, rebuild or update person index, and search person by image.
 - GKGuard C2 verifies `/c1/status`, `/c1/persons`, `/c1/query-faces`, `/c1/search/person-by-image`, and `/c1/media/...`.

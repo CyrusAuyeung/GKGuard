@@ -305,10 +305,37 @@ function setButtonBusy(button, busy, busyLabel, idleLabel) {
   button.innerHTML = `<svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>${busy ? busyLabel : idleLabel}`;
 }
 
-function targetPortraitMarkup() {
-  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
-  if (portraitUrl) return `<img src="${portraitUrl}" alt="目标人物照片" />`;
-  return '<span class="portrait-art" aria-hidden="true"></span>';
+function safeImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i.test(raw) || raw.startsWith("blob:")) return raw;
+  try {
+    const url = new URL(raw, window.location.origin);
+    if (url.protocol === "http:" || url.protocol === "https:") return url.href;
+  } catch (_error) {
+    return "";
+  }
+  return "";
+}
+
+function portraitPlaceholder() {
+  const placeholder = document.createElement("span");
+  placeholder.className = "portrait-art";
+  placeholder.setAttribute("aria-hidden", "true");
+  return placeholder;
+}
+
+function appendPortraitImage(target, url, altText) {
+  const safeUrl = safeImageUrl(url);
+  if (!safeUrl) {
+    target.append(portraitPlaceholder());
+    return null;
+  }
+  const image = document.createElement("img");
+  image.src = safeUrl;
+  image.alt = altText;
+  target.append(image);
+  return image;
 }
 
 function initialFaceBoxStyle(box) {
@@ -358,13 +385,24 @@ function faceBoxMarkup(face, options = {}) {
   `;
 }
 
-function uploadPortraitMarkup() {
-  if (!uploadedImageUrl) return '<span class="portrait-art" aria-hidden="true"></span>';
-  const boxes = selectableQueryFaces().map((face) => faceBoxMarkup(face)).join("");
-  return `
-    <img src="${uploadedImageUrl}" alt="上传的查询图片" />
-    <span class="query-face-layer" aria-label="查询图人脸选择">${boxes}</span>
-  `;
+function renderUploadPortrait(target) {
+  target.textContent = "";
+  if (!uploadedImageUrl) {
+    target.append(portraitPlaceholder());
+    return;
+  }
+  appendPortraitImage(target, uploadedImageUrl, "上传的查询图片");
+  const layer = document.createElement("span");
+  layer.className = "query-face-layer";
+  layer.setAttribute("aria-label", "查询图人脸选择");
+  layer.innerHTML = selectableQueryFaces().map((face) => faceBoxMarkup(face)).join("");
+  target.append(layer);
+}
+
+function renderTargetPortrait(target) {
+  target.textContent = "";
+  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
+  appendPortraitImage(target, portraitUrl, "目标人物照片");
 }
 
 function recordThumbMarkup(record) {
@@ -534,11 +572,11 @@ function syncUploadPreviewAction() {
 }
 
 function syncPortraits() {
-  if (elements.uploadPreview) elements.uploadPreview.innerHTML = uploadPortraitMarkup();
+  if (elements.uploadPreview) renderUploadPortrait(elements.uploadPreview);
   syncUploadPreviewAction();
   [elements.resultPortrait, elements.routePortrait].forEach((target) => {
     if (!target) return;
-    target.innerHTML = targetPortraitMarkup();
+    renderTargetPortrait(target);
   });
   window.requestAnimationFrame(() => positionFrameFaceBoxes());
 }
@@ -1219,7 +1257,7 @@ function renderSelectedRecord() {
     elements.recordScene.insertAdjacentHTML("afterbegin", frameImageMarkup(record, "scene-frame"));
     positionFrameFaceBoxes(elements.recordScene);
   }
-  elements.recordScene.querySelector(".scene-time").innerHTML = record.fullTime.replace(" ", "&nbsp;&nbsp;");
+  elements.recordScene.querySelector(".scene-time").textContent = String(record.fullTime || "--").replace(" ", "  ");
   elements.recordScene.setAttribute("tabindex", "0");
   elements.recordScene.setAttribute("role", "button");
   elements.recordScene.setAttribute("aria-label", `${record.title} 关键帧预览`);

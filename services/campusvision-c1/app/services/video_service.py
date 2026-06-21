@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import shutil
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -9,6 +8,7 @@ from typing import BinaryIO
 import cv2
 
 from app.core.config import settings
+from app.services.upload_limits import copy_upload_with_limit
 from app.storage import db
 from app.vision.face_engine import get_face_engine
 from app.vision.frame_sampler import iter_video_frames
@@ -43,8 +43,7 @@ def save_uploaded_video(
     video_id = uuid.uuid4().hex
     dest = settings.video_uploads_dir / f"{video_id}{_safe_suffix(filename)}"
 
-    with dest.open("wb") as f:
-        shutil.copyfileobj(fileobj, f)
+    copy_upload_with_limit(fileobj, dest, settings.max_video_upload_bytes, label="Video upload")
 
     return db.add_video(
         {
@@ -83,11 +82,15 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     db.update_video_status(video_id, "indexing")
 
     indexed = 0
+    sampled_frames = 0
     video_frame_dir = settings.frames_dir / video_id
     video_frame_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         for timestamp_sec, frame in iter_video_frames(video["path"], every_seconds=float(interval)):
+            sampled_frames += 1
+            if sampled_frames > settings.max_index_frames:
+                raise RuntimeError(f"Indexing exceeded the {settings.max_index_frames} frame limit.")
             boxes = engine.detect_faces(frame)
             if not boxes:
                 continue
@@ -119,6 +122,14 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
 
         db.update_video_status(video_id, "indexed")
     except Exception:
+        db.delete_face_records_for_video(video_id)
+        for frame_file in video_frame_dir.glob("*"):
+            if frame_file.is_file():
+                frame_file.unlink(missing_ok=True)
+        try:
+            video_frame_dir.rmdir()
+        except OSError:
+            pass
         db.update_video_status(video_id, "failed")
         raise
 

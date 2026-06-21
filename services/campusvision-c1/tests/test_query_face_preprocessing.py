@@ -1,4 +1,5 @@
 from pathlib import Path
+from io import BytesIO
 import sys
 import importlib.util
 
@@ -59,3 +60,42 @@ def test_load_embeddings_uses_retry_variant(monkeypatch, tmp_path):
     embeddings = search_service.load_embeddings_from_images([str(image_path)], query_face_index=0)
 
     assert embeddings == [[1.0, 0.0, 0.0]]
+
+
+def test_save_query_image_rejects_oversized_upload(tmp_path, monkeypatch):
+    monkeypatch.setattr(search_service.settings, "query_uploads_dir", tmp_path)
+    monkeypatch.setattr(search_service.settings, "max_query_image_upload_bytes", 128)
+
+    with pytest.raises(search_service.QueryImageTooLarge):
+        search_service.save_query_image(
+            BytesIO(b"x" * 129),
+            "too-large.jpg",
+            "search",
+        )
+
+    assert not list((tmp_path / "search").glob("*.jpg"))
+
+
+def test_query_image_variants_rejects_excessive_pixels(tmp_path, monkeypatch):
+    image_path = tmp_path / "too-many-pixels.png"
+    monkeypatch.setattr(search_service, "MAX_QUERY_IMAGE_PIXELS", 100)
+    Image.new("RGB", (20, 20), (245, 248, 255)).save(image_path)
+
+    variants, diagnostics = search_service._query_image_variants(str(image_path))
+
+    assert variants == []
+    assert diagnostics["rejected"] is True
+    assert "dimensions exceed" in diagnostics["reason"]
+
+
+def test_query_image_variants_skips_oversized_padded_variants(tmp_path, monkeypatch):
+    image_path = tmp_path / "padding-limit.png"
+    monkeypatch.setattr(search_service, "MAX_QUERY_IMAGE_PIXELS", 400)
+    Image.new("RGB", (20, 20), (245, 248, 255)).save(image_path)
+
+    variants, diagnostics = search_service._query_image_variants(str(image_path))
+
+    assert [variant.label for variant in variants] == ["normalized"]
+    skipped = [attempt for attempt in diagnostics["attempts"] if attempt.get("skipped")]
+    assert skipped
+    assert "dimensions exceed" in skipped[0]["reason"]

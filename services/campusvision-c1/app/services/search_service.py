@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import shutil
 import uuid
+import warnings
 from dataclasses import dataclass
 from hashlib import sha1
 from pathlib import Path
@@ -10,11 +10,21 @@ from typing import BinaryIO
 import cv2
 import numpy as np
 from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL.Image import DecompressionBombError, DecompressionBombWarning
 
 from app.core.config import settings
+from app.services.upload_limits import UploadTooLarge, copy_upload_with_limit
 from app.storage import db
 from app.vision.face_engine import default_similarity_threshold, get_face_engine
 from app.vision.vector_math import cosine_similarity
+
+MAX_QUERY_IMAGE_PIXELS = 16_000_000
+MAX_QUERY_IMAGE_DIMENSION = 8192
+Image.MAX_IMAGE_PIXELS = MAX_QUERY_IMAGE_PIXELS
+
+
+class QueryImageTooLarge(ValueError):
+    pass
 
 
 @dataclass(frozen=True)
@@ -45,8 +55,10 @@ def save_query_image(fileobj: BinaryIO, filename: str, search_id: str) -> str:
     dest_dir.mkdir(parents=True, exist_ok=True)
 
     dest = dest_dir / f"{uuid.uuid4().hex}{suffix}"
-    with dest.open("wb") as f:
-        shutil.copyfileobj(fileobj, f)
+    try:
+        copy_upload_with_limit(fileobj, dest, settings.max_query_image_upload_bytes, label="Query image upload")
+    except UploadTooLarge as exc:
+        raise QueryImageTooLarge(str(exc)) from exc
     return str(dest)
 
 
@@ -82,18 +94,40 @@ def _pil_to_bgr(image: Image.Image) -> np.ndarray:
     return cv2.cvtColor(np.asarray(image), cv2.COLOR_RGB2BGR)
 
 
+def _validate_query_image_size(width: int, height: int) -> None:
+    if (
+        width <= 0
+        or height <= 0
+        or width > MAX_QUERY_IMAGE_DIMENSION
+        or height > MAX_QUERY_IMAGE_DIMENSION
+        or width * height > MAX_QUERY_IMAGE_PIXELS
+    ):
+        raise QueryImageTooLarge("Query image dimensions exceed the allowed limit.")
+
+
 def _load_query_image(path: str) -> Image.Image | None:
     try:
-        with Image.open(path) as image:
-            return ImageOps.exif_transpose(image).copy()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DecompressionBombWarning)
+            with Image.open(path) as image:
+                width, height = image.size
+                _validate_query_image_size(width, height)
+                return ImageOps.exif_transpose(image).copy()
+    except QueryImageTooLarge:
+        raise
+    except (DecompressionBombError, DecompressionBombWarning) as exc:
+        raise QueryImageTooLarge("Query image dimensions exceed the allowed limit.") from exc
     except (OSError, UnidentifiedImageError):
         return None
 
 
 def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:
-    image = _load_query_image(path)
+    try:
+        image = _load_query_image(path)
+    except QueryImageTooLarge as exc:
+        return [], {"path": Path(path).name, "loaded": False, "rejected": True, "reason": str(exc), "attempts": []}
     if image is None:
-        return [], {"path": path, "loaded": False, "attempts": []}
+        return [], {"path": Path(path).name, "loaded": False, "attempts": []}
 
     width, height = image.size
     diagnostics = {
@@ -122,6 +156,21 @@ def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:
     for ratio in (0.16, 0.28):
         pad_x = max(16, int(round(scaled_width * ratio)))
         pad_y = max(16, int(round(scaled_height * ratio)))
+        padded_width = scaled_width + pad_x * 2
+        padded_height = scaled_height + pad_y * 2
+        try:
+            _validate_query_image_size(padded_width, padded_height)
+        except QueryImageTooLarge as exc:
+            diagnostics["attempts"].append(
+                {
+                    "label": f"padded-{int(ratio * 100)}",
+                    "width": padded_width,
+                    "height": padded_height,
+                    "skipped": True,
+                    "reason": str(exc),
+                }
+            )
+            continue
         padded = ImageOps.expand(scaled, border=(pad_x, pad_y, pad_x, pad_y), fill=(238, 244, 255))
         variants.append(
             QueryImageVariant(
