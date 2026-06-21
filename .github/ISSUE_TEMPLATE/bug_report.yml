@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: Version / 版本
-      description: Release tag or commit, for example v0.1.33.
-      placeholder: v0.1.33
+      description: Release tag or commit, for example v0.1.34.
+      placeholder: v0.1.34
     validations:
       required: true
   - type: dropdown
@@ -20,7 +20,7 @@ body:
     attributes:
       label: Area / 模块
       options:
-        - Desktop installer / 桌面安装包
+        - Desktop package / 桌面安装文件
         - GKGuard C2 backend / GKGuard C2 后端
         - GKGuard C2 frontend / GKGuard C2 前端
         - CampusVision C1 service connection / CampusVision C1 服务连接
@@ -55,9 +55,9 @@ body:
     id: environment
     attributes:
       label: Environment / 环境
-      description: Windows version, campus network/VPN/SSH tunnel status, CampusVision C1 URL if relevant.
+      description: Operating system version, campus network/VPN/SSH tunnel status, CampusVision C1 URL if relevant.
       placeholder: |
-        Windows:
+        OS:
         Network: campus / VPN / offline / SSH tunnel
         CampusVision C1: direct 10.4.167.122:8000 / tunnel 127.0.0.1:18000 / custom
   - type: textarea

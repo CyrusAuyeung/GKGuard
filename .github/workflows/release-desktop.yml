@@ -10,9 +10,31 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    name: Build Windows Desktop App
-    runs-on: windows-latest
+  build-desktop:
+    name: Build ${{ matrix.name }} Desktop App
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            platform: windows
+            os: windows-latest
+            dist_script: dist:win
+            artifact_name: GKGuard-Windows
+          - name: macOS
+            platform: macos
+            os: macos-15-intel
+            dist_script: dist:mac
+            artifact_name: GKGuard-macOS
+          - name: Linux
+            platform: linux
+            os: ubuntu-latest
+            dist_script: dist:linux
+            artifact_name: GKGuard-Linux
+
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: false
 
     steps:
       - name: Checkout repository
@@ -38,7 +60,12 @@ jobs:
         run: npm ci
 
       - name: Install Playwright browser
+        if: matrix.platform != 'linux'
         run: npx playwright install chromium
+
+      - name: Install Playwright browser and Linux dependencies
+        if: matrix.platform == 'linux'
+        run: npx playwright install --with-deps chromium
 
       - name: Run backend tests
         run: npm run test:backend
@@ -52,14 +79,72 @@ jobs:
       - name: Run browser E2E tests
         run: npm run test:e2e
 
-      - name: Build bundled backend
+      - name: Build bundled backend on Windows
+        if: matrix.platform == 'windows'
+        shell: pwsh
         run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static;app/static" --add-data "backend/data;data" backend/desktop_server.py
 
-      - name: Build Windows installer
-        run: npm run dist
+      - name: Build bundled backend on macOS and Linux
+        if: matrix.platform != 'windows'
+        shell: bash
+        run: pyinstaller --noconfirm --onedir --name gkguard-backend --distpath backend-dist --workpath backend-build --paths backend --add-data "backend/app/static:app/static" --add-data "backend/data:data" backend/desktop_server.py
+
+      - name: Build platform desktop package
+        shell: pwsh
+        env:
+          DIST_SCRIPT: ${{ matrix.dist_script }}
+        run: |
+          $maxAttempts = 3
+          for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+            Write-Host "Running npm run $env:DIST_SCRIPT (attempt $attempt of $maxAttempts)"
+            npm run $env:DIST_SCRIPT
+            $exitCode = $LASTEXITCODE
+            if ($exitCode -eq 0) {
+              exit 0
+            }
+
+            if ($attempt -eq $maxAttempts) {
+              Write-Error "Desktop package build failed after $maxAttempts attempts."
+              exit $exitCode
+            }
+
+            $delaySeconds = 20 * $attempt
+            Write-Warning "Desktop package build failed with exit code $exitCode. Retrying in $delaySeconds seconds."
+            Start-Sleep -Seconds $delaySeconds
+          }
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            release/*.exe
+            release/*.dmg
+            release/*.zip
+            release/*.AppImage
+            release/*.deb
+            release/*.blockmap
+            release/latest*.yml
+          if-no-files-found: error
+
+  publish-release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build-desktop
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download desktop artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: release-assets
 
       - name: Generate release notes
-        if: startsWith(github.ref, 'refs/tags/')
         shell: pwsh
         run: |
           $tag = $env:GITHUB_REF_NAME
@@ -95,15 +180,17 @@ jobs:
             "## 概要",
             "",
             "- $compareTextZh。",
-            "- 已完成后端测试、桌面后端打包和 Windows 安装包构建。",
-            "- Windows 安装包、blockmap 和 latest.yml 更新元数据已附在本次 GitHub Release 下方。",
+            "- 已完成后端测试、桌面后端打包和 Windows/macOS/Linux 桌面端构建。",
+            "- Windows 安装包、macOS dmg/zip、Linux AppImage/deb 和 Electron 更新元数据已附在本次 GitHub Release 下方。",
             "",
             "## 使用说明",
             "",
-            "- 下载 `GKGuard-Setup-*.exe` 安装桌面版。",
+            "- Windows 下载 `GKGuard-Setup-*.exe` 安装桌面版。",
+            "- macOS 下载 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip` 试用桌面版；当前未配置 Apple 签名与公证。",
+            "- Linux 下载 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb` 试用桌面版。",
             "- 安装后直接打开即可启动内置本地 GKGuard C2 后端并进入 `/demo`。",
             "- 软件本体和本地模拟回退不依赖校园网；真实 CampusVision C1 检索需要校园网、VPN 或 SSH 隧道访问 CampusVision C1 服务所在服务器。",
-            "- `.blockmap` 和 `latest.yml` 用于 Electron 更新机制，通常不需要手动打开。",
+            "- `latest*.yml` 和 `.blockmap` 用于 Electron 更新机制，通常不需要手动打开。",
             "",
             "## 提交",
             ""
@@ -154,36 +241,24 @@ jobs:
             "## Summary",
             "",
             "- $compareTextEn.",
-            "- Backend tests, desktop backend bundling, and Windows installer build were completed.",
-            "- The Windows installer, blockmap, and latest.yml update metadata are attached below this Release.",
+            "- Backend tests, desktop backend bundling, and Windows/macOS/Linux desktop builds were completed.",
+            "- The Windows installer, macOS dmg/zip, Linux AppImage/deb, and Electron update metadata are attached below this Release.",
             "",
             "## Usage",
             "",
-            "- Download `GKGuard-Setup-*.exe` to install the desktop app.",
+            "- On Windows, download `GKGuard-Setup-*.exe` to install the desktop app.",
+            "- On macOS, download `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` to try the desktop app; Apple signing and notarization are not configured yet.",
+            "- On Linux, download `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` to try the desktop app.",
             "- After installation, opening the app starts the bundled local GKGuard C2 backend and loads `/demo`.",
             "- The app itself and mock fallback do not require campus network access; real CampusVision C1 search requires campus network, VPN, or an SSH tunnel to the CampusVision C1 service host.",
-            "- `.blockmap` and `latest.yml` are for the Electron update flow and usually do not need to be opened manually.",
+            "- `latest*.yml` and `.blockmap` are for the Electron update flow and usually do not need to be opened manually.",
             "",
             '<p align="right"><a href="#english">Back to English top</a></p>'
           ) | Add-Content release-notes.md -Encoding UTF8
 
-      - name: Upload workflow artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: GKGuard-Windows
-          path: |
-            release/*.exe
-            release/*.blockmap
-            release/latest*.yml
-          if-no-files-found: error
-
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v3
         with:
           name: GKGuard ${{ github.ref_name }}
           body_path: release-notes.md
-          files: |
-            release/*.exe
-            release/*.blockmap
-            release/latest*.yml
+          files: release-assets/**/*

@@ -10,7 +10,7 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "v0.1.33-ui";
+const STATIC_ASSET_VERSION = "v0.1.34-ui";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
@@ -18,7 +18,7 @@ const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/re
 const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
 const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
 const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
-const APP_ICON_PATH = path.join(__dirname, "assets", "icons", "app-mark.ico");
+const APP_ICON_PATH = getAppIconPath();
 const DEFAULT_C1_SSH_TUNNEL = {
   enabled: true,
   host: "10.4.167.122",
@@ -31,6 +31,7 @@ const DEFAULT_C1_SSH_TUNNEL = {
 let backendProcess = null;
 let mainWindow = null;
 let cachedUpdateInfo = null;
+let cachedManualUpdateAsset = null;
 let updateReadyToInstall = false;
 let sshClient = null;
 let sshForwardServer = null;
@@ -59,6 +60,14 @@ autoUpdater.on("error", (error) => {
   sendUpdateEvent({ type: "error", message: error.message });
 });
 
+function getAppIconPath() {
+  const iconsRoot = path.join(__dirname, "assets", "icons");
+  if (process.platform === "win32") {
+    return path.join(iconsRoot, "app-mark.ico");
+  }
+  return path.join(iconsRoot, "app-mark.png");
+}
+
 function compareVersions(left, right) {
   const leftParts = String(left || "").replace(/^v/i, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
   const rightParts = String(right || "").replace(/^v/i, "").split(/[.-]/).map((part) => Number.parseInt(part, 10) || 0);
@@ -68,6 +77,60 @@ function compareVersions(left, right) {
     if (diff !== 0) return diff;
   }
   return 0;
+}
+
+function getDesktopPlatformName() {
+  if (process.platform === "win32") return "windows";
+  if (process.platform === "darwin") return "macos";
+  if (process.platform === "linux") return "linux";
+  return process.platform;
+}
+
+function shouldUseEmbeddedUpdater() {
+  return app.isPackaged && process.platform === "win32";
+}
+
+function getBackendExecutableName() {
+  return process.platform === "win32" ? "gkguard-backend.exe" : "gkguard-backend";
+}
+
+function getReleaseAssetMatchers() {
+  if (process.platform === "win32") {
+    return [
+      /^GKGuard-Setup-.*\.exe$/i,
+      /^GKGuard-Windows-.*\.exe$/i,
+    ];
+  }
+  if (process.platform === "darwin") {
+    return [
+      /^GKGuard-macOS-.*\.dmg$/i,
+      /^GKGuard-macOS-.*\.zip$/i,
+      /^GKGuard-.*(?:mac|macos|darwin).*\.(?:dmg|zip)$/i,
+    ];
+  }
+  if (process.platform === "linux") {
+    return [
+      /^GKGuard-Linux-.*\.AppImage$/i,
+      /^GKGuard-Linux-.*\.deb$/i,
+      /^GKGuard-.*linux.*\.(?:AppImage|deb|rpm|tar\.gz)$/i,
+    ];
+  }
+  return [/^GKGuard-.*$/i];
+}
+
+function getPreferredReleaseAsset(release) {
+  const assets = release?.assets || [];
+  for (const matcher of getReleaseAssetMatchers()) {
+    const asset = assets.find((candidate) => matcher.test(candidate.name || ""));
+    if (asset) {
+      return asset;
+    }
+  }
+  return null;
+}
+
+function isPlatformInstallerFilename(filename) {
+  return getReleaseAssetMatchers().some((matcher) => matcher.test(filename || ""));
 }
 
 function getHttpsJson(url, timeoutMs = 8000) {
@@ -129,27 +192,43 @@ function isTrustedReleaseUrl(url) {
 }
 
 async function checkForUpdates() {
-  if (app.isPackaged) {
-    const update = await autoUpdater.checkForUpdates();
-    cachedUpdateInfo = update?.updateInfo || null;
-    const latestVersion = cachedUpdateInfo?.version || app.getVersion();
-    return {
-      currentVersion: app.getVersion(),
-      latestVersion,
-      updateAvailable: compareVersions(latestVersion, app.getVersion()) > 0,
-      releaseUrl: cachedUpdateInfo?.releaseUrl || RELEASES_URL,
-      downloadUrl: "embedded://auto-updater",
-      assetName: cachedUpdateInfo?.files?.[0]?.url || "",
-      publishedAt: cachedUpdateInfo?.releaseDate || "",
-      embedded: true,
-      downloaded: updateReadyToInstall,
-    };
+  if (shouldUseEmbeddedUpdater()) {
+    try {
+      const update = await autoUpdater.checkForUpdates();
+      cachedUpdateInfo = update?.updateInfo || null;
+      cachedManualUpdateAsset = null;
+      const latestVersion = cachedUpdateInfo?.version || app.getVersion();
+      return {
+        currentVersion: app.getVersion(),
+        latestVersion,
+        updateAvailable: compareVersions(latestVersion, app.getVersion()) > 0,
+        releaseUrl: cachedUpdateInfo?.releaseUrl || RELEASES_URL,
+        downloadUrl: "embedded://auto-updater",
+        assetName: cachedUpdateInfo?.files?.[0]?.url || "",
+        publishedAt: cachedUpdateInfo?.releaseDate || "",
+        platform: getDesktopPlatformName(),
+        embedded: true,
+        downloaded: updateReadyToInstall,
+      };
+    } catch (error) {
+      const manualUpdate = await checkForManualReleaseUpdate();
+      return {
+        ...manualUpdate,
+        embedded: false,
+        fallbackReason: error.message,
+      };
+    }
   }
 
+  return checkForManualReleaseUpdate();
+}
+
+async function checkForManualReleaseUpdate() {
   const release = await getHttpsJson(LATEST_RELEASE_API);
   const currentVersion = app.getVersion();
   const latestVersion = String(release.tag_name || "").replace(/^v/i, "");
-  const installer = (release.assets || []).find((asset) => /^GKGuard-Setup-.*\.exe$/i.test(asset.name));
+  const installer = getPreferredReleaseAsset(release);
+  cachedManualUpdateAsset = installer || null;
   return {
     currentVersion,
     latestVersion,
@@ -158,15 +237,17 @@ async function checkForUpdates() {
     downloadUrl: installer?.browser_download_url || release.html_url || RELEASES_URL,
     assetName: installer?.name || "",
     publishedAt: release.published_at || "",
+    platform: getDesktopPlatformName(),
     embedded: false,
     downloaded: false,
   };
 }
 
 async function downloadUpdate() {
-  if (!app.isPackaged) {
-    shell.openExternal(RELEASES_URL);
-    return { started: true, embedded: false, fallbackUrl: RELEASES_URL };
+  if (!shouldUseEmbeddedUpdater() || cachedManualUpdateAsset) {
+    const fallbackUrl = cachedManualUpdateAsset?.browser_download_url || RELEASES_URL;
+    shell.openExternal(fallbackUrl);
+    return { started: true, embedded: false, fallbackUrl };
   }
   if (updateReadyToInstall) {
     return { started: false, embedded: true, downloaded: true };
@@ -191,7 +272,7 @@ function getBackendRoot() {
 }
 
 function getBundledBackendExecutable() {
-  return path.join(process.resourcesPath, "backend-bin", "gkguard-backend.exe");
+  return path.join(process.resourcesPath, "backend-bin", getBackendExecutableName());
 }
 
 function getPythonCandidates() {
@@ -821,7 +902,7 @@ function createWindow() {
   });
 
   mainWindow.webContents.session.on("will-download", (_event, item) => {
-    if (!/^GKGuard-Setup-.*\.exe$/i.test(item.getFilename())) {
+    if (!isPlatformInstallerFilename(item.getFilename())) {
       return;
     }
     item.once("done", async (_doneEvent, state) => {
@@ -829,7 +910,7 @@ function createWindow() {
         await dialog.showMessageBox(mainWindow, {
           type: "warning",
           title: "下载未完成",
-          message: "新版安装包未完成下载",
+          message: "新版安装文件未完成下载",
           detail: "请检查网络后在 GKGuard 中重新点击检查更新。",
         });
         return;
@@ -838,7 +919,7 @@ function createWindow() {
       const result = await dialog.showMessageBox(mainWindow, {
         type: "info",
         title: "新版已下载",
-        message: "GKGuard 新版安装包已下载完成",
+        message: "GKGuard 新版安装文件已下载完成",
         detail: filePath,
         buttons: ["打开所在文件夹", "稍后安装"],
         defaultId: 0,
