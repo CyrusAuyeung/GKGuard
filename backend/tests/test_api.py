@@ -504,6 +504,20 @@ def test_c1_query_faces_proxy_maps_query_metadata(monkeypatch) -> None:
     assert body["queryFaces"][1]["score"] == 0.88
 
 
+
+def test_static_assets_avoid_c1_xss_sinks() -> None:
+    script_response = client.get("/static/app.js")
+    assert script_response.status_code == 200
+    script = script_response.text
+    assert "function safeImageUrl" in script
+    assert "new URL(raw, window.location.origin)" in script
+    assert "function renderTargetPortrait" in script
+    assert "image.src = safeUrl" in script
+    assert 'src="${portraitUrl}"' not in script
+    assert 'src="${uploadedImageUrl}"' not in script
+    assert 'querySelector(".scene-time").textContent' in script
+    assert 'querySelector(".scene-time").innerHTML = record.fullTime.replace' not in script
+
 def test_c1_record_mapping_exposes_face_thumbnail_url(monkeypatch) -> None:
     from app.services import c1_service
 
