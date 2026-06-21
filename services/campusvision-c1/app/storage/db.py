@@ -57,6 +57,20 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS live_sources (
+                source_id TEXT PRIMARY KEY,
+                camera_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source_type TEXT NOT NULL,
+                url TEXT NOT NULL,
+                enabled INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS face_records (
                 face_id TEXT PRIMARY KEY,
                 video_id TEXT NOT NULL,
@@ -193,12 +207,112 @@ def list_videos() -> list[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
+def upsert_live_source(source: dict[str, Any]) -> dict[str, Any]:
+    ts = now_iso()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO live_sources(source_id, camera_id, name, source_type, url, enabled, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(source_id) DO UPDATE SET
+                camera_id=excluded.camera_id,
+                name=excluded.name,
+                source_type=excluded.source_type,
+                url=excluded.url,
+                enabled=excluded.enabled,
+                updated_at=excluded.updated_at
+            """,
+            (
+                source["source_id"],
+                source["camera_id"],
+                source["name"],
+                source.get("source_type", "rtsp"),
+                source["url"],
+                1 if source.get("enabled", True) else 0,
+                ts,
+                ts,
+            ),
+        )
+    result = get_live_source(source["source_id"])
+    assert result is not None
+    return result
+
+
+def _live_source_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    if row is None:
+        return None
+    data = dict(row)
+    data["enabled"] = bool(data["enabled"])
+    return data
+
+
+def get_live_source(source_id: str) -> dict[str, Any] | None:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM live_sources WHERE source_id = ?", (source_id,)).fetchone()
+    return _live_source_from_row(row)
+
+
+def list_live_sources() -> list[dict[str, Any]]:
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM live_sources ORDER BY source_id").fetchall()
+    return [source for row in rows if (source := _live_source_from_row(row)) is not None]
+
+
 def update_video_status(video_id: str, status: str) -> None:
     with get_conn() as conn:
         conn.execute(
             "UPDATE videos SET status = ?, updated_at = ? WHERE video_id = ?",
             (status, now_iso(), video_id),
         )
+
+
+def purge_live_videos(camera_id: str, before_created_at: str) -> dict[str, Any]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT video_id, path
+            FROM videos
+            WHERE camera_id = ?
+              AND video_id LIKE 'live_%'
+              AND created_at < ?
+              AND status != 'indexing'
+            ORDER BY created_at ASC
+            """,
+            (camera_id, before_created_at),
+        ).fetchall()
+        videos = [dict(row) for row in rows]
+        video_ids = [video["video_id"] for video in videos]
+
+        if not video_ids:
+            return {
+                "deleted_videos": 0,
+                "deleted_faces": 0,
+                "deleted_person_faces": 0,
+                "videos": [],
+            }
+
+        placeholders = ",".join("?" for _ in video_ids)
+        conn.execute(
+            f"""
+            DELETE FROM person_faces
+            WHERE face_id IN (
+                SELECT face_id FROM face_records WHERE video_id IN ({placeholders})
+            )
+            """,
+            video_ids,
+        )
+        deleted_person_faces = conn.execute("SELECT changes()").fetchone()[0]
+        conn.execute(f"DELETE FROM face_records WHERE video_id IN ({placeholders})", video_ids)
+        deleted_faces = conn.execute("SELECT changes()").fetchone()[0]
+        conn.execute(f"DELETE FROM videos WHERE video_id IN ({placeholders})", video_ids)
+        deleted_videos = conn.execute("SELECT changes()").fetchone()[0]
+
+    return {
+        "deleted_videos": deleted_videos,
+        "deleted_faces": deleted_faces,
+        "deleted_person_faces": deleted_person_faces,
+        "videos": videos,
+    }
 
 
 def add_face_record(record: dict[str, Any]) -> dict[str, Any]:

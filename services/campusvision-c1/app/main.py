@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.routes import router
 from app.core.config import settings
+from app.services import live_service
 from app.storage.db import init_db
 from app.vision.face_engine import get_face_engine
 
@@ -18,6 +19,11 @@ app = FastAPI(
 def startup():
     settings.ensure_dirs()
     init_db()
+
+
+@app.on_event("shutdown")
+def shutdown():
+    live_service.stop_all_live_monitors()
 
 
 @app.get("/health")

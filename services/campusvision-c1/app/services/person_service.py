@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+from hashlib import sha1
 import uuid
 import numpy as np
 
@@ -56,6 +58,37 @@ def _bbox_area(record: dict) -> float:
 
 def _detection_score(record: dict) -> float:
     return float((record.get("bbox") or {}).get("score") or 0.0)
+
+
+def _time_display(seconds: float | int | None) -> str | None:
+    if seconds is None:
+        return None
+
+    total_ms = int(round(float(seconds) * 1000))
+    hours, remainder = divmod(total_ms, 3_600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    secs, millis = divmod(remainder, 1000)
+    return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"
+
+
+def _parse_iso_seconds(value: str | None) -> float | None:
+    if not value:
+        return None
+    try:
+        normalized = value.replace("Z", "+00:00")
+        return datetime.fromisoformat(normalized).timestamp()
+    except ValueError:
+        return None
+
+
+def _record_event_sort_key(record: dict) -> tuple[str, float, str, float]:
+    captured_sec = _parse_iso_seconds(record.get("captured_at"))
+    return (
+        str(record.get("camera_id") or ""),
+        captured_sec if captured_sec is not None else float("inf"),
+        str(record.get("video_id") or ""),
+        float(record.get("video_timestamp_sec") or 0.0),
+    )
 
 
 def _is_quality_face(record: dict, min_face_area: float, min_detection_score: float) -> bool:
@@ -589,30 +622,141 @@ def update_person_index(
     }
 
 
+def _event_representative(records: list[dict]) -> dict:
+    return max(
+        records,
+        key=lambda record: (
+            _detection_score(record),
+            _bbox_area(record),
+            -float(record.get("video_timestamp_sec") or 0.0),
+        ),
+    )
+
+
+def _record_time_delta_sec(previous: dict, current: dict) -> float | None:
+    previous_captured = _parse_iso_seconds(previous.get("captured_at"))
+    current_captured = _parse_iso_seconds(current.get("captured_at"))
+    if previous_captured is not None and current_captured is not None:
+        return current_captured - previous_captured
+
+    if previous.get("video_id") == current.get("video_id"):
+        return float(current.get("video_timestamp_sec") or 0.0) - float(
+            previous.get("video_timestamp_sec") or 0.0
+        )
+    return None
+
+
+def _event_id(person_id: str, event: dict) -> str:
+    raw = "|".join(
+        [
+            person_id,
+            str(event.get("camera_id") or ""),
+            str(event.get("video_id") or ""),
+            str(event.get("start_time") or ""),
+            str(event.get("end_time") or ""),
+            f"{float(event.get('start_timestamp_sec') or 0.0):.3f}",
+            f"{float(event.get('end_timestamp_sec') or 0.0):.3f}",
+            str(event.get("representative_face_id") or ""),
+        ]
+    )
+    return "event_" + sha1(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _person_event_from_records(person_id: str, records: list[dict], cameras: dict[str, dict]) -> dict:
+    representative = _event_representative(records)
+    camera_id = str(representative.get("camera_id") or "")
+    camera = cameras.get(camera_id, {})
+
+    captured_values = [record.get("captured_at") for record in records if record.get("captured_at")]
+    timestamp_values = [float(record.get("video_timestamp_sec") or 0.0) for record in records]
+    start_timestamp = min(timestamp_values) if timestamp_values else None
+    end_timestamp = max(timestamp_values) if timestamp_values else None
+    duration = (
+        round(max(0.0, float(end_timestamp) - float(start_timestamp)), 3)
+        if start_timestamp is not None and end_timestamp is not None
+        else None
+    )
+
+    event = {
+        "event_id": "",
+        "person_id": person_id,
+        "camera_id": camera_id,
+        "camera_name": camera.get("name"),
+        "location": camera.get("location"),
+        "video_id": representative.get("video_id"),
+        "start_time": min(captured_values) if captured_values else None,
+        "end_time": max(captured_values) if captured_values else None,
+        "start_timestamp_sec": start_timestamp,
+        "end_timestamp_sec": end_timestamp,
+        "start_time_display": _time_display(start_timestamp),
+        "end_time_display": _time_display(end_timestamp),
+        "duration_sec": duration,
+        "face_count": len(records),
+        "representative_face_id": representative["face_id"],
+        "representative_face_crop_url": f"/api/v1/media/face/{representative['face_id']}",
+        "representative_frame_url": f"/api/v1/media/frame/{representative['face_id']}",
+    }
+    event["event_id"] = _event_id(person_id, event)
+    return event
+
+
+def person_events(person_id: str, max_gap_sec: float = 10.0) -> list[dict]:
+    records = sorted(db.list_face_records_for_person(person_id), key=_record_event_sort_key)
+    if not records:
+        return []
+
+    cameras = search_service.camera_lookup()
+    gap = max(0.0, float(max_gap_sec))
+    groups: list[list[dict]] = []
+    current_group: list[dict] = []
+
+    for record in records:
+        if not current_group:
+            current_group = [record]
+            continue
+
+        previous = current_group[-1]
+        delta_sec = _record_time_delta_sec(previous, record)
+        same_camera = record.get("camera_id") == previous.get("camera_id")
+        if same_camera and delta_sec is not None and 0.0 <= delta_sec <= gap:
+            current_group.append(record)
+            continue
+
+        groups.append(current_group)
+        current_group = [record]
+
+    if current_group:
+        groups.append(current_group)
+
+    events = [_person_event_from_records(person_id, group, cameras) for group in groups]
+    return sorted(
+        events,
+        key=lambda event: (
+            event.get("start_time") or "",
+            event.get("camera_id") or "",
+            float(event.get("start_timestamp_sec") or 0.0),
+        ),
+    )
+
+
 def list_persons() -> list[dict]:
     persons = db.list_persons()
     for person in persons:
+        events = person_events(person["person_id"])
         person.pop("embedding", None)
         if person.get("representative_face_id"):
             person["representative_face_crop_url"] = (
                 f"/api/v1/media/face/{person['representative_face_id']}"
             )
+        person["events"] = events
+        person["event_count"] = len(events)
     return persons
 
 
 def person_gallery_items() -> list[dict]:
     persons = list_persons()
     for person in persons:
-        records = db.list_face_records_for_person(person["person_id"])
-        person["sample_faces"] = [
-            {
-                "face_id": record["face_id"],
-                "video_timestamp_sec": float(record["video_timestamp_sec"]),
-                "frame_url": f"/api/v1/media/frame/{record['face_id']}",
-                "face_crop_url": f"/api/v1/media/face/{record['face_id']}",
-            }
-            for record in records[:8]
-        ]
+        person["events"] = person.get("events", [])[:12]
     return persons
 
 
