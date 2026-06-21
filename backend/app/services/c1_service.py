@@ -9,7 +9,6 @@ from typing import Any
 import httpx
 
 
-DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000"
 DEFAULT_C1_BASE_URL = "http://127.0.0.1:18000"
 C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
@@ -86,7 +85,6 @@ def _candidate_urls() -> list[str]:
     urls.extend(_split_urls(os.getenv("C1_BASE_URL")))
     urls.extend(_split_urls(os.getenv("C1_CANDIDATE_URLS")))
     urls.extend(_load_config_candidate_urls())
-    urls.extend(_split_urls(DEFAULT_C1_DIRECT_URL))
     urls.extend(_split_urls(C1_BASE_URL))
 
     deduped: list[str] = []

@@ -245,7 +245,8 @@ def test_desktop_update_bridge_wired() -> None:
     assert "ipcMain.handle(\"gkguard:check-for-updates\"" in main_script
     assert "ipcMain.handle(\"gkguard:install-update\"" in main_script
     assert "ipcMain.handle(\"gkguard:connect-c1\"" in main_script
-    assert "`${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`" in main_script
+    assert "C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || DEFAULT_C1_TUNNEL_URL" in main_script
+    assert "DEFAULT_C1_DIRECT_URL" not in main_script
     assert "isC1TunnelConnected" in main_script
     assert "waitForC1TunnelReady" in main_script
     assert "probeC1Endpoint" in main_script
@@ -301,7 +302,7 @@ def test_c1_status_handles_unavailable_service(monkeypatch) -> None:
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["baseUrl"] == "http://10.4.167.122:8000"
+    assert body["baseUrl"] == "http://127.0.0.1:9"
     assert body["reachable"] is False
     assert body["selectedBaseUrl"] is None
 
@@ -312,21 +313,21 @@ def test_c1_status_selects_first_healthy_candidate(monkeypatch) -> None:
     def fake_status_for_url(base_url: str):
         return {
             "baseUrl": base_url,
-            "reachable": base_url.endswith(":8000"),
-            "healthOk": base_url.endswith(":8000"),
+            "reachable": base_url == "https://c1.example.test",
+            "healthOk": base_url == "https://c1.example.test",
         }
 
     monkeypatch.setattr(c1_service, "_selected_base_url", None)
     monkeypatch.delenv("C1_BASE_URL", raising=False)
     monkeypatch.delenv("C1_CONFIG_PATH", raising=False)
-    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,http://10.4.167.122:8000")
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:9,https://c1.example.test")
     monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
 
     response = client.get("/c1/status")
     assert response.status_code == 200
     body = response.json()
-    assert body["selectedBaseUrl"] == "http://10.4.167.122:8000"
-    assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "http://10.4.167.122:8000"]
+    assert body["selectedBaseUrl"] == "https://c1.example.test"
+    assert body["candidateUrls"][:2] == ["http://127.0.0.1:9", "https://c1.example.test"]
 
 
 def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> None:
@@ -343,21 +344,22 @@ def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> N
 
     def fake_request_once(base_url: str, method: str, path: str, **kwargs):
         attempts.append(base_url)
-        if base_url == "http://10.4.167.122:8000":
+        if base_url == "https://c1.example.test":
             request = httpx.Request(method, f"{base_url}{path}")
             response = httpx.Response(503, request=request)
             raise httpx.HTTPStatusError("Service unavailable", request=request, response=response)
         return FakeResponse()
 
     monkeypatch.setattr(c1_service, "_selected_base_url", None)
-    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://10.4.167.122:8000,http://127.0.0.1:18000")
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "https://c1.example.test,http://127.0.0.1:18000")
     monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
     monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
 
     response = c1_service._request("POST", "/api/v1/search/person-by-image")
 
     assert response.json() == {"ok": True}
-    assert attempts[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert attempts[:2] == ["https://c1.example.test", "http://127.0.0.1:18000"]
     assert c1_service._selected_base_url == "http://127.0.0.1:18000"
 
 
@@ -365,17 +367,17 @@ def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:
     from app.services import c1_service
 
     config_path = tmp_path / "c1-connection.json"
-    config_path.write_text('{"candidateUrls":["http://10.4.167.122:8000","http://127.0.0.1:18000"]}', encoding="utf-8")
+    config_path.write_text('{"candidateUrls":["https://c1.example.test","http://127.0.0.1:18000"]}', encoding="utf-8")
     monkeypatch.delenv("C1_BASE_URL", raising=False)
     monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
     monkeypatch.setenv("C1_CONFIG_PATH", str(config_path))
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
 
     urls = c1_service._candidate_urls()
-    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert urls == ["https://c1.example.test", "http://127.0.0.1:18000"]
 
 
-def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
+def test_c1_candidate_urls_include_loopback_default(monkeypatch) -> None:
     from app.services import c1_service
 
     monkeypatch.delenv("C1_BASE_URL", raising=False)
@@ -384,7 +386,7 @@ def test_c1_candidate_urls_include_builtin_defaults(monkeypatch) -> None:
     monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
 
     urls = c1_service._candidate_urls()
-    assert urls[:2] == ["http://10.4.167.122:8000", "http://127.0.0.1:18000"]
+    assert urls == ["http://127.0.0.1:18000"]
 
 
 def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:

@@ -1,4 +1,4 @@
-﻿const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const { spawn } = require("child_process");
 const fs = require("fs");
 const https = require("https");
@@ -16,13 +16,12 @@ const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
 const LATEST_RELEASE_API = "https://api.github.com/repos/CyrusAuyeung/GKGuard/releases/latest";
 const RELEASES_URL = "https://github.com/CyrusAuyeung/GKGuard/releases/latest";
-const DEFAULT_C1_DIRECT_URL = "http://10.4.167.122:8000";
 const DEFAULT_C1_TUNNEL_URL = "http://127.0.0.1:18000";
 const APP_ICON_PATH = path.join(__dirname, "assets", "icons", "app-mark.ico");
 const DEFAULT_C1_SSH_TUNNEL = {
-  enabled: true,
-  host: "10.4.167.122",
-  user: "speng",
+  enabled: false,
+  host: "",
+  user: "",
   localPort: 18000,
   remoteHost: "127.0.0.1",
   remotePort: 8000,
@@ -208,7 +207,7 @@ function getBackendEnv() {
     PYTHONUNBUFFERED: "1",
     GKGUARD_PORT: String(activeBackendPort),
     C1_CONFIG_PATH: getC1ConfigPath(),
-    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || `${DEFAULT_C1_TUNNEL_URL},${DEFAULT_C1_DIRECT_URL}`,
+    C1_CANDIDATE_URLS: process.env.C1_CANDIDATE_URLS || DEFAULT_C1_TUNNEL_URL,
   };
 }
 
