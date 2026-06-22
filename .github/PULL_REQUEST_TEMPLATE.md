@@ -19,7 +19,7 @@
 - [ ] PR 标题使用 `type(scope): summary`，且未包含 `[codex]`、`[copilot]`、`[ai]` 或 `AI:` 等工具来源前缀
 - [ ] 如使用 AI agent 协助，已阅读并遵守 `AGENTS.md`
 - [ ] 如包含 AI agent 代码审查输出，review 结论、风险、建议和 inline comment 已中英双语，中文在前、English 在后，并用换行分隔中英文段落
-- [ ] 合并前已确认审查线程、审查状态和关键审查评论 reaction；没有 👀 或等价“正在 review”信号，且已有 👍、approval 或明确无阻断结论
+- [ ] 合并前已确认 PR 正文 reaction、Issue 评论、审查线程和审查状态；没有把“未发现评论”当作可合并状态，没有 PR 正文 👀 或等价“正在 review”信号，且已有 PR 正文 👍、approval 或明确无阻断结论
 - [ ] GitHub Actions CI 通过
 - [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`
@@ -62,7 +62,7 @@
 - [ ] PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`
 - [ ] If AI-agent assistance was used, `AGENTS.md` has been read and followed
 - [ ] If AI-agent code review output is included, the review conclusion, risks, suggestions, and inline comments are bilingual Chinese/English, with Chinese first, English second, and line breaks separating the language paragraphs
-- [ ] Before merge, review threads, review state, and key review-comment reactions have been checked; there is no 👀 or equivalent "review in progress" signal, and there is a 👍, approval, or explicit no-blocker conclusion
+- [ ] Before merge, PR-body reactions, issue comments, review threads, and review state have been checked; "no comments found" has not been treated as mergeable, there is no PR-body 👀 or equivalent "review in progress" signal, and there is a PR-body 👍, approval, or explicit no-blocker conclusion
 - [ ] GitHub Actions CI passed
 - [ ] `node --check backend/app/static/app.js`
 - [ ] `node --check desktop/main.js`

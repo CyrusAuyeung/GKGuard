@@ -58,7 +58,7 @@
 - PR 正文必须保留并填写 `.github/PULL_REQUEST_TEMPLATE.md` 的中英双语结构。
 - 影响范围、验证项、安全与数据检查必须按实际情况勾选；未运行的验证必须说明原因。
 - CI 未通过、审查未完成、对话未解决时不要合并。
-- 合并前必须检查审查线程、审查状态和关键审查评论的 reaction。👀 或等价信号表示仍在 review，不要合并；👍 或明确 approval 表示 review 完成且当前无阻断问题。新的提交后需要重新确认最后一次 review 已完成。
+- 合并前必须检查 PR 正文 reaction、Issue 评论、审查线程和审查状态。👀 / 👍 这类状态表情只以 PR 正文 reaction 为准，不以 review 后的评论 reaction 为准。若暂时没有任何审查信号，AI agent 应持续轮询到出现明确状态再继续；三种标准状态是：PR 正文出现 👀 或等价信号表示仍在 review，不要合并；PR 正文出现 👍、明确 approval 或明确无阻断结论表示 review 完成且当前无阻断问题；Issue 评论、review 评论或未解决线程表示存在反馈，必须处理后再重新等待审查信号。新的提交后需要重新确认最后一次 review 已完成。
 - 仓库使用 squash merge；合并后删除源分支。
 - AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查时，审查输出必须中英双语；包括总体结论、风险说明、修改建议和 inline review comment。中文在前、English 在后，中英文之间必须至少换行分隔，不要写在同一段内；两种语言内容应结构一致、语义一致。
 
@@ -259,7 +259,7 @@ For CampusVision C1 work, also read:
 - PR bodies must keep and fill the bilingual structure from `.github/PULL_REQUEST_TEMPLATE.md`.
 - Scope, validation, security, and data-check boxes must be checked according to the actual change. Any skipped validation must be explained.
 - Do not merge while CI is failing, review is incomplete, or conversations remain unresolved.
-- Before merging, check review threads, review state, and reactions on key review comments. 👀 or an equivalent signal means review is still in progress and the PR must not be merged; 👍 or explicit approval means review is complete with no current blocker. After new commits, reconfirm that the latest review is complete.
+- Before merging, check PR-body reactions, issue comments, review threads, and review state. Status emoji such as 👀 / 👍 are authoritative only as PR-body reactions, not as reactions on post-review comments. If no review signal is present yet, the AI agent should keep polling until a clear state appears. The three standard states are: 👀 or an equivalent PR-body reaction means review is still in progress and the PR must not be merged; 👍 on the PR body, explicit approval, or an explicit no-blocker conclusion means review is complete with no current blocker; issue comments, review comments, or unresolved threads mean feedback exists and must be addressed before waiting for the next review signal. After new commits, reconfirm that the latest review is complete.
 - The repository uses squash merge. Delete the source branch after merge.
 - When an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English, including the overall conclusion, risk notes, change suggestions, and inline review comments. Chinese must come first, English second, and the two language sections must be separated by at least a line break instead of being written in the same paragraph. The Chinese and English content should stay structurally and semantically aligned.
 
