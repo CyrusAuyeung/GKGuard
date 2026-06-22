@@ -32,6 +32,7 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 - 常规功能、配置、发布和文档协作改动应从 `codex/...` 或其他短期分支提交 Pull Request。
 - Pull Request 标题使用 `type(scope): summary`，例如 `fix(ui): improve responsive media layout`；标题描述实际变更，不使用 `[codex]`、`[copilot]`、`[ai]` 或 `AI:` 等工具来源前缀。
 - Pull Request 合并前需要至少一次审查通过；新的提交会使旧审查失效，最后一次推送后仍需审查确认，并且所有对话必须解决。
+- 合并前还应检查关键审查评论的 reaction。👀 或等价信号表示仍在 review，不得合并；👍 或明确 approval 表示当前 review 已完成且无阻断问题。
 - 必需状态检查为 `.github/workflows/ci.yml` 中的 `Verify`；该检查覆盖后端测试、前端脚本语法检查、Electron 语法检查、桌面后端入口编译、浏览器 E2E 回归和 npm 安全审计。
 - `main` 禁止删除和强制推送；仓库合并策略使用 squash merge，并在合并后删除源分支。
 - Issue 和 Pull Request 使用 `area:*`、`type:*`、`priority:*`、`blocked`、`needs-info` 标签归类，并放入 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪 Backlog、Ready、In progress、Review、Done 状态。
@@ -90,6 +91,7 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 - Normal feature, configuration, release, and documentation collaboration changes should open a Pull Request from `codex/...` or another short-lived branch.
 - Pull Request titles use `type(scope): summary`, for example `fix(ui): improve responsive media layout`; titles describe the actual change and do not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`.
 - Pull Requests require at least one approval before merge. New commits dismiss stale approvals, the last push still needs review confirmation, and all conversations must be resolved.
+- Before merge, also check reactions on key review comments. 👀 or an equivalent signal means review is still in progress and the PR must not be merged; 👍 or explicit approval means the current review is complete with no blocker.
 - The required status check is `Verify` from `.github/workflows/ci.yml`; it covers backend tests, frontend script syntax checks, Electron syntax checks, desktop backend entrypoint compilation, browser E2E regression, and npm security audit.
 - Deleting or force-pushing `main` is blocked. The repository merge policy uses squash merge and deletes merged head branches.
 - Issues and Pull Requests use `area:*`, `type:*`, `priority:*`, `blocked`, and `needs-info` labels, and are tracked in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project through Backlog, Ready, In progress, Review, and Done.

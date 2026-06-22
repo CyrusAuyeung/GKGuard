@@ -1056,7 +1056,7 @@ input, select {
   }
   .target-panel {
     display: grid;
-    grid-template-columns: minmax(104px, 150px) minmax(0, 1fr);
+    grid-template-columns: minmax(104px, clamp(128px, 26vw, 220px)) minmax(0, 1fr);
     align-items: center;
     gap: 16px;
   }
@@ -1064,9 +1064,10 @@ input, select {
     grid-column: 1 / -1;
   }
   .target-panel .target-frame {
+    width: 100%;
+    max-width: 220px;
     margin: 0;
   }
-  .target-frame { width: min(220px, 60vw); }
   .result-summary { margin: 0; }
   .result-record-strip {
     grid-auto-flow: column;
