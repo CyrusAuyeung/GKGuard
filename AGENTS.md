@@ -59,7 +59,7 @@
 - 影响范围、验证项、安全与数据检查必须按实际情况勾选；未运行的验证必须说明原因。
 - CI 未通过、审查未完成、对话未解决时不要合并。
 - 仓库使用 squash merge；合并后删除源分支。
-- AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查时，审查输出必须中英双语；包括总体结论、风险说明、修改建议和 inline review comment。中文与 English 内容应结构一致、语义一致。
+- AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查时，审查输出必须中英双语；包括总体结论、风险说明、修改建议和 inline review comment。中文在前、English 在后，中英文之间必须至少换行分隔，不要写在同一段内；两种语言内容应结构一致、语义一致。
 
 ## GitHub Project 规范
 
@@ -258,7 +258,7 @@ For CampusVision C1 work, also read:
 - Scope, validation, security, and data-check boxes must be checked according to the actual change. Any skipped validation must be explained.
 - Do not merge while CI is failing, review is incomplete, or conversations remain unresolved.
 - The repository uses squash merge. Delete the source branch after merge.
-- When an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English, including the overall conclusion, risk notes, change suggestions, and inline review comments. The Chinese and English content should stay structurally and semantically aligned.
+- When an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English, including the overall conclusion, risk notes, change suggestions, and inline review comments. Chinese must come first, English second, and the two language sections must be separated by at least a line break instead of being written in the same paragraph. The Chinese and English content should stay structurally and semantically aligned.
 
 ## GitHub Project Rules
 

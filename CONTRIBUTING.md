@@ -183,7 +183,7 @@ type(scope): summary
 
 标题应描述实际变更，不写工具来源或执行者来源。不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 这类前缀；如果需要说明由 AI agent 协助完成，可以写在 PR 正文或评论里。
 
-如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应保持中文与 English 结构一致、语义一致。
+如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应中文在前、English 在后。中英文之间必须至少换行分隔，不要写在同一段内；两种语言内容应保持结构一致、语义一致。
 
 常用 `type`：
 
@@ -520,7 +520,7 @@ git push
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
 7. PR 标题必须使用 `type(scope): summary`，例如 `fix(ui): improve responsive media layout` 或 `docs(project): document Roadmap field requirements`。标题描述实际变更，不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀；如需说明 AI agent 参与，应写在 PR 正文或评论中。
 8. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
-9. 如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应保持中文与 English 结构一致、语义一致。
+9. 如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应中文在前、English 在后。中英文之间必须至少换行分隔，不要写在同一段内；两种语言内容应保持结构一致、语义一致。
 10. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
 
 实现与验证：
@@ -710,7 +710,7 @@ type(scope): summary
 
 The title should describe the actual change, not the tool or author source. Do not use prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
 
-If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments should stay structurally and semantically aligned across both languages.
+If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments must put Chinese first and English second. The two language sections must be separated by at least a line break instead of being written in the same paragraph, and should stay structurally and semantically aligned across both languages.
 
 Common `type` values:
 
@@ -1032,7 +1032,7 @@ Branches and PRs:
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
 7. PR titles must use `type(scope): summary`, for example `fix(ui): improve responsive media layout` or `docs(project): document Roadmap field requirements`. Titles describe the actual change and must not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
 8. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
-9. If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments should stay structurally and semantically aligned across both languages.
+9. If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments must put Chinese first and English second. The two language sections must be separated by at least a line break instead of being written in the same paragraph, and should stay structurally and semantically aligned across both languages.
 10. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
 
 Implementation and validation:
