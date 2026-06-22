@@ -720,6 +720,7 @@ def _request_with_base_url(
             return response, request_url, generation, selected_applied
         except httpx.HTTPStatusError as exc:
             last_error = exc
+            _ensure_generation_current(required_generation)
             status_code = exc.response.status_code
             if status_code not in RETRYABLE_STATUS_CODES:
                 raise C1ServiceError(f"C1 returned HTTP {status_code}", status_code) from exc
