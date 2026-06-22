@@ -709,6 +709,8 @@ def _request_with_base_url(
                 request_url,
                 required_generation=required_generation,
             )
+            if required_generation is not None and not selected_applied:
+                raise _ConnectionGenerationChanged()
             return response, request_url, generation, selected_applied
         except httpx.HTTPStatusError as exc:
             last_error = exc
