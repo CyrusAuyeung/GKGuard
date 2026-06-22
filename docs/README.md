@@ -47,7 +47,7 @@
 - [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
 - [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1)：半自动添加 PR/Issue 到 GKGuard Roadmap 并填写 Project 字段。
-- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、PR 正文 reaction、Issue 评论、审查线程/状态合并门槛、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；👀 / 👍 这类状态表情只以 PR 正文 reaction 为准，没有任何审查信号时应继续等待或轮询，不能把“未发现评论”当作可合并状态；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
+- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、PR 正文 reaction、Issue 评论、审查线程/状态合并门槛、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态；没有任何审查信号时应继续等待或轮询，不能把“未发现评论”当作可合并状态；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用。
 
 ## 配置示例
@@ -110,7 +110,7 @@ Use this page to locate maintenance material quickly. The current-state document
 - [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
 - [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1): semi-automatically add PRs/Issues to GKGuard Roadmap and fill Project fields.
-- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, PR-body reactions, issue comments, review-thread/state merge gates, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Status emoji such as 👀 / 👍 are authoritative only as PR-body reactions. If no review signal is present, keep waiting or polling instead of treating "no comments found" as mergeable. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
+- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, PR-body reactions, issue comments, review-thread/state merge gates, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present, keep waiting or polling instead of treating "no comments found" as mergeable. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet.
 
 ## Configuration Examples
