@@ -139,7 +139,7 @@ npm run dist:linux
 ## 发布流程
 
 - 普通协作者和 AI agent 不要自行推送 `v*` tag 或创建 GitHub Release，除非用户明确要求，或当前任务就是发布准备且验证已完成。
-- 发布版本按递增版本号推进，例如 `v0.1.34`。
+- 发布版本按递增版本号推进，例如从 `v0.1.36` 递增到 `v0.1.37`。
 - 发布前必须：
   - 更新 `package.json` 和 `package-lock.json`。
   - 新增或更新 `docs/releases/vX.Y.Z.md`。
@@ -163,7 +163,8 @@ npm run dist:linux
 - 真实姓名、学号/工号、手机号、车牌、轨迹、案件材料。
 - `.env`、数据库、模型缓存、运行日志中的敏感内容。
 - CampusVision C1 服务器密码、SSH 私钥、token、API key。
-- CampusVision C1 SSH 主机密钥 SHA256 固定指纹只能放在经维护者确认的受控运行配置或代码默认值中；Markdown 文档、示例和 Release 正文使用配置键或占位符，不写具体指纹。
+- 其他真实运行环境访问凭据。
+- 真实运行环境的原始 SSH 公钥、`known_hosts` 行或 `authorized_keys` 行；用于 SSH 主机校验的受信主机密钥指纹值仅可作为代码默认值或受控运行配置维护，面向用户的示例使用占位符。
 
 如果疑似提交了敏感内容：
 
@@ -337,7 +338,7 @@ Note: macOS/Linux packages usually require matching system runners for full veri
 ## Release Flow
 
 - Regular contributors and AI agents must not push `v*` tags or create GitHub Releases unless the user explicitly asks, or the current task is release preparation and validation is complete.
-- Release versions advance incrementally, for example `v0.1.34`.
+- Release versions advance incrementally, for example from `v0.1.36` to `v0.1.37`.
 - Before release:
   - Update `package.json` and `package-lock.json`.
   - Add or update `docs/releases/vX.Y.Z.md`.
@@ -361,7 +362,8 @@ Do not commit or disclose:
 - Real names, student/staff IDs, phone numbers, license plates, trajectories, or case material.
 - `.env`, databases, model caches, or sensitive runtime logs.
 - CampusVision C1 server passwords, SSH private keys, tokens, or API keys.
-- CampusVision C1 SSH host-key SHA256 pinned fingerprints may only live in maintainer-approved runtime configuration or code defaults. Markdown documents, examples, and Release bodies should use configuration keys or placeholders instead of the concrete fingerprint.
+- Other access credentials for real runtime environments.
+- Raw SSH public keys, `known_hosts` lines, or `authorized_keys` lines for real runtime environments. Trusted host-key fingerprint values used for SSH host verification may be maintained only as code defaults or controlled runtime config, while user-facing examples use placeholders.
 
 If sensitive content may have been committed:
 

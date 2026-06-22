@@ -37,7 +37,7 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```json
 {
   "candidateUrls": [
-    "http://10.4.167.122:8000",
+    "http://<campus-c1-host>:8000",
     "http://127.0.0.1:18000"
   ]
 }
@@ -87,13 +87,9 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-使用内置 SSH 隧道时，GKGuard 会在发送服务器密码前自动比对 SSH 主机密钥固定指纹。如果服务器地址或 SSH 主机密钥变化，必须在可信网络或服务器控制台运行以下命令获取新的 OpenSSH `SHA256:...` 指纹，并写入 `sshTunnel.hostFingerprint`：
+使用内置 SSH 隧道时，GKGuard 会在发送服务器密码前自动比对 SSH 主机密钥。如果服务器地址或 SSH 主机密钥变化，必须由维护者在可信网络或服务器控制台确认新的 OpenSSH 主机密钥指纹信息，并更新 `sshTunnel.hostFingerprint`。该字段只接受桌面端 SSH 校验器可识别的主机密钥指纹值：OpenSSH 指纹输出中的裸指纹 token（去掉前导位数和尾部主机/算法注释），或对应的 64 位十六进制摘要；不要填写完整命令输出、原始 SSH 公钥、`known_hosts` 行或 `authorized_keys` 行。
 
-```bash
-ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-如果没有配置 `hostFingerprint`，或服务器返回的指纹与固定值不一致，软件会阻断连接并停留在密码窗口，不再允许通过人工确认未知指纹继续发送密码。下面的配置文件用于固定指纹，或在服务器地址、账号、端口变化时覆盖默认值。
+如果没有配置 `hostFingerprint`，或服务器返回的主机密钥信息与受信配置不一致，软件会阻断连接并停留在密码窗口，不再允许通过人工确认未知主机继续发送密码。下面的配置文件用于服务器地址、账号、端口或受信主机信息变化时覆盖默认值。
 
 配置文件示例：
 
@@ -109,7 +105,7 @@ ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
     "remotePort": 8000,
-    "hostFingerprint": "SHA256:<trusted-c1-host-key-fingerprint>"
+    "hostFingerprint": "<openssh-host-key-fingerprint>"
   }
 }
 ```
@@ -226,7 +222,7 @@ Client config file:
 ```json
 {
   "candidateUrls": [
-    "http://10.4.167.122:8000",
+    "http://<campus-c1-host>:8000",
     "http://127.0.0.1:18000"
   ]
 }
@@ -276,13 +272,9 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-Before sending the server password, GKGuard automatically compares the pinned SSH host-key fingerprint. If the server address or SSH host key changes, obtain the new OpenSSH `SHA256:...` fingerprint from a trusted network or the server console and store it in `sshTunnel.hostFingerprint`:
+Before sending the server password, GKGuard automatically compares the SSH host key. If the server address or SSH host key changes, a maintainer must confirm the new OpenSSH host-key fingerprint information from a trusted network or the server console and update `sshTunnel.hostFingerprint`. This field accepts only host-key fingerprint values recognized by the desktop SSH verifier: the bare fingerprint token from OpenSSH fingerprint output, with the leading bit length and trailing host/key-type comment removed, or the corresponding 64-character hexadecimal digest. Do not enter the full command output, a raw SSH public key, a `known_hosts` line, or an `authorized_keys` line.
 
-```bash
-ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
-```
-
-If `hostFingerprint` is not configured, or if the server returns a different fingerprint, the app blocks the connection and stays in the password window. It no longer allows manual approval of an unknown fingerprint before sending the password. The config below is for pinning that fingerprint or overriding defaults when the server address, account, or ports change.
+If `hostFingerprint` is not configured, or if the server returns host-key information that does not match the trusted configuration, the app blocks the connection and stays in the password window. It no longer allows manual approval of an unknown host before sending the password. The config below is for overriding defaults when the server address, account, ports, or trusted host information changes.
 
 Example config:
 
@@ -298,7 +290,7 @@ Example config:
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
     "remotePort": 8000,
-    "hostFingerprint": "SHA256:<trusted-c1-host-key-fingerprint>"
+    "hostFingerprint": "<openssh-host-key-fingerprint>"
   }
 }
 ```
