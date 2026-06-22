@@ -247,6 +247,12 @@ def _set_selected_base_url(
     return generation
 
 
+def _clear_selected_base_url(required_generation: int | None = None) -> None:
+    _, applied = _try_set_selected_base_url(None, required_generation=required_generation)
+    if required_generation is not None and not applied:
+        raise _ConnectionGenerationChanged()
+
+
 def _store_media_cache(
     cache_key: tuple[str, str, str, str, tuple[str, ...], int],
     content: bytes,
@@ -698,7 +704,7 @@ def _request_with_base_url(
     last_error: Exception | None = None
     request_urls = _healthy_request_urls(base_url)
     if not request_urls:
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
     for request_url in request_urls:
@@ -721,12 +727,12 @@ def _request_with_base_url(
             last_error = exc
 
     if isinstance(last_error, httpx.HTTPStatusError):
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError(f"C1 returned HTTP {last_error.response.status_code}", last_error.response.status_code) from last_error
     if isinstance(last_error, httpx.HTTPError):
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError(f"C1 unavailable: {last_error}") from last_error
-    _try_set_selected_base_url(None, required_generation=required_generation)
+    _clear_selected_base_url(required_generation=required_generation)
     raise C1ServiceError("C1 unavailable")
 
 

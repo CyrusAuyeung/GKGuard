@@ -563,6 +563,99 @@ def test_c1_fetch_media_retries_when_generation_changes_during_request(monkeypat
     assert len(c1_service._media_cache) == 1
 
 
+def test_c1_fetch_media_retries_when_generation_changes_before_no_candidate_error(monkeypatch) -> None:
+    from app.services import c1_service
+
+    base_url = "http://127.0.0.1:18000"
+    replacement_url = "http://127.0.0.1:18001"
+    healthy_calls = 0
+    request_base_urls = []
+
+    class FakeResponse:
+        content = b"replacement-no-candidate-frame"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(url: str):
+        return {"baseUrl": url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_healthy_request_urls(primary_url=None):
+        nonlocal healthy_calls
+        healthy_calls += 1
+        if healthy_calls == 1:
+            c1_service._set_selected_base_url(replacement_url, invalidate_media=True)
+            return []
+        return [replacement_url]
+
+    def fake_request_once(base_url_arg: str, method: str, path: str, **kwargs):
+        request_base_urls.append(base_url_arg)
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", base_url)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", f"{base_url},{replacement_url}")
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_healthy_request_urls", fake_healthy_request_urls)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+    c1_service._set_selected_base_url(base_url)
+
+    media = c1_service.fetch_media("frame", "face-1")
+
+    assert media == (b"replacement-no-candidate-frame", "image/jpeg")
+    assert request_base_urls == [replacement_url]
+    assert c1_service._selected_base_url == replacement_url
+    assert len(c1_service._media_cache) == 1
+
+
+def test_c1_fetch_media_retries_when_generation_changes_after_last_http_error(monkeypatch) -> None:
+    from app.services import c1_service
+
+    base_url = "http://127.0.0.1:18000"
+    replacement_url = "http://127.0.0.1:18001"
+    healthy_calls = 0
+    request_base_urls = []
+
+    class FakeResponse:
+        content = b"replacement-after-error-frame"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(url: str):
+        return {"baseUrl": url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_healthy_request_urls(primary_url=None):
+        nonlocal healthy_calls
+        healthy_calls += 1
+        if healthy_calls == 1:
+            return [base_url]
+        return [replacement_url]
+
+    def fake_request_once(base_url_arg: str, method: str, path: str, **kwargs):
+        request_base_urls.append(base_url_arg)
+        if base_url_arg == base_url:
+            c1_service._set_selected_base_url(replacement_url, invalidate_media=True)
+            request = httpx.Request(method, f"{base_url_arg}{path}")
+            raise httpx.ConnectError("connection reset", request=request)
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", base_url)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", f"{base_url},{replacement_url}")
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_healthy_request_urls", fake_healthy_request_urls)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+    c1_service._set_selected_base_url(base_url)
+
+    media = c1_service.fetch_media("frame", "face-1")
+
+    assert media == (b"replacement-after-error-frame", "image/jpeg")
+    assert request_base_urls == [base_url, replacement_url]
+    assert c1_service._selected_base_url == replacement_url
+    assert len(c1_service._media_cache) == 1
+
+
 def test_c1_fetch_media_failover_preserves_successful_fallback_cache(monkeypatch) -> None:
     from app.services import c1_service
 
