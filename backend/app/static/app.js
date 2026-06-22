@@ -632,12 +632,19 @@ function preloadFrameImage(src) {
       }
       resolve(image);
     }, { once: true });
-    image.addEventListener("error", reject, { once: true });
+    image.addEventListener("error", (error) => {
+      frameImagePreloadCache.delete(frameUrl);
+      reject(error);
+    }, { once: true });
   });
-  frameImagePreloadCache.set(frameUrl, { image, promise });
+  const retryablePromise = promise.catch((error) => {
+    frameImagePreloadCache.delete(frameUrl);
+    throw error;
+  });
+  frameImagePreloadCache.set(frameUrl, { image, promise: retryablePromise });
   trimFramePreloadCache();
   image.src = frameUrl;
-  return promise;
+  return retryablePromise;
 }
 
 function warmFrameImages(startIndex = selectedRecordIndex) {
@@ -1345,12 +1352,13 @@ function renderSelectedRecord() {
 }
 
 function renderSelectedRecordFrame(record) {
+  const renderToken = ++activeFrameLoadToken;
   const frameUrl = recordFrameUrl(record);
   elements.recordScene.querySelectorAll(".empty-state").forEach((node) => node.remove());
   if (!frameUrl) {
-    activeFrameLoadToken += 1;
     elements.recordScene.className = `camera-scene ${record.sceneClass}`;
     elements.recordScene.classList.remove("is-frame-loading");
+    elements.recordScene.setAttribute("aria-busy", "false");
     elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
     return;
   }
@@ -1362,6 +1370,7 @@ function renderSelectedRecordFrame(record) {
   elements.recordScene.className = "camera-scene has-frame";
   if (currentUrl === frameUrl && currentRecordId === nextRecordId) {
     elements.recordScene.classList.remove("is-frame-loading");
+    elements.recordScene.setAttribute("aria-busy", "false");
     positionFrameFaceBoxes(elements.recordScene);
     warmFrameImages(selectedRecordIndex);
     return;
@@ -1377,12 +1386,14 @@ function renderSelectedRecordFrame(record) {
     return;
   }
 
-  const loadToken = ++activeFrameLoadToken;
+  const loadToken = renderToken;
   elements.recordScene.classList.add("is-frame-loading");
   elements.recordScene.setAttribute("aria-busy", "true");
   preloadFrameImage(frameUrl)
     .then(() => {
-      if (loadToken !== activeFrameLoadToken) return;
+      const selectedRecord = records[selectedRecordIndex];
+      const selectedRecordId = String(selectedRecord?.id ?? selectedRecord?.title ?? "");
+      if (loadToken !== activeFrameLoadToken || selectedRecordId !== nextRecordId) return;
       const nextFrame = frameImageMarkup(record, "scene-frame");
       elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
       if (nextFrame) {
@@ -1394,7 +1405,9 @@ function renderSelectedRecordFrame(record) {
       warmFrameImages(selectedRecordIndex);
     })
     .catch(() => {
-      if (loadToken !== activeFrameLoadToken) return;
+      const selectedRecord = records[selectedRecordIndex];
+      const selectedRecordId = String(selectedRecord?.id ?? selectedRecord?.title ?? "");
+      if (loadToken !== activeFrameLoadToken || selectedRecordId !== nextRecordId) return;
       elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
       elements.recordScene.insertAdjacentHTML("afterbegin", emptyStateMarkup("关键帧加载失败", "请重新选择记录或检查 CampusVision C1 媒体服务。"));
       elements.recordScene.classList.remove("is-frame-loading");

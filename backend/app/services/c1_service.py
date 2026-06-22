@@ -26,7 +26,7 @@ DEFAULT_C1_ALLOWED_HOSTS = "localhost,127.0.0.1,::1"
 _selected_base_url: str | None = None
 RETRYABLE_STATUS_CODES = {502, 503, 504}
 _status_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-_media_cache: OrderedDict[tuple[str, str], tuple[float, bytes, str]] = OrderedDict()
+_media_cache: OrderedDict[tuple[str, str, str], tuple[float, bytes, str]] = OrderedDict()
 _cache_lock = RLock()
 
 
@@ -167,9 +167,10 @@ def _cache_deadline(ttl_seconds: float) -> float:
 
 
 def _store_status_cache(base_url: str, status: dict[str, Any]) -> None:
-    if C1_STATUS_CACHE_TTL <= 0 or not _is_healthy_c1_status(status):
-        return
     with _cache_lock:
+        if C1_STATUS_CACHE_TTL <= 0 or not _is_healthy_c1_status(status):
+            _status_cache.pop(base_url, None)
+            return
         _status_cache[base_url] = (_cache_deadline(C1_STATUS_CACHE_TTL), dict(status))
 
 
@@ -523,10 +524,10 @@ def _healthy_request_urls(primary_url: str | None = None) -> list[str]:
     return urls
 
 
-def _request(method: str, path: str, **kwargs: Any) -> httpx.Response:
+def _request(method: str, path: str, primary_url: str | None = None, **kwargs: Any) -> httpx.Response:
     global _selected_base_url
 
-    base_url = _resolve_base_url()
+    base_url = primary_url or _resolve_base_url()
     last_error: Exception | None = None
     request_urls = _healthy_request_urls(base_url)
     if not request_urls:
@@ -635,7 +636,8 @@ def detect_query_faces(filename: str, content: bytes, content_type: str | None) 
 def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
     if kind not in {"frame", "face"}:
         raise C1ServiceError("Unsupported C1 media kind", 400)
-    cache_key = (kind, face_id)
+    base_url = _resolve_base_url()
+    cache_key = (base_url, kind, face_id)
     if C1_MEDIA_CACHE_TTL > 0:
         with _cache_lock:
             cached = _media_cache.get(cache_key)
@@ -645,10 +647,12 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
             if cached:
                 _media_cache.pop(cache_key, None)
 
-    response = _request("GET", f"/api/v1/media/{kind}/{face_id}")
+    response = _request("GET", f"/api/v1/media/{kind}/{face_id}", primary_url=base_url)
     content = response.content
     media_type = response.headers.get("content-type", "image/jpeg")
     if C1_MEDIA_CACHE_TTL > 0 and content:
+        cache_base_url = _selected_base_url or base_url
+        cache_key = (cache_base_url, kind, face_id)
         with _cache_lock:
             _media_cache[cache_key] = (_cache_deadline(C1_MEDIA_CACHE_TTL), content, media_type)
             _media_cache.move_to_end(cache_key)
