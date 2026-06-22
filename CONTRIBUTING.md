@@ -183,6 +183,8 @@ type(scope): summary
 
 标题应描述实际变更，不写工具来源或执行者来源。不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 这类前缀；如果需要说明由 AI agent 协助完成，可以写在 PR 正文或评论里。
 
+如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应保持中文与 English 结构一致、语义一致。
+
 常用 `type`：
 
 - `feat`：新增用户可见能力。
@@ -228,6 +230,7 @@ type(scope): summary
 - 服务器密码。
 - SSH 私钥。
 - token、API key。
+- CampusVision C1 SSH 主机密钥 SHA256 固定指纹可以存在于经维护者确认的受控运行配置或代码默认值；Markdown 文档、示例和 Release 正文只写配置键或占位符。
 - 真实姓名、学号、手机号、车牌、轨迹或案件材料。
 
 如果不确定一个文件能不能提交，先不要提交，先问维护者。
@@ -508,7 +511,7 @@ git push
 项目与边界：
 1. 开始前先阅读 README.md、CONTRIBUTING.md、AGENTS.md、GOVERNANCE.md、SECURITY.md 和 docs/README.md，确认项目边界、协作流程、AI agent 规则、敏感数据规则和文档索引。
 2. GKGuard C2 是桌面工作台、本地后端、本地代理、UI、发布和文档所在边界；CampusVision C1 是独立的视频检索服务。涉及 CampusVision C1、CampusCar、UE、A组机械结构、B组嵌入式控制或 C组算法感知时，必须明确接口边界，不要把占位接口描述成真实接入已完成。
-3. 不要提交真实视频、真实人脸图片、抽帧图、人脸裁剪图、.env、数据库、模型缓存、服务器密码、SSH 私钥、token、API key、真实身份信息、轨迹、车牌或案件材料。不要依赖 secret scanning 代替人工检查。
+3. 不要提交真实视频、真实人脸图片、抽帧图、人脸裁剪图、.env、数据库、模型缓存、服务器密码、SSH 私钥、token、API key、真实身份信息、轨迹、车牌或案件材料。CampusVision C1 SSH 主机密钥 SHA256 固定指纹可以存在于经维护者确认的受控运行配置或代码默认值；Markdown 文档、示例和 Release 正文只写配置键或占位符。不要依赖 secret scanning 代替人工检查。
 
 分支与 PR：
 4. 不要直接在 main 上进行非琐碎改动。功能、配置、CI、发布、UI、CampusVision C1 / GKGuard C2 接入、真实数据接入或多文档同步改动，应新建短期分支并通过 Pull Request 合并。
@@ -516,24 +519,25 @@ git push
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
 7. PR 标题必须使用 `type(scope): summary`，例如 `fix(ui): improve responsive media layout` 或 `docs(project): document Roadmap field requirements`。标题描述实际变更，不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀；如需说明 AI agent 参与，应写在 PR 正文或评论中。
 8. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
-9. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
+9. 如果 AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查，review 输出必须中英双语；总体结论、风险说明、修改建议和 inline review comment 都应保持中文与 English 结构一致、语义一致。
+10. PR 或 Issue 应按需设置 area:*、type:*、priority:*、blocked、needs-info 标签，并加入 GKGuard Roadmap Project；Project item 必须补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并确认在 Roadmap 视图或 Project 主列表可见。Timeline order 按真实先后顺序递增；同一天内按发布时间、PR 创建时间或合并时间排序。可以使用 `.\scripts\Update-RoadmapItem.ps1` 半自动添加 PR/Issue 并填写字段，但仍要人工确认日期、版本和顺序。不要只依赖 PR/Issue 页面显示的 Project 关联；可刷新 Roadmap 页面，或使用 `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` 核验。若 Project 关联存在但 Roadmap 不显示，先等待并重查；仍不显示时，重建 Project item，必要时创建可见 Draft item 并链接原 PR/Issue。如果没有权限，应在回复中明确提醒维护者补充缺失字段。
 
 实现与验证：
-9. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
-10. 提交前只暂存本次任务相关文件，避免混入无关改动。不要使用破坏性 Git 命令重置用户改动。
-11. 根据改动运行必要检查。文档-only 至少运行 git diff --check；代码或桌面相关改动按 PR 模板运行相应测试，并在 PR 中写明验证结果。
-12. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
+11. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
+12. 提交前只暂存本次任务相关文件，避免混入无关改动。不要使用破坏性 Git 命令重置用户改动。
+13. 根据改动运行必要检查。文档-only 至少运行 git diff --check；代码或桌面相关改动按 PR 模板运行相应测试，并在 PR 中写明验证结果。
+14. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
 
 文档同步：
-13. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md 和对应 Release note。
-14. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。
-15. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
+15. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md 和对应 Release note。
+16. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。
+17. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
 
 发布与收尾：
-16. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
-17. 文档-only、协作流程或模板说明改动通常不需要发布新版本；除非用户明确要求，不要为这类改动创建 Release。
-18. 完成后汇报改动内容、验证结果、是否已更新相关文档、是否存在未解决风险，以及 PR/CI/合并状态。
-19. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态和 Roadmap 日期/顺序字段推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
+18. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
+19. 文档-only、协作流程或模板说明改动通常不需要发布新版本；除非用户明确要求，不要为这类改动创建 Release。
+20. 完成后汇报改动内容、验证结果、是否已更新相关文档、是否存在未解决风险，以及 PR/CI/合并状态。
+21. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态和 Roadmap 日期/顺序字段推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
 ```
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
@@ -705,6 +709,8 @@ type(scope): summary
 
 The title should describe the actual change, not the tool or author source. Do not use prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
 
+If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments should stay structurally and semantically aligned across both languages.
+
 Common `type` values:
 
 - `feat`: user-visible capability.
@@ -750,6 +756,7 @@ Do not commit:
 - Server passwords.
 - SSH private keys.
 - Tokens or API keys.
+- CampusVision C1 SSH host-key SHA256 pinned fingerprints may live in maintainer-approved runtime configuration or code defaults. Markdown documents, examples, and Release bodies should use configuration keys or placeholders.
 - Real names, student or staff IDs, phone numbers, license plates, trajectories, or case material.
 
 When unsure, do not commit the file. Ask a maintainer first.
@@ -1015,7 +1022,7 @@ You are helping maintain the GKGuard repository. Follow these collaboration rule
 Project and boundaries:
 1. Read README.md, CONTRIBUTING.md, AGENTS.md, GOVERNANCE.md, SECURITY.md, and docs/README.md first so you understand the project boundary, collaboration workflow, AI agent rules, sensitive-data rules, and documentation map.
 2. GKGuard C2 is the desktop workbench, local backend, local proxy, UI, release, and documentation boundary. CampusVision C1 is the separate video-search service. If a change touches CampusVision C1, CampusCar, UE, Group A mechanical structure, Group B embedded control, or Group C algorithm perception, explain the interface boundary clearly. Do not describe placeholder interfaces as completed real integrations.
-3. Never commit real videos, real face images, extracted frames, face crops, .env files, databases, model caches, server passwords, SSH private keys, tokens, API keys, real identities, trajectories, license plates, or case material. Do not rely on secret scanning as a substitute for manual review.
+3. Never commit real videos, real face images, extracted frames, face crops, .env files, databases, model caches, server passwords, SSH private keys, tokens, API keys, real identities, trajectories, license plates, or case material. CampusVision C1 SSH host-key SHA256 pinned fingerprints may live in maintainer-approved runtime configuration or code defaults; Markdown documents, examples, and Release bodies should use configuration keys or placeholders. Do not rely on secret scanning as a substitute for manual review.
 
 Branches and PRs:
 4. Do not make non-trivial changes directly on main. Feature, configuration, CI, release, UI, CampusVision C1 / GKGuard C2 integration, real-data integration, or multi-document synchronization changes should use a short-lived branch and Pull Request.
@@ -1023,24 +1030,25 @@ Branches and PRs:
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
 7. PR titles must use `type(scope): summary`, for example `fix(ui): improve responsive media layout` or `docs(project): document Roadmap field requirements`. Titles describe the actual change and must not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
 8. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.
-9. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
+9. If an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English. The overall conclusion, risk notes, change suggestions, and inline review comments should stay structurally and semantically aligned across both languages.
+10. PRs and Issues should use area:*, type:*, priority:*, blocked, and needs-info labels as needed, and should be added to the GKGuard Roadmap Project. The Project item must include Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version, and must be visible in the Roadmap view or Project main item list. Timeline order increases by real chronological order; for same-day items, use release time, PR creation time, or merge time. You may use `.\scripts\Update-RoadmapItem.ps1` to add a PR/Issue and fill fields semi-automatically, but still confirm dates, versions, and ordering manually. Do not rely only on the PR/Issue page showing a Project association; refresh Roadmap or run `gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json` to verify it. If the Project association exists but Roadmap does not show it, wait and query again; if it still does not appear, recreate the Project item, or create a visible Draft item linked to the original PR/Issue. If you lack permission, tell the maintainer exactly which fields need to be added.
 
 Implementation and validation:
-9. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
-10. Stage only files related to the current task. Avoid mixing unrelated changes. Do not use destructive Git commands to reset user work.
-11. Run the checks relevant to the change. Documentation-only changes should at least run git diff --check. Code or desktop changes should run the checks listed in the PR template and report validation results in the PR.
-12. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes.
+11. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
+12. Stage only files related to the current task. Avoid mixing unrelated changes. Do not use destructive Git commands to reset user work.
+13. Run the checks relevant to the change. Documentation-only changes should at least run git diff --check. Code or desktop changes should run the checks listed in the PR template and report validation results in the PR.
+14. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes.
 
 Documentation synchronization:
-13. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, and the matching Release note.
-14. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem.
-15. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
+15. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, and the matching Release note.
+16. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem.
+17. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
 
 Release and closeout:
-16. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.
-17. Documentation-only, collaboration workflow, or template guidance changes usually do not need a new Release. Do not create a Release for them unless the user explicitly asks.
-18. At the end, report what changed, validation results, whether related docs were updated, any remaining risk, and the PR/CI/merge status.
-19. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and update the Project status plus Roadmap date/order fields. If permissions or rules block that flow, state the exact blocker.
+18. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.
+19. Documentation-only, collaboration workflow, or template guidance changes usually do not need a new Release. Do not create a Release for them unless the user explicitly asks.
+20. At the end, report what changed, validation results, whether related docs were updated, any remaining risk, and the PR/CI/merge status.
+21. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and update the Project status plus Roadmap date/order fields. If permissions or rules block that flow, state the exact blocker.
 ```
 
 <p align="right"><a href="#english">Back to English top</a></p>

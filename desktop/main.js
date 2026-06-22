@@ -10,7 +10,7 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "v0.1.35-ui";
+const STATIC_ASSET_VERSION = "v0.1.36-ui";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
@@ -25,7 +25,7 @@ const DEFAULT_C1_SSH_TUNNEL = {
   localPort: 18000,
   remoteHost: "127.0.0.1",
   remotePort: 8000,
-  hostFingerprint: "",
+  hostFingerprint: "SHA256:5JuxVHVX533OdD54f7RQFzUPeoHT2JhSy6oXnTIBl2w",
 };
 
 let backendProcess = null;
@@ -326,31 +326,11 @@ function formatSshHostFingerprintFromHex(hexDigest) {
   return `SHA256:${Buffer.from(String(hexDigest || ""), "hex").toString("base64").replace(/=+$/, "")}`;
 }
 
-async function confirmSshHostKey(tunnel, target, fingerprint, parentWindow = mainWindow) {
-  const result = await dialog.showMessageBox(parentWindow || mainWindow, {
-    type: "warning",
-    title: "验证 CampusVision C1 SSH 主机密钥",
-    message: "请先验证 SSH 主机密钥指纹",
-    detail: `在发送服务器密码前，请通过可信渠道确认 ${target} 的 SSH 主机密钥指纹：\n\n${fingerprint}\n\n只有确认该指纹属于 CampusVision C1 服务器后才继续连接。`,
-    buttons: ["指纹正确，继续连接", "取消连接"],
-    defaultId: 1,
-    cancelId: 1,
-    noLink: true,
-  });
-  return result.response === 0;
-}
-
-function createSshHostVerifier(tunnel, target, onProgress, parentWindow = mainWindow) {
+function createSshHostVerifier(tunnel, target, onProgress) {
   const expected = normalizeSshHostFingerprint(tunnel.hostFingerprint);
-  let approvedFingerprint = "";
   return (keyHash, callback) => {
     const actual = normalizeSshHostFingerprint(keyHash);
     const displayFingerprint = formatSshHostFingerprintFromHex(keyHash);
-
-    if (approvedFingerprint && actual === approvedFingerprint) {
-      callback(true);
-      return;
-    }
 
     if (expected) {
       const verified = actual === expected;
@@ -362,20 +342,15 @@ function createSshHostVerifier(tunnel, target, onProgress, parentWindow = mainWi
       return;
     }
 
-    onProgress?.({ percent: 24, message: "请验证 SSH 主机密钥指纹...", busy: true });
-    confirmSshHostKey(tunnel, target, displayFingerprint, parentWindow)
-      .then((confirmed) => {
-        if (!confirmed) {
-          onProgress?.({ percent: 24, message: "已取消：未验证 SSH 主机密钥。", busy: false, failed: true, recoverable: true });
-        } else {
-          approvedFingerprint = actual;
-        }
-        callback(confirmed);
-      })
-      .catch((error) => {
-        console.warn(`SSH host key verification dialog failed: ${error.message}`);
-        callback(false);
-      });
+    onProgress?.({
+      percent: 24,
+      message: "未配置 SSH 主机密钥固定指纹，已阻止连接。",
+      busy: false,
+      failed: true,
+      recoverable: true,
+    });
+    console.warn(`C1 SSH host key rejected because no pinned fingerprint is configured. ${target} presented ${displayFingerprint}.`);
+    callback(false);
   };
 }
 
@@ -532,14 +507,14 @@ function stopSshTunnel() {
   }
 }
 
-function startEmbeddedSshTunnel(tunnel, password, onProgress, parentWindow = mainWindow) {
+function startEmbeddedSshTunnel(tunnel, password, onProgress) {
   const forward = `${tunnel.localPort}:${tunnel.remoteHost}:${tunnel.remotePort}`;
   const target = `${tunnel.user}@${tunnel.host}`;
 
   return new Promise((resolve, reject) => {
     stopSshTunnel();
     onProgress?.({ percent: 18, message: "正在连接 SSH 服务器..." });
-    const hostVerifier = createSshHostVerifier(tunnel, target, onProgress, parentWindow);
+    const hostVerifier = createSshHostVerifier(tunnel, target, onProgress);
     const client = new SshClient();
     let server = null;
     let settled = false;
@@ -613,7 +588,7 @@ function startEmbeddedSshTunnel(tunnel, password, onProgress, parentWindow = mai
       password,
       hostHash: "sha256",
       hostVerifier,
-      readyTimeout: tunnel.hostFingerprint ? 20000 : 120000,
+      readyTimeout: 20000,
       keepaliveInterval: 15000,
       keepaliveCountMax: 3,
     });
@@ -728,7 +703,7 @@ async function promptForC1Tunnel(reason = "未检测到 CampusVision C1 服务")
   }
 
   const result = await promptForSshPassword(tunnel, reason, async (password, onProgress, modal) => {
-    await startEmbeddedSshTunnel(tunnel, password, onProgress, modal);
+    await startEmbeddedSshTunnel(tunnel, password, onProgress);
     return waitForC1TunnelReady(tunnel, onProgress);
   });
 

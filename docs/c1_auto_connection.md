@@ -87,13 +87,13 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-首次使用内置 SSH 隧道时，GKGuard 会在发送服务器密码前校验 SSH 主机密钥。建议在可信网络或服务器控制台运行以下命令获取 OpenSSH `SHA256:...` 指纹，并写入 `sshTunnel.hostFingerprint`：
+使用内置 SSH 隧道时，GKGuard 会在发送服务器密码前自动比对 SSH 主机密钥固定指纹。如果服务器地址或 SSH 主机密钥变化，必须在可信网络或服务器控制台运行以下命令获取新的 OpenSSH `SHA256:...` 指纹，并写入 `sshTunnel.hostFingerprint`：
 
 ```bash
 ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-如果没有配置 `hostFingerprint`，软件会在连接时弹窗展示本次 SSH 服务器指纹，并要求人工确认后才继续发送密码。下面的配置文件用于固定指纹，或在服务器地址、账号、端口变化时覆盖默认值。
+如果没有配置 `hostFingerprint`，或服务器返回的指纹与固定值不一致，软件会阻断连接并停留在密码窗口，不再允许通过人工确认未知指纹继续发送密码。下面的配置文件用于固定指纹，或在服务器地址、账号、端口变化时覆盖默认值。
 
 配置文件示例：
 
@@ -109,7 +109,7 @@ ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
     "remotePort": 8000,
-    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
+    "hostFingerprint": "SHA256:<trusted-c1-host-key-fingerprint>"
   }
 }
 ```
@@ -129,7 +129,7 @@ ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
-安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.35-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.36-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -276,13 +276,13 @@ remoteHost = 127.0.0.1
 remotePort = 8000
 ```
 
-Before sending the server password, GKGuard verifies the SSH host key. Prefer obtaining the OpenSSH `SHA256:...` fingerprint from a trusted network or the server console and storing it in `sshTunnel.hostFingerprint`:
+Before sending the server password, GKGuard automatically compares the pinned SSH host-key fingerprint. If the server address or SSH host key changes, obtain the new OpenSSH `SHA256:...` fingerprint from a trusted network or the server console and store it in `sshTunnel.hostFingerprint`:
 
 ```bash
 ssh-keygen -l -E sha256 -f /etc/ssh/ssh_host_ed25519_key.pub
 ```
 
-If `hostFingerprint` is not configured, the app shows the SSH server fingerprint during connection and requires manual confirmation before sending the password. The config below is for pinning that fingerprint or overriding defaults when the server address, account, or ports change.
+If `hostFingerprint` is not configured, or if the server returns a different fingerprint, the app blocks the connection and stays in the password window. It no longer allows manual approval of an unknown fingerprint before sending the password. The config below is for pinning that fingerprint or overriding defaults when the server address, account, or ports change.
 
 Example config:
 
@@ -298,7 +298,7 @@ Example config:
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
     "remotePort": 8000,
-    "hostFingerprint": "SHA256:replace-with-c1-host-key-fingerprint"
+    "hostFingerprint": "SHA256:<trusted-c1-host-key-fingerprint>"
   }
 }
 ```
@@ -317,7 +317,7 @@ Startup behavior:
 4. You type the server password in that window; the main process verifies the CampusVision C1 SSH host key before using the one-time password to create the SSH tunnel.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 
-Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.35-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.36-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 

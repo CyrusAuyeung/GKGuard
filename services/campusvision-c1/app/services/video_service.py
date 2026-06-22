@@ -83,6 +83,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
 
     indexed = 0
     sampled_frames = 0
+    created_face_ids: list[str] = []
+    created_frame_files: list[Path] = []
     video_frame_dir = settings.frames_dir / video_id
     video_frame_dir.mkdir(parents=True, exist_ok=True)
 
@@ -101,8 +103,10 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
             if len(embeddings) != len(boxes):
                 continue
 
-            frame_file = video_frame_dir / f"{timestamp_sec:.2f}.jpg"
-            cv2.imwrite(str(frame_file), frame)
+            frame_file = video_frame_dir / f"{timestamp_sec:.2f}-{uuid.uuid4().hex}.jpg"
+            if not cv2.imwrite(str(frame_file), frame):
+                raise RuntimeError("Failed to write sampled frame.")
+            created_frame_files.append(frame_file)
 
             for box, embedding in zip(boxes, embeddings):
                 face_id = uuid.uuid4().hex
@@ -118,14 +122,14 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
                         "embedding": embedding,
                     }
                 )
+                created_face_ids.append(face_id)
                 indexed += 1
 
         db.update_video_status(video_id, "indexed")
     except Exception:
-        db.delete_face_records_for_video(video_id)
-        for frame_file in video_frame_dir.glob("*"):
-            if frame_file.is_file():
-                frame_file.unlink(missing_ok=True)
+        db.delete_face_records_by_ids(created_face_ids)
+        for frame_file in created_frame_files:
+            frame_file.unlink(missing_ok=True)
         try:
             video_frame_dir.rmdir()
         except OSError:

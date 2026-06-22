@@ -122,10 +122,7 @@ def _load_query_image(path: str) -> Image.Image | None:
 
 
 def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:
-    try:
-        image = _load_query_image(path)
-    except QueryImageTooLarge as exc:
-        return [], {"path": Path(path).name, "loaded": False, "rejected": True, "reason": str(exc), "attempts": []}
+    image = _load_query_image(path)
     if image is None:
         return [], {"path": Path(path).name, "loaded": False, "attempts": []}
 

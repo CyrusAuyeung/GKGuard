@@ -25,6 +25,10 @@ http://127.0.0.1:8000/docs
 
 返回服务状态、数据目录和识别引擎。正式检索期望 `face_engine=insightface`。
 
+## API key 保护
+
+当服务绑定 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true` 时，除 `/health` 等公开探测接口外，相机元数据、视频列表与索引、人物库、检索、媒体帧、人脸裁剪图和记录接口都需要 `X-CampusVision-API-Key`。服务端按 `CAMPUSVISION_API_KEY`、`C1_API_KEY` 顺序读取密钥。人物库 HTML 预览会在服务端内联人脸图，避免浏览器直接请求受保护媒体 URL。
+
 ## 摄像头点位
 
 `POST /api/v1/cameras`
@@ -217,6 +221,10 @@ http://127.0.0.1:8000/docs
 `GET /health`
 
 Returns service status, data directory, and recognition engine. Real search expects `face_engine=insightface`.
+
+## API Key Protection
+
+When the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, camera metadata, video listing and indexing, person-index, search, media-frame, face-crop, and record endpoints require `X-CampusVision-API-Key`; public probes such as `/health` remain public. The server reads keys in `CAMPUSVISION_API_KEY`, then `C1_API_KEY` order. The person-gallery HTML preview inlines face images server-side so browsers do not request protected media URLs directly.
 
 ## Cameras
 
