@@ -409,7 +409,19 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#recordScene")).toHaveClass(/is-frame-loading/);
     await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-one\.svg$/);
 
+    await page.locator("#resultRecordList .record-card").nth(0).click();
+    await expect(page.locator("#recordTitle")).toHaveText("记录1");
+    await expect(page.locator("#recordScene")).not.toHaveClass(/is-frame-loading/);
+    await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-one\.svg$/);
+
     releaseSecondFrame();
+    await page.waitForTimeout(150);
+    await expect(page.locator("#recordTitle")).toHaveText("记录1");
+    await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-one\.svg$/);
+    await expect(page.locator("#recordScene .result-face-box")).toContainText("99%");
+
+    await page.locator("#resultRecordList .record-card").nth(1).click();
+    await expect(page.locator("#recordTitle")).toHaveText("记录2");
     await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-two\.svg$/);
     await expect(page.locator("#recordScene")).not.toHaveClass(/is-frame-loading/);
     await expect(page.locator("#recordScene .result-face-box")).toContainText("94%");

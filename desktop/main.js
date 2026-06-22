@@ -708,6 +708,9 @@ async function promptForC1Tunnel(reason = "未检测到 CampusVision C1 服务")
   });
 
   if (result?.connected) {
+    await getJson(getC1StatusUrl(), 2500).catch((error) => {
+      console.warn(`Failed to refresh C1 backend status after tunnel connection: ${error.message}`);
+    });
     return true;
   }
 

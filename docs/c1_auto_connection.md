@@ -123,11 +123,11 @@ remotePort = 8000
 3. 软件内弹出“连接 CampusVision C1 服务”窗口，展示服务器账号、隧道目标和连接原因。
 4. 你在该窗口输入服务器密码；主进程会先校验 CampusVision C1 SSH 主机密钥，校验通过后才用本次密码建立 SSH 隧道，并显示“输入密码、建立 SSH、打开隧道、验证服务”四步进度。
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
-6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
+6. CampusVision C1 端点可达后，桌面端会刷新 GKGuard C2 后端 `/c1/status`，让后端确认当前连接并清理上一连接代次的媒体缓存，然后进入可检索状态。
 
 安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.37-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
-连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。
+连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。每次显式状态确认或桌面端 SSH 隧道重新确认都会刷新连接代次并清理旧媒体缓存，避免本地隧道重连后复用上一 CampusVision C1 实例的关键帧或人脸裁剪图。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -309,11 +309,12 @@ Startup behavior:
 2. If the local tunnel is not connected, it shows a “Connect CampusVision C1 service” prompt; even when the direct URL is reachable, the app prefers establishing the tunnel.
 3. The app opens the embedded “Connect CampusVision C1 service” window.
 4. You type the server password in that window; the main process verifies the CampusVision C1 SSH host key before using the one-time password to create the SSH tunnel.
-5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
+5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly.
+6. After the CampusVision C1 endpoint is reachable, the desktop app refreshes the GKGuard C2 backend `/c1/status`, so the backend confirms the current connection, clears media cache entries from the previous connection generation, and then enters the searchable state.
 
 Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.37-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
-The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions.
+The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions. Each explicit status confirmation or desktop SSH-tunnel reconfirmation refreshes the connection generation and clears old media cache entries, preventing keyframes or face crops from the previous CampusVision C1 instance from being reused after the local tunnel reconnects.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 
