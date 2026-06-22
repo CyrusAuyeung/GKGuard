@@ -13,16 +13,16 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.36` 推荐流程：
+安装版 `v0.1.37` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.36.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.37.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
 5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 上传查询图片。若图片只有一张有效候选人脸，GKGuard C2 会自动选中并直接检索；若图片有多张有效候选人脸，上传页会在原图上显示人脸框和检测置信度，并自动打开放大选择弹窗，需要确认目标人脸后再检索；低于 `0.65` 但不低于 `0.45` 的候选应以低置信样式显示并仍可选择。
-8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。
+8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。连续点击左侧检索记录时，右侧详情区应保留当前关键帧并显示轻量加载提示，目标记录关键帧加载完成后再替换，不应出现整块黑屏。
 9. 若 CampusVision C1 返回无匹配结果、请求超时或检索失败，页面应停留在上传页并显示中文提示，不应卡在“检索中”，也不应进入本地模拟结果。
 10. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 11. 后续需要升级时，点击右上角 `检查更新`。Windows 版发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；macOS/Linux 版会打开当前平台的 GitHub Release 安装文件。重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
@@ -88,6 +88,7 @@ CampusVision C1 已连接时期望结果：
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
 - 详情关键帧和关键帧预览弹窗会在目标人脸位置显示框和相似度。
+- 连续切换检索记录时，详情区保留当前关键帧，预加载目标记录关键帧，加载完成后再替换；慢媒体响应期间不应短暂黑屏。
 - 点击 `查看人物路线图` 后，路线图使用 CampusVision C1 trajectory 数据生成轨迹点、地图上方摘要、时间线和轨迹摘要。
 - 检索、查询图人脸检测、定位、导出和更新入口会显示统一状态提示，按处理中、完成、注意和失败区分反馈。
 
@@ -215,16 +216,16 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.36`:
+Recommended packaged-app flow for `v0.1.37`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.36.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.37.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. Upload the query image. If it contains one effective candidate face, GKGuard C2 auto-selects it and searches directly; if it contains multiple effective candidates, the upload screen overlays face boxes and detection confidence on the original image and opens an enlarged selection modal before search. Candidates below `0.65` but at least `0.45` should remain visible with a low-confidence style and remain selectable.
-8. After the search finishes, confirm that the result portrait uses the selected query face, fully fits inside the portrait frame, and uses the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area.
+8. After the search finishes, confirm that the result portrait uses the selected query face, fully fits inside the portrait frame, and uses the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area. When clicking result records in the left list repeatedly, the right detail area should keep the current keyframe visible with a lightweight loading hint, then replace it only after the target keyframe finishes loading. It should not flash into a full black panel.
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 11. For future upgrades, click the top-right `检查更新`. On Windows, if a newer version is found, click again to download inside the app, then click `重启安装`. On macOS/Linux, the app opens the current platform's GitHub Release package. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
@@ -290,6 +291,7 @@ Expected result with CampusVision C1 connected:
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
 - The detail keyframe and keyframe preview dialog show the target-face box with similarity.
+- When switching result records repeatedly, the detail panel keeps the current keyframe visible, preloads the target record keyframe, and replaces it after loading finishes; slow media responses should not create a brief black panel.
 - `查看人物路线图` opens a route view generated from CampusVision C1 trajectory data, with a top route overview, timeline, and summary.
 - Search, query-face detection, navigation, export, and update actions use unified status feedback for loading, success, warning, and failure states.
 

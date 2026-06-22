@@ -119,6 +119,9 @@ let toastTimer = null;
 let lastFocusedElement = null;
 const CONFIDENT_QUERY_FACE_SCORE = 0.65;
 const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
+const FRAME_IMAGE_PRELOAD_LIMIT = 24;
+const frameImagePreloadCache = new Map();
+let activeFrameLoadToken = 0;
 const FACE_HIT_PADDING_PX = 8;
 const QUERY_FACE_MODAL_MIN_ZOOM = 0.5;
 const QUERY_FACE_MODAL_MAX_ZOOM = 3;
@@ -413,6 +416,10 @@ function recordThumbMarkup(record) {
   return '<span class="mini-face" aria-hidden="true"></span>';
 }
 
+function recordFrameUrl(record) {
+  return safeImageUrl(record?.frameUrl);
+}
+
 function frameFaceBoxMarkup(record) {
   const box = record?.faceBox;
   if (!box) return "";
@@ -430,9 +437,11 @@ function frameFaceBoxMarkup(record) {
 }
 
 function frameImageMarkup(record, imageClass) {
+  const frameUrl = recordFrameUrl(record);
+  if (!frameUrl) return "";
   return `
-    <span class="frame-image-wrap">
-      <img class="${imageClass}" src="${escapeHtml(record.frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" />
+    <span class="frame-image-wrap" data-frame-url="${escapeHtml(frameUrl)}" data-record-id="${escapeHtml(record.id ?? record.title ?? "")}">
+      <img class="${imageClass}" src="${escapeHtml(frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" decoding="async" loading="eager" />
       <span class="frame-face-layer" aria-label="目标人脸位置">${frameFaceBoxMarkup(record)}</span>
     </span>
   `;
@@ -587,6 +596,60 @@ function loadBrowserImage(src) {
     image.addEventListener("load", () => resolve(image), { once: true });
     image.addEventListener("error", reject, { once: true });
     image.src = src;
+  });
+}
+
+function trimFramePreloadCache() {
+  while (frameImagePreloadCache.size > FRAME_IMAGE_PRELOAD_LIMIT) {
+    const oldestKey = frameImagePreloadCache.keys().next().value;
+    frameImagePreloadCache.delete(oldestKey);
+  }
+}
+
+function clearFramePreloadCache() {
+  frameImagePreloadCache.clear();
+  activeFrameLoadToken += 1;
+}
+
+function preloadFrameImage(src) {
+  const frameUrl = safeImageUrl(src);
+  if (!frameUrl) return Promise.reject(new Error("Invalid frame image URL"));
+
+  const cached = frameImagePreloadCache.get(frameUrl);
+  if (cached) {
+    frameImagePreloadCache.delete(frameUrl);
+    frameImagePreloadCache.set(frameUrl, cached);
+    return cached.promise;
+  }
+
+  const image = new Image();
+  image.decoding = "async";
+  const promise = new Promise((resolve, reject) => {
+    image.addEventListener("load", () => {
+      if (image.decode) {
+        image.decode().then(() => resolve(image)).catch(() => resolve(image));
+        return;
+      }
+      resolve(image);
+    }, { once: true });
+    image.addEventListener("error", reject, { once: true });
+  });
+  frameImagePreloadCache.set(frameUrl, { image, promise });
+  trimFramePreloadCache();
+  image.src = frameUrl;
+  return promise;
+}
+
+function warmFrameImages(startIndex = selectedRecordIndex) {
+  const prioritized = records
+    .map((record, index) => ({ record, distance: Math.abs(index - startIndex), index }))
+    .filter(({ record }) => recordFrameUrl(record))
+    .sort((a, b) => a.distance - b.distance || a.index - b.index)
+    .slice(0, 8);
+  prioritized.forEach(({ record }, offset) => {
+    window.setTimeout(() => {
+      preloadFrameImage(record.frameUrl).catch(() => {});
+    }, offset * 80);
   });
 }
 
@@ -949,6 +1012,7 @@ function loadImage(file) {
     return;
   }
   cancelActiveSearch();
+  clearFramePreloadCache();
   const reader = new FileReader();
   reader.addEventListener("load", () => {
     uploadedFile = file;
@@ -975,6 +1039,7 @@ function resetToMockData() {
 
 function resetSearchInput() {
   cancelActiveSearch();
+  clearFramePreloadCache();
   uploadedFile = null;
   uploadedImageUrl = "";
   matchedPersonImageUrl = "";
@@ -1121,11 +1186,19 @@ function renderRecordLists() {
   document.querySelectorAll(".record-card").forEach((button) => {
     button.addEventListener("click", () => {
       selectedRecordIndex = Number(button.dataset.index || 0);
-      renderRecordLists();
+      syncRecordActiveStates();
       renderSelectedRecord();
       renderRouteMap();
       renderRouteTimeline();
     });
+  });
+}
+
+function syncRecordActiveStates() {
+  document.querySelectorAll(".record-card").forEach((button) => {
+    const isActive = Number(button.dataset.index || 0) === selectedRecordIndex;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
   });
 }
 
@@ -1240,6 +1313,7 @@ async function initDesktopUpdateEntry() {
 function renderSelectedRecord() {
   const record = records[selectedRecordIndex];
   if (!record) {
+    activeFrameLoadToken += 1;
     elements.recordTitle.textContent = "暂无记录";
     elements.recordScene.className = "camera-scene is-empty";
     elements.recordScene.innerHTML = '<span class="scene-time">--</span><div class="empty-state"><strong>暂无关键帧</strong><span>当前没有可展示的检索结果。</span></div>';
@@ -1251,12 +1325,7 @@ function renderSelectedRecord() {
     return;
   }
   elements.recordTitle.textContent = record.title;
-  elements.recordScene.className = `camera-scene ${record.frameUrl ? "has-frame" : record.sceneClass}`;
-  elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
-  if (record.frameUrl) {
-    elements.recordScene.insertAdjacentHTML("afterbegin", frameImageMarkup(record, "scene-frame"));
-    positionFrameFaceBoxes(elements.recordScene);
-  }
+  renderSelectedRecordFrame(record);
   elements.recordScene.querySelector(".scene-time").textContent = String(record.fullTime || "--").replace(" ", "  ");
   elements.recordScene.setAttribute("tabindex", "0");
   elements.recordScene.setAttribute("role", "button");
@@ -1273,6 +1342,64 @@ function renderSelectedRecord() {
     <div class="info-item"><span>数据来源：</span><strong>${sourceLabel()}</strong></div>
   `;
   renderRouteCurrentSummary();
+}
+
+function renderSelectedRecordFrame(record) {
+  const frameUrl = recordFrameUrl(record);
+  elements.recordScene.querySelectorAll(".empty-state").forEach((node) => node.remove());
+  if (!frameUrl) {
+    activeFrameLoadToken += 1;
+    elements.recordScene.className = `camera-scene ${record.sceneClass}`;
+    elements.recordScene.classList.remove("is-frame-loading");
+    elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
+    return;
+  }
+
+  const currentFrame = elements.recordScene.querySelector(".frame-image-wrap");
+  const currentUrl = currentFrame?.dataset.frameUrl || currentFrame?.querySelector("img")?.getAttribute("src") || "";
+  const currentRecordId = currentFrame?.dataset.recordId || "";
+  const nextRecordId = String(record.id ?? record.title ?? "");
+  elements.recordScene.className = "camera-scene has-frame";
+  if (currentUrl === frameUrl && currentRecordId === nextRecordId) {
+    elements.recordScene.classList.remove("is-frame-loading");
+    positionFrameFaceBoxes(elements.recordScene);
+    warmFrameImages(selectedRecordIndex);
+    return;
+  }
+
+  if (currentUrl === frameUrl) {
+    elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
+    elements.recordScene.insertAdjacentHTML("afterbegin", frameImageMarkup(record, "scene-frame"));
+    elements.recordScene.classList.remove("is-frame-loading");
+    elements.recordScene.setAttribute("aria-busy", "false");
+    positionFrameFaceBoxes(elements.recordScene);
+    warmFrameImages(selectedRecordIndex);
+    return;
+  }
+
+  const loadToken = ++activeFrameLoadToken;
+  elements.recordScene.classList.add("is-frame-loading");
+  elements.recordScene.setAttribute("aria-busy", "true");
+  preloadFrameImage(frameUrl)
+    .then(() => {
+      if (loadToken !== activeFrameLoadToken) return;
+      const nextFrame = frameImageMarkup(record, "scene-frame");
+      elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
+      if (nextFrame) {
+        elements.recordScene.insertAdjacentHTML("afterbegin", nextFrame);
+        positionFrameFaceBoxes(elements.recordScene);
+      }
+      elements.recordScene.classList.remove("is-frame-loading");
+      elements.recordScene.setAttribute("aria-busy", "false");
+      warmFrameImages(selectedRecordIndex);
+    })
+    .catch(() => {
+      if (loadToken !== activeFrameLoadToken) return;
+      elements.recordScene.querySelectorAll(".scene-frame, .frame-image-wrap").forEach((node) => node.remove());
+      elements.recordScene.insertAdjacentHTML("afterbegin", emptyStateMarkup("关键帧加载失败", "请重新选择记录或检查 CampusVision C1 媒体服务。"));
+      elements.recordScene.classList.remove("is-frame-loading");
+      elements.recordScene.setAttribute("aria-busy", "false");
+    });
 }
 
 function renderRouteCurrentSummary() {
