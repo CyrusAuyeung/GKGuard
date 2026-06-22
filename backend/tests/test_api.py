@@ -512,6 +512,32 @@ def test_c1_status_probe_evicts_stale_healthy_cache(monkeypatch) -> None:
     assert base_url not in c1_service._status_cache
 
 
+def test_c1_fetch_media_returns_valid_cache_before_status_probe(monkeypatch) -> None:
+    from app.services import c1_service
+
+    base_url = "http://127.0.0.1:18000"
+
+    def fail_resolve_base_url():
+        raise AssertionError("cached media should be returned before status probing")
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", base_url)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+    monkeypatch.setattr(c1_service, "_resolve_base_url", fail_resolve_base_url)
+    c1_service._selected_base_url = base_url
+    c1_service._media_cache[(base_url, "frame", "face-1")] = (
+        time.monotonic() + 300,
+        b"cached-frame",
+        "image/jpeg",
+    )
+
+    media = c1_service.fetch_media("frame", "face-1")
+
+    assert media == (b"cached-frame", "image/jpeg")
+
+
 def test_c1_media_requests_reuse_cached_status_probe(monkeypatch) -> None:
     from app.services import c1_service
 

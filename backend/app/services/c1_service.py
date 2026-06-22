@@ -186,6 +186,26 @@ def _cached_status_for_url(base_url: str) -> dict[str, Any]:
     return status
 
 
+def _media_cache_keys_for_candidates(kind: str, face_id: str) -> list[tuple[str, str, str]]:
+    if _selected_base_url:
+        return [(_selected_base_url, kind, face_id)]
+    return [(base_url, kind, face_id) for base_url in _candidate_urls()]
+
+
+def _cached_media_for_keys(cache_keys: list[tuple[str, str, str]]) -> tuple[bytes, str] | None:
+    if C1_MEDIA_CACHE_TTL <= 0:
+        return None
+    with _cache_lock:
+        for cache_key in cache_keys:
+            cached = _media_cache.get(cache_key)
+            if cached and cached[0] > time.monotonic():
+                _media_cache.move_to_end(cache_key)
+                return cached[1], cached[2]
+            if cached:
+                _media_cache.pop(cache_key, None)
+    return None
+
+
 def _status_for_url(base_url: str) -> dict[str, Any]:
     status: dict[str, Any] = {"baseUrl": base_url, "reachable": False, "identityOk": False}
     openapi_body: Any = None
@@ -636,16 +656,15 @@ def detect_query_faces(filename: str, content: bytes, content_type: str | None) 
 def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
     if kind not in {"frame", "face"}:
         raise C1ServiceError("Unsupported C1 media kind", 400)
+    cached_media = _cached_media_for_keys(_media_cache_keys_for_candidates(kind, face_id))
+    if cached_media:
+        return cached_media
+
     base_url = _resolve_base_url()
     cache_key = (base_url, kind, face_id)
-    if C1_MEDIA_CACHE_TTL > 0:
-        with _cache_lock:
-            cached = _media_cache.get(cache_key)
-            if cached and cached[0] > time.monotonic():
-                _media_cache.move_to_end(cache_key)
-                return cached[1], cached[2]
-            if cached:
-                _media_cache.pop(cache_key, None)
+    cached_media = _cached_media_for_keys([cache_key])
+    if cached_media:
+        return cached_media
 
     response = _request("GET", f"/api/v1/media/{kind}/{face_id}", primary_url=base_url)
     content = response.content
