@@ -838,17 +838,19 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
                 primary_url=base_url,
                 required_generation=request_generation,
             )
+            _ensure_generation_current(response_generation)
+            content = response.content
+            media_type = response.headers.get("content-type", "image/jpeg")
+            if selected_applied:
+                _store_media_cache(
+                    _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
+                    content,
+                    media_type,
+                    required_generation=response_generation,
+                )
+            _ensure_generation_current(response_generation)
         except _ConnectionGenerationChanged:
             continue
-        content = response.content
-        media_type = response.headers.get("content-type", "image/jpeg")
-        if selected_applied:
-            _store_media_cache(
-                _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
-                content,
-                media_type,
-                required_generation=response_generation,
-            )
         return content, media_type
     else:
         raise C1ServiceError("C1 connection changed while fetching media; please retry.", 409)
