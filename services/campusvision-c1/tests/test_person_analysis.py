@@ -16,6 +16,11 @@ if CV2_AVAILABLE:
     from app.vision import person_analysis  # noqa: E402
 
 
+@pytest.fixture(autouse=True)
+def disable_upper_color_calibrator(monkeypatch):
+    monkeypatch.setattr(person_analysis.settings, "enable_upper_color_calibrator", False)
+
+
 def test_face_only_visibility_when_body_missing():
     image = np.zeros((120, 100, 3), dtype=np.uint8)
     face = {"x1": 35, "y1": 10, "x2": 65, "y2": 45, "score": 0.9}

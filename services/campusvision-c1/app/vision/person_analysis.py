@@ -245,6 +245,23 @@ def classify_clothing_color(roi_bgr: np.ndarray | None, *, part: str | None = No
     if area < settings.min_clothing_roi_area:
         return RegionResult("unknown", None, False, 0.0)
 
+    if part == "upper" and settings.enable_upper_color_calibrator:
+        try:
+            from app.vision import upper_color_calibrator
+
+            calibrated = upper_color_calibrator.predict(roi_bgr)
+        except Exception:
+            calibrated = None
+        if calibrated and calibrated.get("color") in settings.clothing_color_labels:
+            confidence = float(calibrated.get("confidence") or 0.0)
+            if confidence >= settings.upper_color_calibrator_min_confidence:
+                return RegionResult(
+                    str(calibrated["color"]),
+                    round(confidence, 4),
+                    str(calibrated["color"]) != "unknown",
+                    1.0,
+                )
+
     hsv = cv2.cvtColor(roi_bgr, cv2.COLOR_BGR2HSV)
     h = hsv[:, :, 0].astype(np.float32)
     s = hsv[:, :, 1].astype(np.float32)

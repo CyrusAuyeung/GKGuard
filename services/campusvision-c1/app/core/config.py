@@ -97,6 +97,15 @@ class Settings:
         "CLOTHING_COLOR_LABELS",
         "black,white,gray,red,orange,yellow,green,blue,purple,brown,pink,striped,other,unknown",
     )
+    enable_upper_color_calibrator: bool = _bool_from_env("ENABLE_UPPER_COLOR_CALIBRATOR", False)
+    upper_color_calibrator_path: Path = _path_from_env(
+        "UPPER_COLOR_CALIBRATOR_PATH",
+        "data/models/clothing/upper_color_calibrator_v1.json",
+    )
+    upper_color_calibrator_k: int = int(os.getenv("UPPER_COLOR_CALIBRATOR_K", "1"))
+    upper_color_calibrator_min_confidence: float = float(
+        os.getenv("UPPER_COLOR_CALIBRATOR_MIN_CONFIDENCE", "0.0")
+    )
     enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")
