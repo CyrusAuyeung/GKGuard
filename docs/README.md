@@ -22,7 +22,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.37.md](releases/v0.1.37.md)：当前最新版本说明，记录结果页记录切换关键帧预加载、失败预加载重试、按 CampusVision C1 base URL 隔离的 GKGuard C2 进程内媒体缓存、CampusVision C1 健康状态探测复用和无黑屏切换体验。
+- [releases/v0.1.37.md](releases/v0.1.37.md)：当前最新版本说明，记录结果页记录切换关键帧预加载、失败预加载重试、按 CampusVision C1 响应地址、API key、候选配置和连接代次隔离的 GKGuard C2 进程内媒体缓存、媒体缓存容量上限、CampusVision C1 健康状态探测复用和无黑屏切换体验。
 - [releases/v0.1.36.md](releases/v0.1.36.md)：受信 SSH 主机密钥自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
 - [releases/v0.1.35.md](releases/v0.1.35.md)：GKGuard C2 / CampusVision C1 安全加固、SSH 主机密钥校验、查询图资源限制和 Release workflow 权限收紧。
 - [releases/v0.1.34.md](releases/v0.1.34.md)：Windows/macOS/Linux 桌面端发布、平台化后端可执行文件和更新资产选择。
@@ -85,7 +85,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.37.md](releases/v0.1.37.md): latest release notes covering preloaded keyframe switching on the result page, failed-preload retries, GKGuard C2 in-process media caching scoped by CampusVision C1 base URL, reused healthy CampusVision C1 status probes, and no-black-screen record switching.
+- [releases/v0.1.37.md](releases/v0.1.37.md): latest release notes covering preloaded keyframe switching on the result page, failed-preload retries, GKGuard C2 in-process media caching scoped by CampusVision C1 responding address, API key, candidate configuration, and connection generation, media-cache byte limits, reused healthy CampusVision C1 status probes, and no-black-screen record switching.
 - [releases/v0.1.36.md](releases/v0.1.36.md): automatic trusted SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.
 - [releases/v0.1.35.md](releases/v0.1.35.md): GKGuard C2 / CampusVision C1 security hardening, SSH host-key verification, query-image resource limits, and tightened Release workflow permissions.
 - [releases/v0.1.34.md](releases/v0.1.34.md): Windows/macOS/Linux desktop releases, platform-specific backend executables, and update asset selection.

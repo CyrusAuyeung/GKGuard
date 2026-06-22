@@ -20,8 +20,9 @@ def setup_function() -> None:
     os.environ["GKGUARD_CASE_PACKAGE_EXPORT_TOKEN"] = "test-export-token"
     clear_audit_logs()
     c1_service._selected_base_url = None
+    c1_service._connection_generation = 0
     c1_service._status_cache.clear()
-    c1_service._media_cache.clear()
+    c1_service._clear_media_cache()
 
 
 def audit_headers() -> dict[str, str]:
@@ -487,6 +488,41 @@ def test_c1_fetch_media_cache_is_scoped_by_base_url(monkeypatch) -> None:
     assert request_base_urls == ["http://127.0.0.1:18000", "http://127.0.0.1:18001"]
 
 
+def test_c1_fetch_media_cache_write_uses_response_base_url(monkeypatch) -> None:
+    from app.services import c1_service
+
+    response_base_url = "http://127.0.0.1:18000"
+    competing_base_url = "http://127.0.0.1:18001"
+
+    class FakeResponse:
+        content = b"response-frame"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        assert base_url == response_base_url
+        c1_service._selected_base_url = competing_base_url
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", response_base_url)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_CANDIDATE_URLS", response_base_url)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+
+    media = c1_service.fetch_media("frame", "face-1")
+
+    response_key = c1_service._media_cache_key(response_base_url, "frame", "face-1")
+    competing_key = c1_service._media_cache_key(competing_base_url, "frame", "face-1")
+    assert media == (b"response-frame", "image/jpeg")
+    assert response_key in c1_service._media_cache
+    assert competing_key not in c1_service._media_cache
+
+
 def test_c1_status_probe_evicts_stale_healthy_cache(monkeypatch) -> None:
     from app.services import c1_service
 
@@ -527,15 +563,156 @@ def test_c1_fetch_media_returns_valid_cache_before_status_probe(monkeypatch) -> 
     monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
     monkeypatch.setattr(c1_service, "_resolve_base_url", fail_resolve_base_url)
     c1_service._selected_base_url = base_url
-    c1_service._media_cache[(base_url, "frame", "face-1")] = (
+    cache_key = c1_service._media_cache_key(base_url, "frame", "face-1")
+    c1_service._media_cache[cache_key] = (
         time.monotonic() + 300,
         b"cached-frame",
         "image/jpeg",
+        len(b"cached-frame"),
     )
+    c1_service._media_cache_total_bytes = len(b"cached-frame")
 
     media = c1_service.fetch_media("frame", "face-1")
 
     assert media == (b"cached-frame", "image/jpeg")
+
+
+def test_c1_fetch_media_cache_is_scoped_by_api_key(monkeypatch) -> None:
+    from app.services import c1_service
+
+    request_count = 0
+
+    class FakeResponse:
+        headers = {"content-type": "image/jpeg"}
+
+        def __init__(self, content: bytes):
+            self.content = content
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        nonlocal request_count
+        request_count += 1
+        return FakeResponse(f"frame-{request_count}".encode("utf-8"))
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+
+    monkeypatch.setattr(c1_service, "C1_API_KEY", "first-key")
+    first = c1_service.fetch_media("frame", "face-1")
+    monkeypatch.setattr(c1_service, "C1_API_KEY", "second-key")
+    second = c1_service.fetch_media("frame", "face-1")
+
+    assert first == (b"frame-1", "image/jpeg")
+    assert second == (b"frame-2", "image/jpeg")
+    assert request_count == 2
+
+
+def test_c1_fetch_media_cache_is_scoped_by_candidate_config(monkeypatch) -> None:
+    from app.services import c1_service
+
+    request_count = 0
+
+    class FakeResponse:
+        headers = {"content-type": "image/jpeg"}
+
+        def __init__(self, content: bytes):
+            self.content = content
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        nonlocal request_count
+        request_count += 1
+        return FakeResponse(f"candidate-frame-{request_count}".encode("utf-8"))
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+
+    first = c1_service.fetch_media("frame", "face-1")
+    monkeypatch.setenv("C1_CANDIDATE_URLS", "http://127.0.0.1:18000,http://127.0.0.1:18001")
+    second = c1_service.fetch_media("frame", "face-1")
+
+    assert first == (b"candidate-frame-1", "image/jpeg")
+    assert second == (b"candidate-frame-2", "image/jpeg")
+    assert request_count == 2
+
+
+def test_c1_fetch_media_skips_oversized_cache_items(monkeypatch) -> None:
+    from app.services import c1_service
+
+    request_count = 0
+
+    class FakeResponse:
+        content = b"large-frame"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        nonlocal request_count
+        request_count += 1
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_MAX_ITEM_BYTES", len(FakeResponse.content) - 1)
+
+    first = c1_service.fetch_media("frame", "large-face")
+    second = c1_service.fetch_media("frame", "large-face")
+
+    assert first == (b"large-frame", "image/jpeg")
+    assert second == first
+    assert request_count == 2
+    assert not c1_service._media_cache
+
+
+def test_c1_status_revalidation_clears_same_url_media_cache(monkeypatch) -> None:
+    from app.services import c1_service
+
+    base_url = "http://127.0.0.1:18000"
+
+    def fake_status_for_url(url: str):
+        return {"baseUrl": url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", base_url)
+    monkeypatch.delenv("C1_BASE_URL", raising=False)
+    monkeypatch.delenv("C1_CANDIDATE_URLS", raising=False)
+    monkeypatch.setenv("C1_ALLOWED_HOSTS", "127.0.0.1")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    c1_service._selected_base_url = base_url
+    cache_key = c1_service._media_cache_key(base_url, "frame", "face-1")
+    c1_service._media_cache[cache_key] = (
+        time.monotonic() + 300,
+        b"old-frame",
+        "image/jpeg",
+        len(b"old-frame"),
+    )
+    c1_service._media_cache_total_bytes = len(b"old-frame")
+    generation_before = c1_service._connection_generation
+
+    status = c1_service.get_status()
+
+    assert status["selectedBaseUrl"] == base_url
+    assert c1_service._connection_generation == generation_before + 1
+    assert not c1_service._media_cache
+    assert c1_service._media_cache_total_bytes == 0
 
 
 def test_c1_media_requests_reuse_cached_status_probe(monkeypatch) -> None:

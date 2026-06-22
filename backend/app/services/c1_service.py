@@ -21,12 +21,16 @@ C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
 C1_STATUS_CACHE_TTL = float(os.getenv("C1_STATUS_CACHE_TTL_SEC", "15"))
 C1_MEDIA_CACHE_TTL = float(os.getenv("C1_MEDIA_CACHE_TTL_SEC", "300"))
 C1_MEDIA_CACHE_MAX_ITEMS = int(os.getenv("C1_MEDIA_CACHE_MAX_ITEMS", "64"))
+C1_MEDIA_CACHE_MAX_BYTES = int(os.getenv("C1_MEDIA_CACHE_MAX_BYTES", str(16 * 1024 * 1024)))
+C1_MEDIA_CACHE_MAX_ITEM_BYTES = int(os.getenv("C1_MEDIA_CACHE_MAX_ITEM_BYTES", str(2 * 1024 * 1024)))
 C1_API_KEY = (os.getenv("CAMPUSVISION_API_KEY") or os.getenv("C1_API_KEY") or "").strip()
 DEFAULT_C1_ALLOWED_HOSTS = "localhost,127.0.0.1,::1"
 _selected_base_url: str | None = None
+_connection_generation = 0
 RETRYABLE_STATUS_CODES = {502, 503, 504}
 _status_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-_media_cache: OrderedDict[tuple[str, str, str], tuple[float, bytes, str]] = OrderedDict()
+_media_cache: OrderedDict[tuple[str, str, str, str, tuple[str, ...], int], tuple[float, bytes, str, int]] = OrderedDict()
+_media_cache_total_bytes = 0
 _cache_lock = RLock()
 
 
@@ -174,6 +178,86 @@ def _store_status_cache(base_url: str, status: dict[str, Any]) -> None:
         _status_cache[base_url] = (_cache_deadline(C1_STATUS_CACHE_TTL), dict(status))
 
 
+def _media_cache_key(
+    base_url: str,
+    kind: str,
+    face_id: str,
+    candidate_urls: tuple[str, ...] | None = None,
+    generation: int | None = None,
+) -> tuple[str, str, str, str, tuple[str, ...], int]:
+    return (
+        base_url,
+        C1_API_KEY,
+        kind,
+        face_id,
+        candidate_urls or tuple(_candidate_urls()),
+        _connection_generation if generation is None else generation,
+    )
+
+
+def _drop_media_cache_entry(cache_key: tuple[str, str, str, str, tuple[str, ...], int]) -> None:
+    global _media_cache_total_bytes
+
+    cached = _media_cache.pop(cache_key, None)
+    if cached:
+        _media_cache_total_bytes = max(0, _media_cache_total_bytes - cached[3])
+
+
+def _clear_media_cache() -> None:
+    global _media_cache_total_bytes
+
+    with _cache_lock:
+        _media_cache.clear()
+        _media_cache_total_bytes = 0
+
+
+def _get_connection_generation() -> int:
+    with _cache_lock:
+        return _connection_generation
+
+
+def _set_selected_base_url(base_url: str | None, invalidate_media: bool = False) -> int:
+    global _connection_generation, _media_cache_total_bytes, _selected_base_url
+
+    with _cache_lock:
+        if _selected_base_url != base_url or invalidate_media:
+            _media_cache.clear()
+            _media_cache_total_bytes = 0
+            _connection_generation += 1
+        _selected_base_url = base_url
+        return _connection_generation
+
+
+def _store_media_cache(
+    cache_key: tuple[str, str, str, str, tuple[str, ...], int],
+    content: bytes,
+    media_type: str,
+) -> None:
+    global _media_cache_total_bytes
+
+    content_size = len(content)
+    max_total_bytes = max(0, C1_MEDIA_CACHE_MAX_BYTES)
+    max_item_bytes = max(0, C1_MEDIA_CACHE_MAX_ITEM_BYTES)
+    if (
+        C1_MEDIA_CACHE_TTL <= 0
+        or not content
+        or max_total_bytes <= 0
+        or max_item_bytes <= 0
+        or content_size > max_item_bytes
+        or content_size > max_total_bytes
+    ):
+        return
+
+    with _cache_lock:
+        _drop_media_cache_entry(cache_key)
+        _media_cache[cache_key] = (_cache_deadline(C1_MEDIA_CACHE_TTL), content, media_type, content_size)
+        _media_cache_total_bytes += content_size
+        _media_cache.move_to_end(cache_key)
+        while len(_media_cache) > max(1, C1_MEDIA_CACHE_MAX_ITEMS) or _media_cache_total_bytes > max_total_bytes:
+            oldest_key = next(iter(_media_cache))
+            _drop_media_cache_entry(oldest_key)
+
+
 def _cached_status_for_url(base_url: str) -> dict[str, Any]:
     if C1_STATUS_CACHE_TTL > 0:
         with _cache_lock:
@@ -186,13 +270,15 @@ def _cached_status_for_url(base_url: str) -> dict[str, Any]:
     return status
 
 
-def _media_cache_keys_for_candidates(kind: str, face_id: str) -> list[tuple[str, str, str]]:
+def _media_cache_keys_for_candidates(kind: str, face_id: str) -> list[tuple[str, str, str, str, tuple[str, ...], int]]:
+    candidate_urls = tuple(_candidate_urls())
+    generation = _get_connection_generation()
     if _selected_base_url:
-        return [(_selected_base_url, kind, face_id)]
-    return [(base_url, kind, face_id) for base_url in _candidate_urls()]
+        return [_media_cache_key(_selected_base_url, kind, face_id, candidate_urls, generation)]
+    return [_media_cache_key(base_url, kind, face_id, candidate_urls, generation) for base_url in candidate_urls]
 
 
-def _cached_media_for_keys(cache_keys: list[tuple[str, str, str]]) -> tuple[bytes, str] | None:
+def _cached_media_for_keys(cache_keys: list[tuple[str, str, str, str, tuple[str, ...], int]]) -> tuple[bytes, str] | None:
     if C1_MEDIA_CACHE_TTL <= 0:
         return None
     with _cache_lock:
@@ -202,7 +288,7 @@ def _cached_media_for_keys(cache_keys: list[tuple[str, str, str]]) -> tuple[byte
                 _media_cache.move_to_end(cache_key)
                 return cached[1], cached[2]
             if cached:
-                _media_cache.pop(cache_key, None)
+                _drop_media_cache_entry(cache_key)
     return None
 
 
@@ -242,11 +328,9 @@ def _status_for_url(base_url: str) -> dict[str, Any]:
 
 
 def _resolve_base_url() -> str:
-    global _selected_base_url
-
     candidates = _candidate_urls()
     if not candidates:
-        _selected_base_url = None
+        _set_selected_base_url(None)
         raise C1ServiceError("No allowed CampusVision C1 candidate URLs are configured.", 400)
     if _selected_base_url in candidates:
         selected_status = _cached_status_for_url(_selected_base_url)
@@ -256,10 +340,10 @@ def _resolve_base_url() -> str:
     for base_url in candidates:
         status = _cached_status_for_url(base_url)
         if _is_healthy_c1_status(status):
-            _selected_base_url = base_url
+            _set_selected_base_url(base_url)
             return base_url
 
-    _selected_base_url = None
+    _set_selected_base_url(None)
     raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
 
@@ -544,45 +628,51 @@ def _healthy_request_urls(primary_url: str | None = None) -> list[str]:
     return urls
 
 
-def _request(method: str, path: str, primary_url: str | None = None, **kwargs: Any) -> httpx.Response:
-    global _selected_base_url
-
+def _request_with_base_url(
+    method: str,
+    path: str,
+    primary_url: str | None = None,
+    **kwargs: Any,
+) -> tuple[httpx.Response, str, int]:
     base_url = primary_url or _resolve_base_url()
     last_error: Exception | None = None
     request_urls = _healthy_request_urls(base_url)
     if not request_urls:
-        _selected_base_url = None
+        _set_selected_base_url(None)
         raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
     for request_url in request_urls:
         try:
             response = _request_once(request_url, method, path, **kwargs)
-            _selected_base_url = request_url
-            return response
+            generation = _set_selected_base_url(request_url)
+            return response, request_url, generation
         except httpx.HTTPStatusError as exc:
             last_error = exc
             status_code = exc.response.status_code
             if status_code not in RETRYABLE_STATUS_CODES:
                 raise C1ServiceError(f"C1 returned HTTP {status_code}", status_code) from exc
-            _selected_base_url = None
+            _set_selected_base_url(None)
         except httpx.HTTPError as exc:
             last_error = exc
-            _selected_base_url = None
+            _set_selected_base_url(None)
 
     if isinstance(last_error, httpx.HTTPStatusError):
         raise C1ServiceError(f"C1 returned HTTP {last_error.response.status_code}", last_error.response.status_code) from last_error
     if isinstance(last_error, httpx.HTTPError):
-        _selected_base_url = None
+        _set_selected_base_url(None)
         raise C1ServiceError(f"C1 unavailable: {last_error}") from last_error
     raise C1ServiceError("C1 unavailable")
 
 
-def get_status() -> dict[str, Any]:
-    global _selected_base_url
+def _request(method: str, path: str, primary_url: str | None = None, **kwargs: Any) -> httpx.Response:
+    response, _, _ = _request_with_base_url(method, path, primary_url=primary_url, **kwargs)
+    return response
 
+
+def get_status() -> dict[str, Any]:
     candidates = _candidate_urls()
     if not candidates:
-        _selected_base_url = None
+        _set_selected_base_url(None, invalidate_media=True)
         return {
             "baseUrl": None,
             "selectedBaseUrl": None,
@@ -600,7 +690,8 @@ def get_status() -> dict[str, Any]:
         (item for item in candidate_statuses if _is_healthy_c1_status(item)),
         None,
     )
-    _selected_base_url = selected["baseUrl"] if selected else None
+    selected_base_url = selected["baseUrl"] if selected else None
+    _set_selected_base_url(selected_base_url, invalidate_media=True)
     status = dict(selected or {"baseUrl": candidates[0], "reachable": False, "healthOk": False, "identityOk": False})
     status["baseUrl"] = selected["baseUrl"] if selected else candidates[0]
     status["selectedBaseUrl"] = selected["baseUrl"] if selected else None
@@ -661,20 +752,22 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
         return cached_media
 
     base_url = _resolve_base_url()
-    cache_key = (base_url, kind, face_id)
+    generation = _get_connection_generation()
+    cache_key = _media_cache_key(base_url, kind, face_id, generation=generation)
     cached_media = _cached_media_for_keys([cache_key])
     if cached_media:
         return cached_media
 
-    response = _request("GET", f"/api/v1/media/{kind}/{face_id}", primary_url=base_url)
+    response, response_base_url, response_generation = _request_with_base_url(
+        "GET",
+        f"/api/v1/media/{kind}/{face_id}",
+        primary_url=base_url,
+    )
     content = response.content
     media_type = response.headers.get("content-type", "image/jpeg")
-    if C1_MEDIA_CACHE_TTL > 0 and content:
-        cache_base_url = _selected_base_url or base_url
-        cache_key = (cache_base_url, kind, face_id)
-        with _cache_lock:
-            _media_cache[cache_key] = (_cache_deadline(C1_MEDIA_CACHE_TTL), content, media_type)
-            _media_cache.move_to_end(cache_key)
-            while len(_media_cache) > max(1, C1_MEDIA_CACHE_MAX_ITEMS):
-                _media_cache.popitem(last=False)
+    _store_media_cache(
+        _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
+        content,
+        media_type,
+    )
     return content, media_type
