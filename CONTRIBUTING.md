@@ -396,6 +396,17 @@ PR 还需要审查通过。审查中如果有人留言：
 - 修改后再次 push。
 - 所有对话都解决后再合并。
 
+合并前还需要检查 PR 正文 reaction、Issue 评论、审查线程和审查状态。不要只看 `gh pr view` 的 `reviews` / `comments`；PR 正文下方的 reaction 属于 Issue 本体 reaction，也需要检查。👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态。如果暂时没有任何审查信号，AI agent 应持续轮询到出现明确状态再继续，不要把“没扫到”当作可合并状态。标准状态只有三类：PR 正文出现 👀 或等价“正在 review”信号表示仍在审查，不要合并；PR 正文出现 👍、明确 approval 或明确无阻断结论表示当前 review 已完成且无阻断问题；Issue 评论、review 评论或未解决线程表示存在反馈，必须处理后再重新等待审查信号。新的提交会使旧确认失效，最后一次 push 后应再次确认没有未解决线程、阻断性评论或 PR 正文上的 review-in-progress reaction。
+
+可用检查命令示例：
+
+```powershell
+gh api repos/CyrusAuyeung/GKGuard/issues/<PR_NUMBER>/reactions --paginate
+gh api repos/CyrusAuyeung/GKGuard/issues/<PR_NUMBER>/comments --paginate
+gh api repos/CyrusAuyeung/GKGuard/pulls/<PR_NUMBER>/comments --paginate
+gh pr view <PR_NUMBER> --json reviewDecision,mergeStateStatus,reviews,comments
+```
+
 ## 合并规则
 
 仓库使用 squash merge。
@@ -519,7 +530,7 @@ git push
 
 分支与 PR：
 4. 不要直接在 main 上进行非琐碎改动。功能、配置、CI、发布、UI、CampusVision C1 / GKGuard C2 接入、真实数据接入或多文档同步改动，应新建短期分支并通过 Pull Request 合并。
-5. main 是稳定基线，受保护规则约束。PR 合并前需要 Verify CI 通过、审查完成、对话解决，并使用 squash merge。
+5. main 是稳定基线，受保护规则约束。PR 合并前需要 Verify CI 通过、审查完成、对话解决，并检查 PR 正文 reaction、Issue 评论、审查线程和审查状态；不能只看 `reviews` / `comments`，PR 正文 reaction 也必须纳入判断。👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论。若没有任何审查信号，应持续轮询到出现 👀、👍 或评论：PR 正文 👀 表示仍在 review，不要合并；PR 正文 👍、明确 approval 或明确无阻断结论表示当前无阻断问题；Issue 评论、review 评论或未解决线程表示需要处理反馈。新的提交后必须重新确认最后一次 review 已完成，并使用 squash merge。
 6. 小范围错别字、README 或 GitHub Release 正文同步、紧急低风险修复可以由维护者直接提交 main，但仍需保留清晰提交记录。
 7. PR 标题必须使用 `type(scope): summary`，例如 `fix(ui): improve responsive media layout` 或 `docs(project): document Roadmap field requirements`。标题描述实际变更，不要使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀；如需说明 AI agent 参与，应写在 PR 正文或评论中。
 8. 创建 PR 时必须保留并填写 .github/PULL_REQUEST_TEMPLATE.md，不要删除模板结构；Issue 应使用仓库已有 Issue 模板，架构与集成类讨论应使用 .github/DISCUSSION_TEMPLATE/architecture-handoff.yml。
@@ -919,6 +930,17 @@ The existing PR updates automatically.
 
 Review comments should be addressed in the same PR. Push fixes to the same branch and resolve conversations after the discussion is complete.
 
+Before merging, also check PR-body reactions, issue comments, review threads, and review state. Do not rely only on `gh pr view` `reviews` / `comments`; reactions below the PR body are issue-level reactions and must be checked as well. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present yet, the AI agent should keep polling until a clear state appears, instead of treating "nothing found" as mergeable. There are only three standard states: 👀 or an equivalent PR-body "review in progress" reaction means review is still active and the PR must not be merged; 👍 on the PR body, explicit approval, or an explicit no-blocker conclusion means the current review is complete with no blocker; issue comments, review comments, or unresolved threads mean feedback exists and must be addressed before waiting for the next review signal. New commits invalidate older confirmations, so after the last push reconfirm that there are no unresolved threads, blocking comments, or review-in-progress reactions on the PR body.
+
+Useful check commands:
+
+```powershell
+gh api repos/CyrusAuyeung/GKGuard/issues/<PR_NUMBER>/reactions --paginate
+gh api repos/CyrusAuyeung/GKGuard/issues/<PR_NUMBER>/comments --paginate
+gh api repos/CyrusAuyeung/GKGuard/pulls/<PR_NUMBER>/comments --paginate
+gh pr view <PR_NUMBER> --json reviewDecision,mergeStateStatus,reviews,comments
+```
+
 ## Merge Rules
 
 The repository uses squash merge. A PR may contain multiple temporary commits, but it becomes one clear commit on `main`. The source branch is deleted after merge.
@@ -1034,7 +1056,7 @@ Project and boundaries:
 
 Branches and PRs:
 4. Do not make non-trivial changes directly on main. Feature, configuration, CI, release, UI, CampusVision C1 / GKGuard C2 integration, real-data integration, or multi-document synchronization changes should use a short-lived branch and Pull Request.
-5. main is the stable protected baseline. Before merge, a PR needs the Verify CI check to pass, review completion, resolved conversations, and squash merge.
+5. main is the stable protected baseline. Before merge, a PR needs the Verify CI check to pass, review completion, resolved conversations, and checks for PR-body reactions, issue comments, review threads, and review state. Do not rely only on `reviews` / `comments`; PR-body reactions must be included. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count, not reactions below review comments. If there is no review signal yet, keep polling until 👀, 👍, or comments appear: PR-body 👀 means review is still in progress and the PR must not be merged; PR-body 👍, explicit approval, or an explicit no-blocker conclusion means there is no current review blocker; issue comments, review comments, or unresolved threads mean feedback must be addressed. After new commits, reconfirm that the latest review is complete, then use squash merge.
 6. Maintainers may commit small typo fixes, README or GitHub Release body synchronization, and urgent low-risk fixes directly to main, while keeping clear commit history.
 7. PR titles must use `type(scope): summary`, for example `fix(ui): improve responsive media layout` or `docs(project): document Roadmap field requirements`. Titles describe the actual change and must not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`. If AI agent assistance needs to be mentioned, put it in the PR body or a comment.
 8. When opening a PR, keep and fill in .github/PULL_REQUEST_TEMPLATE.md. Do not delete the template structure. Issues should use the repository Issue templates, and architecture/integration discussions should use .github/DISCUSSION_TEMPLATE/architecture-handoff.yml.

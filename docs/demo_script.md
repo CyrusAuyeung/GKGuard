@@ -26,7 +26,7 @@
 9. 若 CampusVision C1 返回无匹配结果、请求超时或检索失败，页面应停留在上传页并显示中文提示，不应卡在“检索中”，也不应进入本地模拟结果。
 10. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 11. 后续需要升级时，点击右上角 `检查更新`。Windows 版发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；macOS/Linux 版会打开当前平台的 GitHub Release 安装文件。重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
-12. 在最大化窗口、常规桌面窗口、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
+12. 在最大化窗口、常规桌面窗口、约 `820px` 中等宽度、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；中等宽度结果页的人物照片不应遮挡数据来源和命中记录信息；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
@@ -84,7 +84,7 @@ CampusVision C1 已连接时期望结果：
 - 上传页会先检测查询图人脸；单人图会自动检索，多人图会在原图上显示人脸框和检测置信度，用户选择后只检索目标人脸。
 - 结果页人物照片优先显示选中的查询人脸裁切图；裁切图会从选中框向外扩边，空间允许时调整为方形裁切，并在靠近图像边缘时向内平移，最终在人物照片方框内完整显示并充分利用空间；无法裁切时才回退 CampusVision C1 代表人脸或完整上传图。
 - 检索记录列表优先展示 CampusVision C1 人脸裁剪缩略图，而不是默认人物占位图；若 CampusVision C1 缩略图加载失败，才回退占位图。
-- 最大化窗口会使用更多可用宽度，小窗口下仍不出现横向溢出。
+- 最大化窗口会使用更多可用宽度，约 `820px` 中等宽度下人物照片与数据来源信息不重叠，小窗口下仍不出现横向溢出。
 - 记录列表显示 CampusVision C1 摄像头和相似度。
 - 详情区显示通过 `/c1/media/frame/...` 加载的真实关键帧。
 - 详情关键帧和关键帧预览弹窗会在目标人脸位置显示框和相似度。
@@ -229,7 +229,7 @@ Recommended packaged-app flow for `v0.1.37`:
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 11. For future upgrades, click the top-right `检查更新`. On Windows, if a newer version is found, click again to download inside the app, then click `重启安装`. On macOS/Linux, the app opens the current platform's GitHub Release package. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
-12. Check maximized, regular desktop, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
+12. Check maximized, regular desktop, roughly `820px` medium-width, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. In medium-width result layouts, the target portrait must not cover the source and hit-count summary. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
 
 GKGuard does not store, read, or log the SSH password.
 
@@ -287,7 +287,7 @@ Expected result with CampusVision C1 connected:
 - The upload screen detects faces in the query image; single-face uploads search automatically, while multi-face uploads show face boxes and detection confidence on the original image so the user can search only the selected target face.
 - The result portrait shows the selected query face; the crop is padded from the selected box, made square when source-image space allows, shifted inward near image edges, and rendered fully inside the portrait frame while using the available space. If cropping is unavailable, the UI falls back to the full upload or the CampusVision C1 representative face.
 - The search record list prefers CampusVision C1 face-crop thumbnails instead of the default person placeholder; if a CampusVision C1 thumbnail fails to load, the UI falls back to the placeholder.
-- Maximized windows use more available width, and small windows avoid horizontal overflow.
+- Maximized windows use more available width, roughly `820px` medium-width layouts keep the target portrait separate from source information, and small windows avoid horizontal overflow.
 - The record list shows CampusVision C1 camera IDs and similarity scores.
 - The detail panel shows a real keyframe loaded through `/c1/media/frame/...`.
 - The detail keyframe and keyframe preview dialog show the target-face box with similarity.

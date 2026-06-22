@@ -144,6 +144,27 @@ async function expectResultPortraitFitsFrame(page) {
   expect(metrics.verticalFit).toBe(true);
 }
 
+async function expectTargetSummaryDoesNotOverlapPortrait(page) {
+  const metrics = await page.locator(".target-panel").evaluate((panel) => {
+    const portrait = panel.querySelector("#resultPortrait");
+    const summary = panel.querySelector(".result-summary");
+    if (!portrait || !summary) return null;
+    const portraitRect = portrait.getBoundingClientRect();
+    const summaryRect = summary.getBoundingClientRect();
+    return {
+      portraitRight: portraitRect.right,
+      summaryLeft: summaryRect.left,
+      separatedHorizontally: portraitRect.right <= summaryRect.left,
+      separatedVertically: portraitRect.bottom <= summaryRect.top || summaryRect.bottom <= portraitRect.top,
+    };
+  });
+  expect(metrics).not.toBeNull();
+  expect(metrics.separatedHorizontally || metrics.separatedVertically).toBe(true);
+  if (metrics.separatedHorizontally) {
+    expect(metrics.summaryLeft - metrics.portraitRight).toBeGreaterThanOrEqual(12);
+  }
+}
+
 async function expectResultPortraitCropLargerThan(page, minNaturalWidth, minNaturalHeight) {
   const size = await page.locator("#resultPortrait img").evaluate((image) => ({
     naturalWidth: image.naturalWidth,
@@ -196,6 +217,18 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.getByRole("button", { name: /重新上传/ }).first().click();
     await expect(page.locator("#searchView")).toHaveClass(/is-active/);
     await expect(page.locator("#toast")).toContainText("已返回上传页");
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("target portrait and source summary stay separated at medium width", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+
+    await page.setViewportSize({ width: 820, height: 920 });
+    await page.goto("/demo?desktop=1&e2e=mock-flow");
+    await page.getByRole("button", { name: /开始检索/ }).click();
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await expectTargetSummaryDoesNotOverlapPortrait(page);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

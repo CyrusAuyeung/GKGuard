@@ -247,6 +247,12 @@ def _set_selected_base_url(
     return generation
 
 
+def _clear_selected_base_url(required_generation: int | None = None) -> None:
+    _, applied = _try_set_selected_base_url(None, required_generation=required_generation)
+    if required_generation is not None and not applied:
+        raise _ConnectionGenerationChanged()
+
+
 def _store_media_cache(
     cache_key: tuple[str, str, str, str, tuple[str, ...], int],
     content: bytes,
@@ -354,6 +360,20 @@ def _ensure_generation_current(required_generation: int | None) -> None:
         raise _ConnectionGenerationChanged()
 
 
+def _selected_base_url_state(
+    expected_base_url: str,
+    required_generation: int | None = None,
+) -> tuple[str, int] | None:
+    with _cache_lock:
+        if _selected_base_url != expected_base_url:
+            if required_generation is not None:
+                raise _ConnectionGenerationChanged()
+            return None
+        if required_generation is not None and _connection_generation != required_generation:
+            raise _ConnectionGenerationChanged()
+        return expected_base_url, _connection_generation
+
+
 def _resolve_base_url_state(required_generation: int | None = None) -> tuple[str, int]:
     candidates = _candidate_urls()
     if not candidates:
@@ -364,9 +384,13 @@ def _resolve_base_url_state(required_generation: int | None = None) -> tuple[str
     selected_base_url = _selected_base_url
     if selected_base_url in candidates:
         selected_status = _cached_status_for_url(selected_base_url)
-        _ensure_generation_current(required_generation)
         if _is_healthy_c1_status(selected_status):
-            return selected_base_url, _get_connection_generation()
+            selected_state = _selected_base_url_state(
+                selected_base_url,
+                required_generation=required_generation,
+            )
+            if selected_state is not None:
+                return selected_state
 
     for base_url in candidates:
         status = _cached_status_for_url(base_url)
@@ -680,19 +704,23 @@ def _request_with_base_url(
     last_error: Exception | None = None
     request_urls = _healthy_request_urls(base_url)
     if not request_urls:
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError("No healthy CampusVision C1 candidate passed identity checks.", 502)
 
     for request_url in request_urls:
         try:
+            _ensure_generation_current(required_generation)
             response = _request_once(request_url, method, path, **kwargs)
             generation, selected_applied = _try_set_selected_base_url(
                 request_url,
                 required_generation=required_generation,
             )
+            if required_generation is not None and not selected_applied:
+                raise _ConnectionGenerationChanged()
             return response, request_url, generation, selected_applied
         except httpx.HTTPStatusError as exc:
             last_error = exc
+            _ensure_generation_current(required_generation)
             status_code = exc.response.status_code
             if status_code not in RETRYABLE_STATUS_CODES:
                 raise C1ServiceError(f"C1 returned HTTP {status_code}", status_code) from exc
@@ -700,12 +728,12 @@ def _request_with_base_url(
             last_error = exc
 
     if isinstance(last_error, httpx.HTTPStatusError):
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError(f"C1 returned HTTP {last_error.response.status_code}", last_error.response.status_code) from last_error
     if isinstance(last_error, httpx.HTTPError):
-        _try_set_selected_base_url(None, required_generation=required_generation)
+        _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError(f"C1 unavailable: {last_error}") from last_error
-    _try_set_selected_base_url(None, required_generation=required_generation)
+    _clear_selected_base_url(required_generation=required_generation)
     raise C1ServiceError("C1 unavailable")
 
 
@@ -800,30 +828,30 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
         request_generation = _get_connection_generation()
         try:
             base_url, request_generation = _resolve_base_url_state(required_generation=request_generation)
+            cache_key = _media_cache_key(base_url, kind, face_id, generation=request_generation)
+            cached_media = _cached_media_for_keys([cache_key])
+            if cached_media:
+                return cached_media
+
+            response, response_base_url, response_generation, selected_applied = _request_with_base_url(
+                "GET",
+                f"/api/v1/media/{kind}/{face_id}",
+                primary_url=base_url,
+                required_generation=request_generation,
+            )
+            _ensure_generation_current(response_generation)
+            content = response.content
+            media_type = response.headers.get("content-type", "image/jpeg")
+            if selected_applied:
+                _store_media_cache(
+                    _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
+                    content,
+                    media_type,
+                    required_generation=response_generation,
+                )
+            _ensure_generation_current(response_generation)
         except _ConnectionGenerationChanged:
             continue
-        break
+        return content, media_type
     else:
-        raise C1ServiceError("C1 connection changed while resolving media; please retry.", 409)
-
-    cache_key = _media_cache_key(base_url, kind, face_id, generation=request_generation)
-    cached_media = _cached_media_for_keys([cache_key])
-    if cached_media:
-        return cached_media
-
-    response, response_base_url, response_generation, selected_applied = _request_with_base_url(
-        "GET",
-        f"/api/v1/media/{kind}/{face_id}",
-        primary_url=base_url,
-        required_generation=request_generation,
-    )
-    content = response.content
-    media_type = response.headers.get("content-type", "image/jpeg")
-    if selected_applied:
-        _store_media_cache(
-            _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
-            content,
-            media_type,
-            required_generation=response_generation,
-        )
-    return content, media_type
+        raise C1ServiceError("C1 connection changed while fetching media; please retry.", 409)

@@ -22,7 +22,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.37.md](releases/v0.1.37.md)：当前最新版本说明，记录结果页记录切换关键帧预加载、失败预加载重试、按 CampusVision C1 响应地址、API key、候选配置和连接代次隔离的 GKGuard C2 进程内媒体缓存、媒体缓存容量上限、CampusVision C1 健康状态探测复用和无黑屏切换体验。
+- [releases/v0.1.37.md](releases/v0.1.37.md)：当前最新版本说明，记录结果页记录切换关键帧预加载、失败预加载重试、按 CampusVision C1 响应地址、API key、候选配置和连接代次隔离的 GKGuard C2 进程内媒体缓存、媒体缓存容量上限、媒体请求发起前和返回前连接代次重校验、CampusVision C1 健康状态探测复用、中等宽度人物照片布局修复和无黑屏切换体验。
 - [releases/v0.1.36.md](releases/v0.1.36.md)：受信 SSH 主机密钥自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
 - [releases/v0.1.35.md](releases/v0.1.35.md)：GKGuard C2 / CampusVision C1 安全加固、SSH 主机密钥校验、查询图资源限制和 Release workflow 权限收紧。
 - [releases/v0.1.34.md](releases/v0.1.34.md)：Windows/macOS/Linux 桌面端发布、平台化后端可执行文件和更新资产选择。
@@ -47,7 +47,7 @@
 - [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
 - [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1)：半自动添加 PR/Issue 到 GKGuard Roadmap 并填写 Project 字段。
-- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
+- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、PR 正文 reaction、Issue 评论、审查线程/状态合并门槛、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态；没有任何审查信号时应继续等待或轮询，不能把“未发现评论”当作可合并状态；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用。
 
 ## 配置示例
@@ -85,7 +85,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.37.md](releases/v0.1.37.md): latest release notes covering preloaded keyframe switching on the result page, failed-preload retries, GKGuard C2 in-process media caching scoped by CampusVision C1 responding address, API key, candidate configuration, and connection generation, media-cache byte limits, reused healthy CampusVision C1 status probes, and no-black-screen record switching.
+- [releases/v0.1.37.md](releases/v0.1.37.md): latest release notes covering preloaded keyframe switching on the result page, failed-preload retries, GKGuard C2 in-process media caching scoped by CampusVision C1 responding address, API key, candidate configuration, and connection generation, media-cache byte limits, connection-generation rechecks before media requests are sent and before media responses are returned, reused healthy CampusVision C1 status probes, the medium-width target-portrait layout fix, and no-black-screen record switching.
 - [releases/v0.1.36.md](releases/v0.1.36.md): automatic trusted SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.
 - [releases/v0.1.35.md](releases/v0.1.35.md): GKGuard C2 / CampusVision C1 security hardening, SSH host-key verification, query-image resource limits, and tightened Release workflow permissions.
 - [releases/v0.1.34.md](releases/v0.1.34.md): Windows/macOS/Linux desktop releases, platform-specific backend executables, and update asset selection.
@@ -110,7 +110,7 @@ Use this page to locate maintenance material quickly. The current-state document
 - [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
 - [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1): semi-automatically add PRs/Issues to GKGuard Roadmap and fill Project fields.
-- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
+- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, PR-body reactions, issue comments, review-thread/state merge gates, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present, keep waiting or polling instead of treating "no comments found" as mergeable. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet.
 
 ## Configuration Examples
