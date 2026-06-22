@@ -9,6 +9,6 @@
     "localPort": 18000,
     "remoteHost": "127.0.0.1",
     "remotePort": 8000,
-    "hostFingerprint": "SHA256:<trusted-c1-host-key-fingerprint>"
+    "hostFingerprint": "<openssh-host-key-fingerprint>"
   }
 }

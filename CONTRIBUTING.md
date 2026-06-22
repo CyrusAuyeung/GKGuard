@@ -230,7 +230,8 @@ type(scope): summary
 - 服务器密码。
 - SSH 私钥。
 - token、API key。
-- CampusVision C1 SSH 主机密钥 SHA256 固定指纹可以存在于经维护者确认的受控运行配置或代码默认值；Markdown 文档、示例和 Release 正文只写配置键或占位符。
+- 其他真实运行环境访问凭据。
+- 真实运行环境的原始 SSH 公钥、`known_hosts` 行或 `authorized_keys` 行；用于 SSH 主机校验的受信主机密钥指纹值仅可作为代码默认值或受控运行配置维护，面向用户的示例使用占位符。
 - 真实姓名、学号、手机号、车牌、轨迹或案件材料。
 
 如果不确定一个文件能不能提交，先不要提交，先问维护者。
@@ -262,10 +263,10 @@ python -m pytest
 http://127.0.0.1:18000
 ```
 
-安装版还内置服务器候选地址：
+安装版默认只内置本机隧道候选地址：
 
 ```text
-http://10.4.167.122:8000
+http://127.0.0.1:18000
 ```
 
 桌面端开发：
@@ -511,7 +512,7 @@ git push
 项目与边界：
 1. 开始前先阅读 README.md、CONTRIBUTING.md、AGENTS.md、GOVERNANCE.md、SECURITY.md 和 docs/README.md，确认项目边界、协作流程、AI agent 规则、敏感数据规则和文档索引。
 2. GKGuard C2 是桌面工作台、本地后端、本地代理、UI、发布和文档所在边界；CampusVision C1 是独立的视频检索服务。涉及 CampusVision C1、CampusCar、UE、A组机械结构、B组嵌入式控制或 C组算法感知时，必须明确接口边界，不要把占位接口描述成真实接入已完成。
-3. 不要提交真实视频、真实人脸图片、抽帧图、人脸裁剪图、.env、数据库、模型缓存、服务器密码、SSH 私钥、token、API key、真实身份信息、轨迹、车牌或案件材料。CampusVision C1 SSH 主机密钥 SHA256 固定指纹可以存在于经维护者确认的受控运行配置或代码默认值；Markdown 文档、示例和 Release 正文只写配置键或占位符。不要依赖 secret scanning 代替人工检查。
+3. 不要提交真实视频、真实人脸图片、抽帧图、人脸裁剪图、.env、数据库、模型缓存、服务器密码、SSH 私钥、token、API key、真实身份信息、轨迹、车牌、案件材料、真实运行环境的原始 SSH 公钥、`known_hosts` 行、`authorized_keys` 行或其他访问凭据。用于 SSH 主机校验的受信主机密钥指纹值仅可作为代码默认值或受控运行配置维护，面向用户的示例使用占位符。不要依赖 secret scanning 代替人工检查。
 
 分支与 PR：
 4. 不要直接在 main 上进行非琐碎改动。功能、配置、CI、发布、UI、CampusVision C1 / GKGuard C2 接入、真实数据接入或多文档同步改动，应新建短期分支并通过 Pull Request 合并。
@@ -756,7 +757,8 @@ Do not commit:
 - Server passwords.
 - SSH private keys.
 - Tokens or API keys.
-- CampusVision C1 SSH host-key SHA256 pinned fingerprints may live in maintainer-approved runtime configuration or code defaults. Markdown documents, examples, and Release bodies should use configuration keys or placeholders.
+- Other access credentials for real runtime environments.
+- Raw SSH public keys, `known_hosts` lines, or `authorized_keys` lines for real runtime environments. Trusted host-key fingerprint values used for SSH host verification may be maintained only as code defaults or controlled runtime config, while user-facing examples use placeholders.
 - Real names, student or staff IDs, phone numbers, license plates, trajectories, or case material.
 
 When unsure, do not commit the file. Ask a maintainer first.
@@ -788,10 +790,10 @@ The default development CampusVision C1 service tunnel URL is:
 http://127.0.0.1:18000
 ```
 
-The packaged app also has this built-in server candidate:
+The packaged app includes only the local tunnel candidate by default:
 
 ```text
-http://10.4.167.122:8000
+http://127.0.0.1:18000
 ```
 
 Desktop app:
@@ -1022,7 +1024,7 @@ You are helping maintain the GKGuard repository. Follow these collaboration rule
 Project and boundaries:
 1. Read README.md, CONTRIBUTING.md, AGENTS.md, GOVERNANCE.md, SECURITY.md, and docs/README.md first so you understand the project boundary, collaboration workflow, AI agent rules, sensitive-data rules, and documentation map.
 2. GKGuard C2 is the desktop workbench, local backend, local proxy, UI, release, and documentation boundary. CampusVision C1 is the separate video-search service. If a change touches CampusVision C1, CampusCar, UE, Group A mechanical structure, Group B embedded control, or Group C algorithm perception, explain the interface boundary clearly. Do not describe placeholder interfaces as completed real integrations.
-3. Never commit real videos, real face images, extracted frames, face crops, .env files, databases, model caches, server passwords, SSH private keys, tokens, API keys, real identities, trajectories, license plates, or case material. CampusVision C1 SSH host-key SHA256 pinned fingerprints may live in maintainer-approved runtime configuration or code defaults; Markdown documents, examples, and Release bodies should use configuration keys or placeholders. Do not rely on secret scanning as a substitute for manual review.
+3. Never commit real videos, real face images, extracted frames, face crops, .env files, databases, model caches, server passwords, SSH private keys, tokens, API keys, real identities, trajectories, license plates, case material, raw SSH public keys, `known_hosts` lines, `authorized_keys` lines, or other access credentials for real runtime environments. Trusted host-key fingerprint values used for SSH host verification may be maintained only as code defaults or controlled runtime config, while user-facing examples use placeholders. Do not rely on secret scanning as a substitute for manual review.
 
 Branches and PRs:
 4. Do not make non-trivial changes directly on main. Feature, configuration, CI, release, UI, CampusVision C1 / GKGuard C2 integration, real-data integration, or multi-document synchronization changes should use a short-lived branch and Pull Request.

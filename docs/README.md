@@ -22,7 +22,7 @@
 
 ## 发布与版本
 
-- [releases/v0.1.36.md](releases/v0.1.36.md)：当前最新版本说明，记录 SSH 主机固定指纹自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
+- [releases/v0.1.36.md](releases/v0.1.36.md)：当前最新版本说明，记录受信 SSH 主机密钥自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
 - [releases/v0.1.35.md](releases/v0.1.35.md)：GKGuard C2 / CampusVision C1 安全加固、SSH 主机密钥校验、查询图资源限制和 Release workflow 权限收紧。
 - [releases/v0.1.34.md](releases/v0.1.34.md)：Windows/macOS/Linux 桌面端发布、平台化后端可执行文件和更新资产选择。
 - [releases/v0.1.33.md](releases/v0.1.33.md)：结果页人物照片裁切扩边、边缘平移和方框空间利用修复。
@@ -84,7 +84,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.1.36.md](releases/v0.1.36.md): latest release notes covering automatic pinned SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.
+- [releases/v0.1.36.md](releases/v0.1.36.md): latest release notes covering automatic trusted SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.
 - [releases/v0.1.35.md](releases/v0.1.35.md): GKGuard C2 / CampusVision C1 security hardening, SSH host-key verification, query-image resource limits, and tightened Release workflow permissions.
 - [releases/v0.1.34.md](releases/v0.1.34.md): Windows/macOS/Linux desktop releases, platform-specific backend executables, and update asset selection.
 - [releases/v0.1.33.md](releases/v0.1.33.md): padded result-portrait crops, edge-aware crop shifting, and better portrait-frame space usage.

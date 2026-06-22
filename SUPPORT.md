@@ -9,7 +9,7 @@
 
 本仓库主要用于 GKGuard C2 桌面工作台开发、发布和维护。请根据问题类型选择合适入口。
 
-当前建议版本：`v0.1.34`。反馈问题时请注明使用的版本标签、安装文件来源、操作系统和 CampusVision C1 服务连接方式。
+当前建议版本：`v0.1.36`。反馈问题时请注明使用的版本标签、安装文件来源、操作系统和 CampusVision C1 服务连接方式。
 
 ## 常见问题入口
 
@@ -25,7 +25,7 @@
 
 - 使用的版本号或 GitHub Release 链接。
 - 操作系统版本、是否校园网/VPN、是否使用 SSH 隧道。
-- CampusVision C1 服务连接方式：直连 `10.4.167.122:8000`、本机隧道 `127.0.0.1:18000`，或自定义配置。
+- CampusVision C1 服务连接方式：本机隧道 `127.0.0.1:18000`、校园网直连地址，或自定义配置。
 - 复现步骤、截图、日志或接口响应。
 - 确认已经移除密码、token、真实人脸、真实视频和个人信息。
 
@@ -45,7 +45,7 @@
 
 This repository is primarily for GKGuard C2 desktop workbench development, releases, and maintenance. Choose the right path based on issue type.
 
-Recommended current version: `v0.1.34`. When filing an issue, include the release tag, package source, operating system, and CampusVision C1 service connection path.
+Recommended current version: `v0.1.36`. When filing an issue, include the release tag, package source, operating system, and CampusVision C1 service connection path.
 
 ## Where To Ask
 
@@ -61,7 +61,7 @@ For public issues, use the repository issue templates first. Maintainers triage 
 
 - Version number or Release link.
 - Operating system version, campus network/VPN status, and whether an SSH tunnel is used.
-- CampusVision C1 service connection path: direct `10.4.167.122:8000`, local tunnel `127.0.0.1:18000`, or custom config.
+- CampusVision C1 service connection path: local tunnel `127.0.0.1:18000`, campus-network direct URL, or custom config.
 - Reproduction steps, screenshots, logs, or API responses.
 - Confirm passwords, tokens, real faces, real videos, and personal information are removed.
 
