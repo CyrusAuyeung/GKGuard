@@ -431,9 +431,11 @@ git branch -d docs/contributing-guide
 | 改字段 | `docs/data_dictionary.md` |
 | 改 CampusCar / UE 占位接口 | `docs/campuscar_ue_integration.md` |
 | 改发布、安装包或更新行为 | `README.md`、`docs/README.md`、对应 Release note |
-| 发新版本 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、README、GitHub Release 正文 |
+| 发新版本 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、根目录 Markdown 文档、`docs/` 下所有 Markdown 文档、GitHub Release 正文 |
 
 当前状态文档写最新行为；历史 Release notes 保留发布当时语境，除非是术语错误或明显表述问题。
+
+每次版本更新或发布准备都必须逐份阅读根目录和 `docs/` 下所有 Markdown 文档的全文，包括 `SECURITY.md`、`SUPPORT.md`、`GOVERNANCE.md`、`CONTRIBUTING.md`、`AGENTS.md`、文档索引、API 规范、集成说明、演示脚本、数据字典和当前版本 Release note，确认每句话仍符合最新功能、安全边界、发布产物、验证结果和协作流程；不能只搜索替换版本号或只抽查部分文档。
 
 ## 发布相关改动
 
@@ -442,7 +444,7 @@ git branch -d docs/contributing-guide
 - `package.json` 版本号是否更新。
 - `package-lock.json` 是否同步。
 - 是否新增或更新 `docs/releases/vX.Y.Z.md`。
-- README 是否描述最新版本。
+- 根目录和 `docs/` 下所有 Markdown 文档是否已逐份阅读全文，并确认当前版本、安全边界、发布产物、验证结果和协作流程表述准确。
 - GitHub Release 正文是否需要同步。
 - 发布后是否核对 Windows/macOS/Linux 桌面端安装文件、`.blockmap`、`latest*.yml`。
 
@@ -496,6 +498,7 @@ git push
 - 没有提交真实数据或凭据。
 - 已运行与改动相关的测试。
 - 文档已经按需同步。
+- 如果涉及版本更新或发布准备，已逐份阅读根目录和 `docs/` 下所有 Markdown 文档全文，不只是替换版本号或抽查部分文档。
 - PR 标题使用 `type(scope): summary`，且不包含 `[codex]` 等工具来源前缀。
 - PR 正文保留并填写了自动模板。
 - 如果只改文档，已说明代码测试不适用。
@@ -530,8 +533,8 @@ git push
 14. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
 
 文档同步：
-15. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md 和对应 Release note。
-16. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。
+15. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md、SECURITY.md、相关当前状态文档和对应 Release note。
+16. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。每次版本更新或发布准备都必须逐份阅读根目录和 `docs/` 下所有 Markdown 文档的全文，包括 SECURITY、SUPPORT、GOVERNANCE、CONTRIBUTING、AGENTS、文档索引、API 规范、集成说明、演示脚本、数据字典和当前版本 Release note，确认每句话仍符合最新功能、安全边界、发布产物、验证结果和协作流程；不能只搜索替换版本号或只抽查部分文档。
 17. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
 
 发布与收尾：
@@ -947,9 +950,11 @@ If your change affects current behavior, update the related documentation.
 | Field changes | `docs/data_dictionary.md` |
 | CampusCar / UE placeholder interface changes | `docs/campuscar_ue_integration.md` |
 | Release, installer, or update behavior changes | `README.md`, `docs/README.md`, matching Release note |
-| New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, README, GitHub Release body |
+| New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, root Markdown documents, all Markdown documents under `docs/`, GitHub Release body |
 
 Current-state documents describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem.
+
+Every version update or release-preparation change must read the full text of every root Markdown document and every Markdown document under `docs/`, including `SECURITY.md`, `SUPPORT.md`, `GOVERNANCE.md`, `CONTRIBUTING.md`, `AGENTS.md`, documentation indexes, API specifications, integration guides, demo scripts, data dictionaries, and the current release note. Confirm that each sentence still matches the latest features, security boundaries, release assets, validation results, and collaboration flow. Do not only search-and-replace version numbers or sample only part of the documentation.
 
 ## Release-Related Changes
 
@@ -958,7 +963,7 @@ If a PR affects a release or installer, confirm:
 - `package.json` version is updated.
 - `package-lock.json` is synchronized.
 - `docs/releases/vX.Y.Z.md` is added or updated.
-- README describes the latest version.
+- Every root Markdown document and every Markdown document under `docs/` has been read in full, and current version, security-boundary, release-asset, validation-result, and collaboration-flow wording is accurate.
 - GitHub Release body synchronization is planned when needed.
 - Windows/macOS/Linux desktop assets, `.blockmap`, and `latest*.yml` will be checked after release.
 
@@ -1008,6 +1013,7 @@ Before opening a Pull Request:
 - No real data or credentials are committed.
 - Relevant tests or checks have been run.
 - Documentation is synchronized where needed.
+- For version updates or release preparation, every root Markdown document and every Markdown document under `docs/` has been read in full, not only version-number replacements or a partial sample.
 - The PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`.
 - The automatic PR template is kept and filled in.
 - Documentation-only changes explain why code tests are not applicable.
@@ -1042,8 +1048,8 @@ Implementation and validation:
 14. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes.
 
 Documentation synchronization:
-15. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, and the matching Release note.
-16. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem.
+15. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, SECURITY.md, relevant current-state docs, and the matching Release note.
+16. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem. Every version update or release-preparation change must read the full text of every root Markdown document and every Markdown document under `docs/`, including SECURITY, SUPPORT, GOVERNANCE, CONTRIBUTING, AGENTS, documentation indexes, API specifications, integration guides, demo scripts, data dictionaries, and the current release note. Confirm that each sentence still matches the latest features, security boundaries, release assets, validation results, and collaboration flow. Do not only search-and-replace version numbers or sample only part of the documentation.
 17. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
 
 Release and closeout:

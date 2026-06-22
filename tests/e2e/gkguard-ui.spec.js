@@ -313,6 +313,109 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(problems).toEqual([]);
   });
 
+  test("record switching keeps the current keyframe until the next keyframe is ready", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let releaseSecondFrame;
+    const secondFrameGate = new Promise((resolve) => { releaseSecondFrame = resolve; });
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [
+            { index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } },
+          ],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-frame-switch",
+          selectedQueryFace: { index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } },
+          records: [
+            {
+              id: 1,
+              title: "记录1",
+              time: "10:12:30",
+              fullTime: "2026-06-17 10:12:30",
+              location: "教学楼南门",
+              camera: "C1-E2E-01 南门摄像机",
+              cameraId: "C1-E2E-01",
+              similarity: 0.99,
+              note: "E2E 第一张关键帧",
+              sceneClass: "scene-1",
+              progress: 32,
+              frameUrl: "/e2e/frame-one.svg",
+              faceUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 90, y1: 70, x2: 160, y2: 150, width: 70, height: 80 },
+            },
+            {
+              id: 2,
+              title: "记录2",
+              time: "10:14:30",
+              fullTime: "2026-06-17 10:14:30",
+              location: "图书馆入口",
+              camera: "C1-E2E-02 图书馆摄像机",
+              cameraId: "C1-E2E-02",
+              similarity: 0.94,
+              note: "E2E 延迟关键帧",
+              sceneClass: "scene-2",
+              progress: 54,
+              frameUrl: "/e2e/frame-two.svg",
+              faceUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 220, y1: 90, x2: 290, y2: 170, width: 70, height: 80 },
+            },
+          ],
+          routePoints: [],
+        }),
+      });
+    });
+
+    await page.route("**/e2e/frame-one.svg", async (route) => {
+      await route.fulfill({
+        contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="400" height="240" fill="#2563eb"/><text x="160" y="126" fill="white" font-size="28">one</text></svg>',
+      });
+    });
+
+    await page.route("**/e2e/frame-two.svg", async (route) => {
+      await secondFrameGate;
+      await route.fulfill({
+        contentType: "image/svg+xml",
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240"><rect width="400" height="240" fill="#16a34a"/><text x="160" y="126" fill="white" font-size="28">two</text></svg>',
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=frame-switch");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-one\.svg$/);
+
+    await page.locator("#resultRecordList .record-card").nth(1).click();
+    await expect(page.locator("#recordTitle")).toHaveText("记录2");
+    await expect(page.locator("#recordScene")).toHaveClass(/is-frame-loading/);
+    await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-one\.svg$/);
+
+    releaseSecondFrame();
+    await expect(page.locator("#recordScene .scene-frame")).toHaveAttribute("src", /frame-two\.svg$/);
+    await expect(page.locator("#recordScene")).not.toHaveClass(/is-frame-loading/);
+    await expect(page.locator("#recordScene .result-face-box")).toContainText("94%");
+    expect(problems).toEqual([]);
+  });
+
   test("single low-confidence query face portrait crop is padded and fills the target frame", async ({ page }) => {
     const problems = collectBrowserProblems(page);
     let searchUrl = "";

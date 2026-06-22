@@ -3,8 +3,11 @@ from __future__ import annotations
 import os
 import json
 import ipaddress
+import time
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
+from threading import RLock
 from typing import Any
 from urllib.parse import urlparse
 
@@ -15,10 +18,16 @@ DEFAULT_C1_BASE_URL = "http://127.0.0.1:18000"
 C1_BASE_URL = os.getenv("C1_BASE_URL", DEFAULT_C1_BASE_URL).rstrip("/")
 REQUEST_TIMEOUT = float(os.getenv("C1_TIMEOUT_SEC", "30"))
 C1_PROBE_TIMEOUT = float(os.getenv("C1_PROBE_TIMEOUT_SEC", "1.5"))
+C1_STATUS_CACHE_TTL = float(os.getenv("C1_STATUS_CACHE_TTL_SEC", "15"))
+C1_MEDIA_CACHE_TTL = float(os.getenv("C1_MEDIA_CACHE_TTL_SEC", "300"))
+C1_MEDIA_CACHE_MAX_ITEMS = int(os.getenv("C1_MEDIA_CACHE_MAX_ITEMS", "64"))
 C1_API_KEY = (os.getenv("CAMPUSVISION_API_KEY") or os.getenv("C1_API_KEY") or "").strip()
 DEFAULT_C1_ALLOWED_HOSTS = "localhost,127.0.0.1,::1"
 _selected_base_url: str | None = None
 RETRYABLE_STATUS_CODES = {502, 503, 504}
+_status_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+_media_cache: OrderedDict[tuple[str, str], tuple[float, bytes, str]] = OrderedDict()
+_cache_lock = RLock()
 
 
 class C1ServiceError(RuntimeError):
@@ -153,6 +162,29 @@ def _is_healthy_c1_status(status: dict[str, Any]) -> bool:
     return bool(status.get("reachable") and status.get("healthOk") and status.get("identityOk"))
 
 
+def _cache_deadline(ttl_seconds: float) -> float:
+    return time.monotonic() + max(0, ttl_seconds)
+
+
+def _store_status_cache(base_url: str, status: dict[str, Any]) -> None:
+    if C1_STATUS_CACHE_TTL <= 0 or not _is_healthy_c1_status(status):
+        return
+    with _cache_lock:
+        _status_cache[base_url] = (_cache_deadline(C1_STATUS_CACHE_TTL), dict(status))
+
+
+def _cached_status_for_url(base_url: str) -> dict[str, Any]:
+    if C1_STATUS_CACHE_TTL > 0:
+        with _cache_lock:
+            cached = _status_cache.get(base_url)
+            if cached and cached[0] > time.monotonic():
+                return dict(cached[1])
+
+    status = _status_for_url(base_url)
+    _store_status_cache(base_url, status)
+    return status
+
+
 def _status_for_url(base_url: str) -> dict[str, Any]:
     status: dict[str, Any] = {"baseUrl": base_url, "reachable": False, "identityOk": False}
     openapi_body: Any = None
@@ -196,12 +228,12 @@ def _resolve_base_url() -> str:
         _selected_base_url = None
         raise C1ServiceError("No allowed CampusVision C1 candidate URLs are configured.", 400)
     if _selected_base_url in candidates:
-        selected_status = _status_for_url(_selected_base_url)
+        selected_status = _cached_status_for_url(_selected_base_url)
         if _is_healthy_c1_status(selected_status):
             return _selected_base_url
 
     for base_url in candidates:
-        status = _status_for_url(base_url)
+        status = _cached_status_for_url(base_url)
         if _is_healthy_c1_status(status):
             _selected_base_url = base_url
             return base_url
@@ -485,7 +517,7 @@ def _ordered_request_urls(primary_url: str | None = None) -> list[str]:
 def _healthy_request_urls(primary_url: str | None = None) -> list[str]:
     urls: list[str] = []
     for url in _ordered_request_urls(primary_url):
-        status = _status_for_url(url)
+        status = _cached_status_for_url(url)
         if _is_healthy_c1_status(status):
             urls.append(url)
     return urls
@@ -541,6 +573,8 @@ def get_status() -> dict[str, Any]:
             "candidates": [],
         }
     candidate_statuses = [_status_for_url(base_url) for base_url in candidates]
+    for item in candidate_statuses:
+        _store_status_cache(item["baseUrl"], item)
     selected = next(
         (item for item in candidate_statuses if _is_healthy_c1_status(item)),
         None,
@@ -601,5 +635,23 @@ def detect_query_faces(filename: str, content: bytes, content_type: str | None) 
 def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
     if kind not in {"frame", "face"}:
         raise C1ServiceError("Unsupported C1 media kind", 400)
+    cache_key = (kind, face_id)
+    if C1_MEDIA_CACHE_TTL > 0:
+        with _cache_lock:
+            cached = _media_cache.get(cache_key)
+            if cached and cached[0] > time.monotonic():
+                _media_cache.move_to_end(cache_key)
+                return cached[1], cached[2]
+            if cached:
+                _media_cache.pop(cache_key, None)
+
     response = _request("GET", f"/api/v1/media/{kind}/{face_id}")
-    return response.content, response.headers.get("content-type", "image/jpeg")
+    content = response.content
+    media_type = response.headers.get("content-type", "image/jpeg")
+    if C1_MEDIA_CACHE_TTL > 0 and content:
+        with _cache_lock:
+            _media_cache[cache_key] = (_cache_deadline(C1_MEDIA_CACHE_TTL), content, media_type)
+            _media_cache.move_to_end(cache_key)
+            while len(_media_cache) > max(1, C1_MEDIA_CACHE_MAX_ITEMS):
+                _media_cache.popitem(last=False)
+    return content, media_type

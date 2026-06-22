@@ -98,13 +98,14 @@ gh project item-list 2 --owner CyrusAuyeung --limit 200 --format json
 | CampusCar / UE 占位接口 | `docs/campuscar_ue_integration.md` |
 | 桌面端、安装包或更新行为 | `README.md`、`docs/README.md`、对应 Release note |
 | 协作流程、PR、Project 或 AI agent 规则 | `CONTRIBUTING.md`、`GOVERNANCE.md`、`AGENTS.md`、`.github/PULL_REQUEST_TEMPLATE.md` |
-| 新版本发布 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、README、GitHub Release 正文 |
+| 新版本发布 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、根目录 Markdown 文档、`docs/` 下所有 Markdown 文档、GitHub Release 正文 |
 
 文档维护规则：
 
 - 面向仓库用户的文档默认中文在前、English 在后。
 - 修改任何中英双语文档时必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。
 - 当前状态文档描述最新版本行为。
+- 每次版本更新或发布准备都必须逐份阅读根目录和 `docs/` 下所有 Markdown 文档的全文，包括 `SECURITY.md`、`SUPPORT.md`、`GOVERNANCE.md`、`CONTRIBUTING.md`、`AGENTS.md`、文档索引、API 规范、集成说明、演示脚本、数据字典和当前版本 Release note，确认每句话仍符合最新功能、安全边界、发布产物、验证结果和协作流程；不能只搜索替换版本号或只抽查部分文档。
 - 历史 Release notes 保留发布时语境，除非修复术语错误、明显事实错误或翻译问题。
 - 使用“API 规范”和“接口规范”，保持术语一致。
 - 使用“管理”表达项目管理、协作管理和发布管理等语境。
@@ -139,11 +140,11 @@ npm run dist:linux
 ## 发布流程
 
 - 普通协作者和 AI agent 不要自行推送 `v*` tag 或创建 GitHub Release，除非用户明确要求，或当前任务就是发布准备且验证已完成。
-- 发布版本按递增版本号推进，例如从 `v0.1.36` 递增到 `v0.1.37`。
+- 发布版本按递增版本号推进，例如从 `v0.1.37` 递增到 `v0.1.38`。
 - 发布前必须：
   - 更新 `package.json` 和 `package-lock.json`。
   - 新增或更新 `docs/releases/vX.Y.Z.md`。
-  - 同步 README、docs index、演示脚本和相关当前状态文档。
+  - 同步 README、docs index、SECURITY、演示脚本和相关当前状态文档，并逐份阅读根目录和 `docs/` 下所有 Markdown 文档全文，确认当前表述仍准确。
   - 跑完相关本地验证。
   - 推送 PR 并等待 CI。
   - 合并后推送 tag。
@@ -297,13 +298,14 @@ Any change that affects current behavior must synchronize the related documents:
 | CampusCar / UE placeholder interface | `docs/campuscar_ue_integration.md` |
 | Desktop app, installer, or update behavior | `README.md`, `docs/README.md`, matching Release note |
 | Collaboration flow, PR, Project, or AI agent rules | `CONTRIBUTING.md`, `GOVERNANCE.md`, `AGENTS.md`, `.github/PULL_REQUEST_TEMPLATE.md` |
-| New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, README, GitHub Release body |
+| New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, root Markdown documents, all Markdown documents under `docs/`, GitHub Release body |
 
 Documentation maintenance rules:
 
 - User-facing documents should be Chinese first and English second.
 - When changing any Chinese/English bilingual document, keep the Chinese and English sections structurally and semantically aligned. Any added or removed rule, step, constraint, or validation item must be synchronized in both languages.
 - Current-state documents describe the latest release behavior.
+- Every version update or release-preparation change must read the full text of every root Markdown document and every Markdown document under `docs/`, including `SECURITY.md`, `SUPPORT.md`, `GOVERNANCE.md`, `CONTRIBUTING.md`, `AGENTS.md`, documentation indexes, API specifications, integration guides, demo scripts, data dictionaries, and the current release note. Confirm that each sentence still matches the latest features, security boundaries, release assets, validation results, and collaboration flow. Do not only search-and-replace version numbers or sample only part of the documentation.
 - Historical Release notes keep release-time context unless fixing terminology, clear factual errors, or translation problems.
 - Use "API 规范" and "接口规范" consistently in Chinese terminology.
 - Use "管理" for Chinese project, collaboration, and release management wording.
@@ -338,11 +340,11 @@ Note: macOS/Linux packages usually require matching system runners for full veri
 ## Release Flow
 
 - Regular contributors and AI agents must not push `v*` tags or create GitHub Releases unless the user explicitly asks, or the current task is release preparation and validation is complete.
-- Release versions advance incrementally, for example from `v0.1.36` to `v0.1.37`.
+- Release versions advance incrementally, for example from `v0.1.37` to `v0.1.38`.
 - Before release:
   - Update `package.json` and `package-lock.json`.
   - Add or update `docs/releases/vX.Y.Z.md`.
-  - Synchronize README, docs index, demo script, and relevant current-state docs.
+  - Synchronize README, docs index, SECURITY, demo script, and relevant current-state docs, and read the full text of every root Markdown document and every Markdown document under `docs/` for current accuracy.
   - Run the relevant local validation.
   - Push the PR and wait for CI.
   - Push the tag after merge.

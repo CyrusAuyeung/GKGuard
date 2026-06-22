@@ -6,6 +6,7 @@ import os
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.services import c1_service
 from app.services.audit_service import clear_audit_logs
 
 
@@ -17,6 +18,9 @@ def setup_function() -> None:
     os.environ["GKGUARD_AUDIT_TOKEN"] = "test-audit-token"
     os.environ["GKGUARD_CASE_PACKAGE_EXPORT_TOKEN"] = "test-export-token"
     clear_audit_logs()
+    c1_service._selected_base_url = None
+    c1_service._status_cache.clear()
+    c1_service._media_cache.clear()
 
 
 def audit_headers() -> dict[str, str]:
@@ -44,8 +48,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.36-ui" in response.text
-    assert "/static/app.js?v=v0.1.36-ui" in response.text
+    assert "/static/styles.css?v=v0.1.37-ui" in response.text
+    assert "/static/app.js?v=v0.1.37-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -65,6 +69,11 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "CampusVision C1 响应超时" in script
     assert "CONFIDENT_QUERY_FACE_SCORE = 0.65" in script
     assert "MIN_VISIBLE_QUERY_FACE_SCORE = 0.45" in script
+    assert "function preloadFrameImage" in script
+    assert "function warmFrameImages" in script
+    assert "function renderSelectedRecordFrame" in script
+    assert "is-frame-loading" in script
+    assert "syncRecordActiveStates" in script
     assert "SEARCH_WATCHDOG_TIMEOUT_MS = 30000" in script
     assert "query_face_index" in script
     assert "data-query-face-box" in script
@@ -246,7 +255,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.36-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.37-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -403,6 +412,65 @@ def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> N
     assert response.json() == {"ok": True}
     assert attempts[:2] == ["https://c1.example.test", "http://127.0.0.1:18000"]
     assert c1_service._selected_base_url == "http://127.0.0.1:18000"
+
+
+def test_c1_fetch_media_uses_in_memory_cache(monkeypatch) -> None:
+    from app.services import c1_service
+
+    request_paths = []
+
+    class FakeResponse:
+        content = b"frame-bytes"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        request_paths.append(path)
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+
+    first = c1_service.fetch_media("frame", "face-1")
+    second = c1_service.fetch_media("frame", "face-1")
+
+    assert first == (b"frame-bytes", "image/jpeg")
+    assert second == first
+    assert request_paths == ["/api/v1/media/frame/face-1"]
+
+
+def test_c1_media_requests_reuse_cached_status_probe(monkeypatch) -> None:
+    from app.services import c1_service
+
+    status_calls = []
+
+    class FakeResponse:
+        content = b"frame-bytes"
+        headers = {"content-type": "image/jpeg"}
+
+    def fake_status_for_url(base_url: str):
+        status_calls.append(base_url)
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        return FakeResponse()
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+    monkeypatch.setattr(c1_service, "C1_STATUS_CACHE_TTL", 15)
+    monkeypatch.setattr(c1_service, "C1_MEDIA_CACHE_TTL", 300)
+
+    c1_service.fetch_media("frame", "face-1")
+    c1_service.fetch_media("frame", "face-2")
+
+    assert status_calls == ["http://127.0.0.1:18000"]
 
 
 def test_c1_candidate_urls_reads_config_file(monkeypatch, tmp_path) -> None:

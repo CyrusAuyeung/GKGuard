@@ -1,6 +1,6 @@
 {
   "name": "gkguard-desktop",
-  "version": "0.1.36",
+  "version": "0.1.37",
   "description": "GKGuard campus security AI dashboard desktop shell.",
   "main": "desktop/main.js",
   "author": "GKGuard Team",

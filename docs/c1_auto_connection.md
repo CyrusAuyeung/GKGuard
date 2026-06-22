@@ -125,7 +125,9 @@ remotePort = 8000
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. 只要 CampusVision C1 端点可达，就进入可检索状态，避免后端状态缓存未及时刷新造成误提示。
 
-安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.36-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.1.37-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+
+连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -309,7 +311,9 @@ Startup behavior:
 4. You type the server password in that window; the main process verifies the CampusVision C1 SSH host key before using the one-time password to create the SSH tunnel.
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly; as soon as the CampusVision C1 endpoint is reachable, it enters the searchable state and avoids false warnings caused by stale backend status selection.
 
-Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.36-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.1.37-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+
+The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 
