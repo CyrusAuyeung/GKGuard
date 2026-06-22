@@ -5,6 +5,7 @@ from hashlib import sha1
 import uuid
 import numpy as np
 
+from app.core.config import settings
 from app.storage import db
 from app.vision.face_engine import (
     confident_similarity_threshold,
@@ -434,12 +435,12 @@ def _upsert_person_from_records(person_id: str, records: list[dict], display_nam
     )
 
 
-def _create_person_from_cluster(cluster: dict) -> tuple[dict, int]:
+def _create_person_from_cluster(cluster: dict, display_name: str | None = None) -> tuple[dict, int]:
     representative = _cluster_representative(cluster)
     person = db.add_person(
         {
             "person_id": "person_" + uuid.uuid4().hex,
-            "display_name": None,
+            "display_name": display_name,
             "representative_face_id": representative["face_id"],
             "representative_frame_path": representative["frame_path"],
             "embedding": cluster["embedding"],
@@ -458,7 +459,7 @@ def _create_person_from_cluster(cluster: dict) -> tuple[dict, int]:
     return person, linked_faces
 
 
-def _best_existing_person_match(cluster: dict, persons: list[dict], threshold: float) -> dict | None:
+def _best_existing_person_candidate(cluster: dict, persons: list[dict]) -> dict | None:
     best: tuple[float, dict] | None = None
     for person in persons:
         centroid_similarity = cosine_similarity(cluster["embedding"], person["embedding"])
@@ -468,9 +469,65 @@ def _best_existing_person_match(cluster: dict, persons: list[dict], threshold: f
         if has_conflict:
             continue
 
-        if centroid_similarity >= threshold and (best is None or centroid_similarity > best[0]):
+        if best is None or centroid_similarity > best[0]:
             best = (centroid_similarity, person)
-    return best[1] if best else None
+    if best is None:
+        return None
+    return {"score": best[0], "person": best[1]}
+
+
+def _best_existing_person_match(cluster: dict, persons: list[dict], threshold: float) -> dict | None:
+    candidate = _best_existing_person_candidate(cluster, persons)
+    if candidate is None or float(candidate["score"]) < threshold:
+        return None
+    return candidate["person"]
+
+
+def _cluster_has_same_frame_conflict(cluster: dict) -> bool:
+    return _same_frame_conflicts([cluster]) > 0
+
+
+def _candidate_person_display_name(prefix: str | None, cluster: dict) -> str | None:
+    if not prefix:
+        return None
+    face_ids = ",".join(sorted(str(record["face_id"]) for record in cluster["records"]))
+    digest = sha1(face_ids.encode("utf-8")).hexdigest()[:8]
+    return f"{prefix}_{digest}"
+
+
+def _select_clusters_with_guards(
+    clusters: list[dict],
+    *,
+    min_faces: int,
+    min_cluster_mean_similarity: float = 0.0,
+) -> tuple[list[dict], dict]:
+    selected = []
+    skipped = {
+        "too_small_clusters": 0,
+        "too_small_faces": 0,
+        "same_frame_conflict_clusters": 0,
+        "same_frame_conflict_faces": 0,
+        "low_intra_similarity_clusters": 0,
+        "low_intra_similarity_faces": 0,
+    }
+    for cluster in clusters:
+        face_count = len(cluster["records"])
+        if face_count < min_faces:
+            skipped["too_small_clusters"] += 1
+            skipped["too_small_faces"] += face_count
+            continue
+        if _cluster_has_same_frame_conflict(cluster):
+            skipped["same_frame_conflict_clusters"] += 1
+            skipped["same_frame_conflict_faces"] += face_count
+            continue
+        if min_cluster_mean_similarity > 0.0:
+            mean_intra = _mean_intra_similarity(cluster)
+            if mean_intra < min_cluster_mean_similarity:
+                skipped["low_intra_similarity_clusters"] += 1
+                skipped["low_intra_similarity_faces"] += face_count
+                continue
+        selected.append(cluster)
+    return selected, skipped
 
 
 def rebuild_person_index(
@@ -478,6 +535,9 @@ def rebuild_person_index(
     min_faces: int = 2,
     min_face_area: float = 2500.0,
     min_detection_score: float = 0.85,
+    use_pose_fragment_merge: bool = True,
+    recover_weak_stable: bool = True,
+    min_cluster_mean_similarity: float = 0.0,
 ) -> dict:
     records = db.list_face_records()
     min_faces = int(min_faces)
@@ -490,7 +550,10 @@ def rebuild_person_index(
 
     if merge_threshold is None:
         clusters, threshold, quality = _auto_graph_clusters(quality_records, min_faces=min_faces)
-        clusters, pose_fragment_merges = _merge_pose_fragments(clusters)
+        if use_pose_fragment_merge:
+            clusters, pose_fragment_merges = _merge_pose_fragments(clusters)
+        else:
+            pose_fragment_merges = 0
         quality = _cluster_quality(clusters, len(quality_records), min_faces)
         quality["pose_fragment_merges"] = pose_fragment_merges
         algorithm = "graph_auto_threshold"
@@ -501,14 +564,32 @@ def rebuild_person_index(
         quality["pose_fragment_merges"] = 0
         algorithm = "graph_threshold"
 
-    selected = [cluster for cluster in clusters if len(cluster["records"]) >= min_faces]
-    recovered, recovery_quality = _recover_weak_stable_clusters(
-        records,
-        selected,
-        min_face_area=min_face_area,
+    selected, selection_skips = _select_clusters_with_guards(
+        clusters,
+        min_faces=min_faces,
+        min_cluster_mean_similarity=min_cluster_mean_similarity,
     )
+    if recover_weak_stable:
+        recovered, recovery_quality = _recover_weak_stable_clusters(
+            records,
+            selected,
+            min_face_area=min_face_area,
+        )
+    else:
+        recovered = []
+        recovery_quality = {
+            "weak_recovery_enabled": False,
+            "weak_recovered_clusters": 0,
+            "weak_recovered_faces": 0,
+        }
     selected = selected + recovered
     quality |= recovery_quality
+    quality |= {
+        "selection_skips": selection_skips,
+        "use_pose_fragment_merge": use_pose_fragment_merge,
+        "recover_weak_stable": recover_weak_stable,
+        "min_cluster_mean_similarity": min_cluster_mean_similarity,
+    }
     linked_face_ids = {
         record["face_id"] for cluster in selected for record in cluster["records"]
     }
@@ -520,6 +601,12 @@ def rebuild_person_index(
     for cluster in selected:
         _, added_faces = _create_person_from_cluster(cluster)
         linked_faces += added_faces
+
+    video_ids = {str(record.get("video_id") or "") for cluster in selected for record in cluster["records"]}
+    if video_ids:
+        from app.services import event_service
+
+        event_service.rebuild_events_for_videos(video_ids)
 
     return {
         "persons": len(selected),
@@ -537,13 +624,27 @@ def rebuild_person_index(
 
 
 def update_person_index(
-    merge_threshold: float | None = None,
-    person_match_threshold: float = 0.68,
+    merge_threshold: float | None = 0.80,
+    person_match_threshold: float = 0.82,
+    ambiguous_person_match_threshold: float | None = 0.78,
     min_faces: int = 2,
     min_face_area: float = 2500.0,
     min_detection_score: float = 0.85,
+    camera_id_prefix: str | None = None,
+    create_unmatched_persons: bool = True,
+    candidate_display_name_prefix: str | None = None,
+    use_pose_fragment_merge: bool = False,
+    recover_weak_stable: bool = False,
+    min_cluster_mean_similarity: float = 0.0,
+    dry_run: bool = False,
 ) -> dict:
     records = db.list_unassigned_face_records()
+    if camera_id_prefix:
+        records = [
+            record
+            for record in records
+            if str(record.get("camera_id") or "").startswith(camera_id_prefix)
+        ]
     min_faces = int(min_faces)
     quality_records = [
         record
@@ -554,7 +655,10 @@ def update_person_index(
 
     if merge_threshold is None:
         clusters, threshold, quality = _auto_graph_clusters(quality_records, min_faces=min_faces)
-        clusters, pose_fragment_merges = _merge_pose_fragments(clusters)
+        if use_pose_fragment_merge:
+            clusters, pose_fragment_merges = _merge_pose_fragments(clusters)
+        else:
+            pose_fragment_merges = 0
         quality = _cluster_quality(clusters, len(quality_records), min_faces)
         quality["pose_fragment_merges"] = pose_fragment_merges
         algorithm = "incremental_graph_auto_threshold"
@@ -565,25 +669,100 @@ def update_person_index(
         quality["pose_fragment_merges"] = 0
         algorithm = "incremental_graph_threshold"
 
-    selected = [cluster for cluster in clusters if len(cluster["records"]) >= min_faces]
-    recovered, recovery_quality = _recover_weak_stable_clusters(
-        records,
-        selected,
-        min_face_area=min_face_area,
+    selected, selection_skips = _select_clusters_with_guards(
+        clusters,
+        min_faces=min_faces,
+        min_cluster_mean_similarity=min_cluster_mean_similarity,
     )
+    if recover_weak_stable:
+        recovered, recovery_quality = _recover_weak_stable_clusters(
+            records,
+            selected,
+            min_face_area=min_face_area,
+        )
+    else:
+        recovered = []
+        recovery_quality = {
+            "weak_recovery_enabled": False,
+            "weak_recovered_clusters": 0,
+            "weak_recovered_faces": 0,
+        }
     selected = selected + recovered
     existing_persons = db.list_persons()
     created_persons = 0
     updated_persons: set[str] = set()
     linked_faces = 0
+    skipped_ambiguous_clusters = 0
+    skipped_ambiguous_faces = 0
+    skipped_unmatched_clusters = 0
+    skipped_unmatched_faces = 0
+    cluster_decisions = []
+    if ambiguous_person_match_threshold is not None:
+        ambiguous_person_match_threshold = min(
+            float(ambiguous_person_match_threshold),
+            float(person_match_threshold),
+        )
 
     for cluster in selected:
-        match = _best_existing_person_match(cluster, existing_persons, threshold=person_match_threshold)
-        if match is None:
-            person, added_faces = _create_person_from_cluster(cluster)
+        best_candidate = _best_existing_person_candidate(cluster, existing_persons)
+        best_score = float(best_candidate["score"]) if best_candidate is not None else None
+        match = best_candidate["person"] if best_candidate is not None else None
+        face_count = len(cluster["records"])
+        decision = {
+            "faces": face_count,
+            "mean_intra_similarity": round(_mean_intra_similarity(cluster), 6),
+            "best_existing_person_id": match.get("person_id") if match else None,
+            "best_existing_score": round(best_score, 6) if best_score is not None else None,
+        }
+
+        if match is not None and best_score is not None and best_score >= person_match_threshold:
+            decision["action"] = "merge_existing"
+        elif (
+            match is not None
+            and best_score is not None
+            and ambiguous_person_match_threshold is not None
+            and best_score >= ambiguous_person_match_threshold
+        ):
+            skipped_ambiguous_clusters += 1
+            skipped_ambiguous_faces += face_count
+            decision["action"] = "skip_ambiguous_existing"
+            cluster_decisions.append(decision)
+            continue
+        elif not create_unmatched_persons:
+            skipped_unmatched_clusters += 1
+            skipped_unmatched_faces += face_count
+            decision["action"] = "skip_unmatched_new_person_disabled"
+            cluster_decisions.append(decision)
+            continue
+        else:
+            display_name = _candidate_person_display_name(candidate_display_name_prefix, cluster)
+            decision["action"] = "create_candidate_person"
+            decision["display_name"] = display_name
+            if dry_run:
+                existing_persons.append(
+                    {
+                        "person_id": f"dry_run_candidate_{created_persons + 1}",
+                        "display_name": display_name,
+                        "embedding": cluster["embedding"],
+                    }
+                )
+                created_persons += 1
+                linked_faces += face_count
+                cluster_decisions.append(decision)
+                continue
+
+            person, added_faces = _create_person_from_cluster(cluster, display_name=display_name)
             existing_persons.append(person)
             created_persons += 1
             linked_faces += added_faces
+            cluster_decisions.append(decision)
+            continue
+
+        assert match is not None
+        if dry_run:
+            updated_persons.add(match["person_id"])
+            linked_faces += face_count
+            cluster_decisions.append(decision)
             continue
 
         for record in cluster["records"]:
@@ -599,12 +778,28 @@ def update_person_index(
         )
         updated_persons.add(match["person_id"])
         existing_persons = [updated if person["person_id"] == updated["person_id"] else person for person in existing_persons]
+        cluster_decisions.append(decision)
 
-    linked_face_ids = {record["face_id"] for cluster in selected for record in cluster["records"]}
+    skipped_face_ids = set()
+    for decision, cluster in zip(cluster_decisions, selected):
+        if str(decision.get("action") or "").startswith("skip_"):
+            skipped_face_ids.update(record["face_id"] for record in cluster["records"])
+    linked_face_ids = {
+        record["face_id"]
+        for cluster in selected
+        for record in cluster["records"]
+        if record["face_id"] not in skipped_face_ids
+    }
     noise_faces = len(records) - len(linked_face_ids)
+    video_ids = {str(record.get("video_id") or "") for cluster in selected for record in cluster["records"]}
+    event_update_result = None
+    if video_ids and not dry_run:
+        from app.services import event_service
+
+        event_update_result = event_service.rebuild_events_for_videos(video_ids)
 
     return {
-        "persons": len(db.list_persons()),
+        "persons": len(db.list_persons()) + (created_persons if dry_run else 0),
         "linked_faces": linked_faces,
         "source_faces": len(records),
         "merge_threshold": threshold,
@@ -616,9 +811,293 @@ def update_person_index(
         "cluster_quality": quality | recovery_quality | {
             "created_persons": created_persons,
             "updated_persons": len(updated_persons),
+            "skipped_ambiguous_clusters": skipped_ambiguous_clusters,
+            "skipped_ambiguous_faces": skipped_ambiguous_faces,
+            "skipped_unmatched_clusters": skipped_unmatched_clusters,
+            "skipped_unmatched_faces": skipped_unmatched_faces,
+            "selection_skips": selection_skips,
             "person_match_threshold": person_match_threshold,
+            "ambiguous_person_match_threshold": ambiguous_person_match_threshold,
+            "camera_id_prefix": camera_id_prefix,
+            "create_unmatched_persons": create_unmatched_persons,
+            "candidate_display_name_prefix": candidate_display_name_prefix,
+            "use_pose_fragment_merge": use_pose_fragment_merge,
+            "recover_weak_stable": recover_weak_stable,
+            "min_cluster_mean_similarity": min_cluster_mean_similarity,
+            "dry_run": dry_run,
+            "cluster_decisions": cluster_decisions,
+            "event_update_result": event_update_result,
         },
         "algorithm": algorithm + "+weak_stable_recovery" if recovered else algorithm,
+    }
+
+
+def _person_records_cluster(person_id: str) -> dict | None:
+    records = db.list_face_records_for_person(person_id)
+    return _make_cluster(records) if records else None
+
+
+def _strong_person_colors(person_id: str, prefix: str) -> dict[str, int]:
+    from app.services import event_service
+
+    colors: dict[str, int] = {}
+    for event in event_service.list_events(person_id=person_id, limit=5000):
+        color = event.get(f"{prefix}_color")
+        confidence = event.get(f"{prefix}_color_confidence")
+        visible = event.get(f"{prefix}_visible")
+        if not visible or not color or color == "unknown" or confidence is None:
+            continue
+        if float(confidence) < 0.75:
+            continue
+        colors[color] = colors.get(color, 0) + 1
+    return colors
+
+
+def _has_strong_clothing_conflict(source_person_id: str, target_person_id: str) -> bool:
+    prefixes = ("upper", "lower") if getattr(settings, "enable_lower_clothing_core", False) else ("upper",)
+    for prefix in prefixes:
+        source_colors = _strong_person_colors(source_person_id, prefix)
+        target_colors = _strong_person_colors(target_person_id, prefix)
+        if not source_colors or not target_colors:
+            continue
+        source_color, source_support = max(source_colors.items(), key=lambda item: item[1])
+        target_color, target_support = max(target_colors.items(), key=lambda item: item[1])
+        if source_support >= 1 and target_support >= 2 and source_color != target_color:
+            return True
+    return False
+
+
+def _merge_fragment_metrics(source_person: dict, target_person: dict, target_persons: list[dict]) -> dict:
+    source_cluster = _person_records_cluster(source_person["person_id"])
+    target_cluster = _person_records_cluster(target_person["person_id"])
+    if source_cluster is None or target_cluster is None:
+        return {
+            "source_person_id": source_person["person_id"],
+            "target_person_id": target_person["person_id"],
+            "centroid_similarity": 0.0,
+            "max_pair_similarity": 0.0,
+            "top5_pair_similarity": 0.0,
+            "nearest_margin": 0.0,
+            "same_frame_conflict": True,
+            "strong_clothing_conflict": False,
+        }
+
+    similarities = []
+    for person in target_persons:
+        if person["person_id"] in {source_person["person_id"], target_person["person_id"]}:
+            continue
+        similarities.append(cosine_similarity(source_cluster["embedding"], person["embedding"]))
+    second_best = max(similarities) if similarities else -1.0
+
+    pair_scores = [
+        cosine_similarity(source_record["embedding"], target_record["embedding"])
+        for source_record in source_cluster["records"]
+        for target_record in target_cluster["records"]
+    ]
+    pair_scores.sort(reverse=True)
+    centroid_similarity = cosine_similarity(source_cluster["embedding"], target_cluster["embedding"])
+    top5_count = min(5, len(pair_scores))
+    return {
+        "source_person_id": source_person["person_id"],
+        "source_display_name": source_person.get("display_name"),
+        "source_faces": len(source_cluster["records"]),
+        "target_person_id": target_person["person_id"],
+        "target_display_name": target_person.get("display_name"),
+        "target_faces": len(target_cluster["records"]),
+        "centroid_similarity": round(float(centroid_similarity), 6),
+        "max_pair_similarity": round(float(pair_scores[0] if pair_scores else 0.0), 6),
+        "top5_pair_similarity": round(float(sum(pair_scores[:top5_count]) / top5_count), 6)
+        if top5_count
+        else 0.0,
+        "nearest_margin": round(float(centroid_similarity - second_best), 6),
+        "second_best_similarity": round(float(second_best), 6),
+        "same_frame_conflict": _has_same_frame_conflict(source_cluster, target_cluster),
+        "strong_clothing_conflict": _has_strong_clothing_conflict(
+            source_person["person_id"],
+            target_person["person_id"],
+        ),
+    }
+
+
+def _best_fragment_target(source_person: dict, target_persons: list[dict]) -> tuple[dict | None, dict | None]:
+    source_cluster = _person_records_cluster(source_person["person_id"])
+    if source_cluster is None:
+        return None, None
+
+    best_person = None
+    best_score = -1.0
+    for person in target_persons:
+        if person["person_id"] == source_person["person_id"]:
+            continue
+        score = cosine_similarity(source_cluster["embedding"], person["embedding"])
+        if score > best_score:
+            best_score = score
+            best_person = person
+
+    if best_person is None:
+        return None, None
+    return best_person, _merge_fragment_metrics(source_person, best_person, target_persons)
+
+
+def _passes_auto_fragment_merge_guards(
+    metrics: dict,
+    *,
+    min_centroid_similarity: float,
+    min_max_pair_similarity: float,
+    min_nearest_margin: float,
+) -> tuple[bool, str]:
+    if metrics["same_frame_conflict"]:
+        return False, "same_frame_conflict"
+    if metrics["strong_clothing_conflict"]:
+        return False, "strong_clothing_conflict"
+    if float(metrics["centroid_similarity"]) < min_centroid_similarity:
+        return False, "low_centroid_similarity"
+    if float(metrics["max_pair_similarity"]) < min_max_pair_similarity:
+        return False, "low_max_pair_similarity"
+    if float(metrics["nearest_margin"]) < min_nearest_margin:
+        return False, "low_nearest_margin"
+    return True, "passed"
+
+
+def merge_person_into(
+    *,
+    source_person_id: str,
+    target_person_id: str,
+    dry_run: bool = False,
+) -> dict:
+    source = db.get_person(source_person_id)
+    target = db.get_person(target_person_id)
+    if source is None:
+        raise KeyError(f"source person not found: {source_person_id}")
+    if target is None:
+        raise KeyError(f"target person not found: {target_person_id}")
+
+    source_records = db.list_face_records_for_person(source_person_id)
+    target_records = db.list_face_records_for_person(target_person_id)
+    touched_video_ids = {
+        str(record.get("video_id") or "")
+        for record in source_records + target_records
+        if record.get("video_id")
+    }
+    metrics = _merge_fragment_metrics(source, target, [person for person in db.list_persons() if person["person_id"] != source_person_id])
+
+    if dry_run:
+        return {
+            "dry_run": True,
+            "source_person_id": source_person_id,
+            "target_person_id": target_person_id,
+            "moved_faces": len(source_records),
+            "video_ids": sorted(touched_video_ids),
+            "metrics": metrics,
+            "event_update_result": None,
+        }
+
+    merge_result = db.merge_person_into(source_person_id, target_person_id)
+    all_records = db.list_face_records_for_person(target_person_id)
+    updated = _upsert_person_from_records(
+        target_person_id,
+        all_records,
+        display_name=target.get("display_name"),
+    )
+    for record in all_records:
+        db.update_person_face_score(
+            target_person_id,
+            record["face_id"],
+            round(cosine_similarity(record["embedding"], updated["embedding"]), 6),
+        )
+
+    event_update_result = None
+    if touched_video_ids:
+        from app.services import event_service
+
+        event_update_result = event_service.rebuild_events_for_videos(touched_video_ids)
+
+    return {
+        "dry_run": False,
+        "source_person_id": source_person_id,
+        "target_person_id": target_person_id,
+        "moved_faces": merge_result["moved_faces"],
+        "moved_observations": merge_result["moved_observations"],
+        "moved_events": merge_result["moved_events"],
+        "deleted_sessions": merge_result["deleted_sessions"],
+        "video_ids": sorted(touched_video_ids),
+        "metrics": metrics,
+        "target_person": updated,
+        "event_update_result": event_update_result,
+    }
+
+
+def auto_consolidate_person_fragments(
+    *,
+    source_display_prefix: str = "candidate_",
+    max_source_faces: int = 3,
+    min_target_faces: int = 5,
+    min_centroid_similarity: float = 0.64,
+    min_max_pair_similarity: float = 0.55,
+    min_nearest_margin: float = 0.35,
+    dry_run: bool = True,
+) -> dict:
+    persons = db.list_persons()
+    sources = [
+        person
+        for person in persons
+        if str(person.get("display_name") or "").startswith(source_display_prefix)
+        and int(person.get("face_count") or 0) <= max_source_faces
+    ]
+    targets = [
+        person
+        for person in persons
+        if not str(person.get("display_name") or "").startswith(source_display_prefix)
+        and int(person.get("face_count") or 0) >= min_target_faces
+    ]
+
+    decisions = []
+    merged = []
+    skipped = []
+    consumed_sources: set[str] = set()
+    for source in sources:
+        if source["person_id"] in consumed_sources:
+            continue
+        target, metrics = _best_fragment_target(source, targets)
+        if target is None or metrics is None:
+            skipped.append({"source_person_id": source["person_id"], "reason": "no_target"})
+            continue
+        passed, reason = _passes_auto_fragment_merge_guards(
+            metrics,
+            min_centroid_similarity=min_centroid_similarity,
+            min_max_pair_similarity=min_max_pair_similarity,
+            min_nearest_margin=min_nearest_margin,
+        )
+        decision = metrics | {"action": "merge" if passed else "skip", "reason": reason}
+        decisions.append(decision)
+        if not passed:
+            skipped.append(decision)
+            continue
+
+        merge_result = merge_person_into(
+            source_person_id=source["person_id"],
+            target_person_id=target["person_id"],
+            dry_run=dry_run,
+        )
+        merged.append(merge_result)
+        consumed_sources.add(source["person_id"])
+
+    return {
+        "dry_run": dry_run,
+        "source_display_prefix": source_display_prefix,
+        "max_source_faces": max_source_faces,
+        "min_target_faces": min_target_faces,
+        "min_centroid_similarity": min_centroid_similarity,
+        "min_max_pair_similarity": min_max_pair_similarity,
+        "min_nearest_margin": min_nearest_margin,
+        "source_candidates": len(sources),
+        "target_candidates": len(targets),
+        "merge_count": len(merged),
+        "skip_count": len(skipped),
+        "decisions": decisions,
+        "merged": merged,
+        "skipped": skipped,
+        "persons": len(db.list_persons()),
     }
 
 
@@ -739,10 +1218,78 @@ def person_events(person_id: str, max_gap_sec: float = 10.0) -> list[dict]:
     )
 
 
+def _persisted_event_for_person(event: dict, person_id: str) -> dict:
+    output = {
+        "event_id": event["event_id"],
+        "person_id": person_id,
+        "camera_id": event["camera_id"],
+        "camera_name": None,
+        "location": None,
+        "video_id": event.get("video_id"),
+        "start_time": event.get("start_time"),
+        "end_time": event.get("end_time"),
+        "start_timestamp_sec": event.get("start_timestamp_sec"),
+        "end_timestamp_sec": event.get("end_timestamp_sec"),
+        "start_time_display": _time_display(event.get("start_timestamp_sec")),
+        "end_time_display": _time_display(event.get("end_timestamp_sec")),
+        "duration_sec": (
+            round(float(event["end_timestamp_sec"]) - float(event["start_timestamp_sec"]), 3)
+            if event.get("start_timestamp_sec") is not None and event.get("end_timestamp_sec") is not None
+            else None
+        ),
+        "face_count": int(event.get("face_count") or 0),
+        "representative_face_id": event.get("representative_face_id") or "",
+        "representative_face_crop_url": event.get("representative_face_crop_url") or "",
+        "representative_frame_url": event.get("representative_frame_url") or "",
+        "representative_body_crop_url": event.get("representative_body_crop_url"),
+        "body_visibility": event.get("body_visibility"),
+        "upper_color": event.get("upper_color"),
+        "upper_color_confidence": event.get("upper_color_confidence"),
+        "upper_visible": event.get("upper_visible"),
+    }
+    for key in (
+        "raw_upper_color",
+        "raw_upper_color_confidence",
+        "raw_upper_visible",
+        "normalized_upper_color",
+        "normalized_upper_color_confidence",
+        "normalized_upper_visible",
+        "appearance_session_id",
+        "clothing_normalization_version",
+        "clothing_normalization_reason",
+    ):
+        output[key] = event.get(key)
+    return output
+
+
+def _latest_clothing(event: dict | None) -> dict | None:
+    if not event:
+        return None
+    return {
+        "event_id": event["event_id"],
+        "timestamp": event.get("end_time") or event.get("start_time"),
+        "upper_color": event.get("upper_color"),
+        "upper_color_confidence": event.get("upper_color_confidence"),
+        "upper_visible": event.get("upper_visible"),
+        "raw_upper_color": event.get("raw_upper_color"),
+        "raw_upper_color_confidence": event.get("raw_upper_color_confidence"),
+        "raw_upper_visible": event.get("raw_upper_visible"),
+        "normalized_upper_color": event.get("normalized_upper_color"),
+        "normalized_upper_color_confidence": event.get("normalized_upper_color_confidence"),
+        "normalized_upper_visible": event.get("normalized_upper_visible"),
+        "appearance_session_id": event.get("appearance_session_id"),
+        "clothing_normalization_version": event.get("clothing_normalization_version"),
+    }
+
+
 def list_persons() -> list[dict]:
     persons = db.list_persons()
     for person in persons:
-        events = person_events(person["person_id"])
+        persisted_events = db.list_events(person_id=person["person_id"], limit=200)
+        if persisted_events:
+            events = [_persisted_event_for_person(event, person["person_id"]) for event in persisted_events]
+        else:
+            events = person_events(person["person_id"])
         person.pop("embedding", None)
         if person.get("representative_face_id"):
             person["representative_face_crop_url"] = (
@@ -750,6 +1297,11 @@ def list_persons() -> list[dict]:
             )
         person["events"] = events
         person["event_count"] = len(events)
+        latest_event = persisted_events[-1] if persisted_events else None
+        person["latest_event"] = (
+            _persisted_event_for_person(latest_event, person["person_id"]) if latest_event else None
+        )
+        person["latest_clothing"] = _latest_clothing(latest_event)
     return persons
 
 

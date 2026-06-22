@@ -358,6 +358,7 @@ class _LiveMonitorWorker:
         cutoff = _iso_from_dt(datetime.now(timezone.utc) - timedelta(hours=self.retention_hours))
         result = db.purge_live_videos(camera_id, before_created_at=cutoff)
         videos = result.pop("videos")
+        touched_person_ids = set(result.get("touched_person_ids") or [])
         removed_video_files = 0
         removed_frame_dirs = 0
         for video in videos:
@@ -387,6 +388,12 @@ class _LiveMonitorWorker:
                     min_detection_score=self.min_detection_score,
                 )
             result["rebuilt_person_index"] = rebuild_result
+        elif touched_person_ids:
+            from app.services import event_service
+
+            result["rebuilt_appearance_sessions"] = event_service.rebuild_appearance_sessions_for_persons(
+                touched_person_ids
+            )
 
         return result
 
@@ -464,8 +471,8 @@ def start_live_monitor(
     person_update_interval_segments: int = 3,
     retention_hours: float | None = 24.0,
     cleanup_interval_segments: int = 360,
-    merge_threshold: float | None = 0.50,
-    person_match_threshold: float = 0.60,
+    merge_threshold: float | None = 0.80,
+    person_match_threshold: float = 0.82,
     min_faces: int = 2,
     min_face_area: float = 1800.0,
     min_detection_score: float = 0.75,

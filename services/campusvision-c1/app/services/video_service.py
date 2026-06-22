@@ -9,7 +9,9 @@ from typing import BinaryIO
 import cv2
 
 from app.core.config import settings
+from app.services import event_service, observation_service
 from app.storage import db
+from app.vision.body_detector import get_body_detector
 from app.vision.face_engine import get_face_engine
 from app.vision.frame_sampler import iter_video_frames
 
@@ -79,30 +81,41 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
 
     interval = frame_interval_sec or video.get("frame_interval_sec") or settings.default_frame_interval_sec
     engine = get_face_engine()
+    body_detector = get_body_detector()
 
     db.update_video_status(video_id, "indexing")
 
     indexed = 0
+    observed = 0
+    detected_bodies = 0
+    event_result = None
     video_frame_dir = settings.frames_dir / video_id
     video_frame_dir.mkdir(parents=True, exist_ok=True)
 
     try:
-        for timestamp_sec, frame in iter_video_frames(video["path"], every_seconds=float(interval)):
+        for frame_index, (timestamp_sec, frame) in enumerate(
+            iter_video_frames(video["path"], every_seconds=float(interval))
+        ):
             boxes = engine.detect_faces(frame)
-            if not boxes:
-                continue
+            embeddings = engine.embed_faces(frame, boxes) if boxes else []
+            usable_face_count = len(boxes) if embeddings and len(embeddings) == len(boxes) else 0
 
-            embeddings = engine.embed_faces(frame, boxes)
-            if not embeddings:
-                continue
-            if len(embeddings) != len(boxes):
+            try:
+                bodies = body_detector.detect_people(frame)
+            except Exception:
+                bodies = []
+            detected_bodies += len(bodies)
+
+            if usable_face_count <= 0 and not bodies:
                 continue
 
             frame_file = video_frame_dir / f"{timestamp_sec:.2f}.jpg"
             cv2.imwrite(str(frame_file), frame)
 
-            for box, embedding in zip(boxes, embeddings):
+            face_items = []
+            for box, embedding in zip(boxes[:usable_face_count], embeddings[:usable_face_count]):
                 face_id = uuid.uuid4().hex
+                captured_at = _captured_at(video.get("recorded_at"), timestamp_sec)
                 db.add_face_record(
                     {
                         "face_id": face_id,
@@ -110,12 +123,29 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
                         "camera_id": video["camera_id"],
                         "frame_path": str(frame_file),
                         "video_timestamp_sec": float(timestamp_sec),
-                        "captured_at": _captured_at(video.get("recorded_at"), timestamp_sec),
+                        "captured_at": captured_at,
                         "bbox": box,
                         "embedding": embedding,
                     }
                 )
+                face_items.append({"face_id": face_id, **box})
                 indexed += 1
+
+            observations = observation_service.create_frame_observations(
+                frame=frame,
+                video_id=video_id,
+                camera_id=video["camera_id"],
+                frame_path=str(frame_file),
+                video_timestamp_sec=float(timestamp_sec),
+                captured_at=_captured_at(video.get("recorded_at"), timestamp_sec),
+                frame_index=frame_index,
+                faces=face_items,
+                bodies=bodies,
+            )
+            observed += len(observations)
+
+        if settings.enable_event_persistence:
+            event_result = event_service.rebuild_events_for_video(video_id)
 
         db.update_video_status(video_id, "indexed")
     except Exception:
@@ -125,5 +155,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     return {
         "video_id": video_id,
         "indexed_faces": indexed,
+        "indexed_observations": observed,
+        "detected_bodies": detected_bodies,
+        "event_result": event_result,
         "status": "indexed",
     }

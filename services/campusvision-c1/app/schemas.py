@@ -74,8 +74,8 @@ class LiveMonitorStart(BaseModel):
     person_update_interval_segments: int = Field(3, ge=1)
     retention_hours: float | None = Field(24.0, ge=0.1)
     cleanup_interval_segments: int = Field(360, ge=1)
-    merge_threshold: float | None = Field(0.50, ge=0.0, le=1.0)
-    person_match_threshold: float = Field(0.60, ge=0.0, le=1.0)
+    merge_threshold: float | None = Field(0.80, ge=0.0, le=1.0)
+    person_match_threshold: float = Field(0.82, ge=0.0, le=1.0)
     min_faces: int = Field(2, ge=1)
     min_face_area: float = Field(1800.0, ge=1.0)
     min_detection_score: float = Field(0.75, ge=0.0, le=1.0)
@@ -114,6 +114,9 @@ class LiveMonitorStatus(BaseModel):
 class IndexResult(BaseModel):
     video_id: str
     indexed_faces: int
+    indexed_observations: int | None = None
+    detected_bodies: int | None = None
+    event_result: dict | None = None
     status: str
 
 
@@ -171,6 +174,108 @@ class PersonEventOut(BaseModel):
     representative_face_id: str
     representative_face_crop_url: str
     representative_frame_url: str
+    representative_body_crop_url: str | None = None
+    body_visibility: str | None = None
+    upper_color: str | None = None
+    upper_color_confidence: float | None = None
+    upper_visible: bool | None = None
+    raw_upper_color: str | None = None
+    raw_upper_color_confidence: float | None = None
+    raw_upper_visible: bool | None = None
+    normalized_upper_color: str | None = None
+    normalized_upper_color_confidence: float | None = None
+    normalized_upper_visible: bool | None = None
+    appearance_session_id: str | None = None
+    clothing_normalization_version: str | None = None
+    clothing_normalization_reason: dict | None = None
+
+
+class PersonObservationOut(BaseModel):
+    observation_id: str
+    camera_id: str
+    video_id: str | None = None
+    live_source_id: str | None = None
+    frame_index: int | None = None
+    video_timestamp_sec: float | None = None
+    captured_at: str | None = None
+    frame_path: str
+    frame_url: str | None = None
+    body_crop_url: str | None = None
+    track_id: str | None = None
+    observation_type: str
+    body_visibility: str
+    person_bbox: dict | None = None
+    person_detection_confidence: float | None = None
+    face_record_id: str | None = None
+    person_id: str | None = None
+    upper_color: str | None = None
+    upper_color_confidence: float | None = None
+    upper_visible: bool = False
+    upper_valid_pixel_ratio: float | None = None
+    clothing_model_version: str | None = None
+    body_model_version: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class EventOut(BaseModel):
+    event_id: str
+    camera_id: str
+    video_id: str | None = None
+    live_source_id: str | None = None
+    track_id: str | None = None
+    person_id: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    start_timestamp_sec: float | None = None
+    end_timestamp_sec: float | None = None
+    observation_count: int
+    face_count: int
+    representative_observation_id: str | None = None
+    representative_face_id: str | None = None
+    representative_frame_path: str | None = None
+    representative_frame_url: str | None = None
+    representative_face_crop_url: str | None = None
+    representative_body_crop_url: str | None = None
+    body_visibility: str | None = None
+    upper_color: str | None = None
+    upper_color_confidence: float | None = None
+    upper_visible: bool | None = None
+    raw_upper_color: str | None = None
+    raw_upper_color_confidence: float | None = None
+    raw_upper_visible: bool | None = None
+    normalized_upper_color: str | None = None
+    normalized_upper_color_confidence: float | None = None
+    normalized_upper_visible: bool | None = None
+    appearance_session_id: str | None = None
+    clothing_normalization_version: str | None = None
+    clothing_normalization_reason: dict | None = None
+    identity_confidence: float | None = None
+    event_status: str | None = None
+    aggregation_version: str | None = None
+    match_score: float | None = None
+    match_reasons: list[str] = Field(default_factory=list)
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class AppearanceSessionOut(BaseModel):
+    session_id: str
+    person_id: str
+    start_time: str | None = None
+    end_time: str | None = None
+    start_timestamp_sec: float | None = None
+    end_timestamp_sec: float | None = None
+    event_count: int
+    upper_color: str | None = None
+    upper_color_confidence: float | None = None
+    upper_color_support: int = 0
+    upper_visible: bool | None = None
+    profile: dict = Field(default_factory=dict)
+    session_status: str | None = None
+    aggregation_version: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
 
 
 class PersonOut(BaseModel):
@@ -182,6 +287,11 @@ class PersonOut(BaseModel):
     representative_face_crop_url: str | None = None
     face_count: int
     event_count: int | None = None
+    observation_count: int | None = None
+    last_event_id: str | None = None
+    last_seen_camera_id: str | None = None
+    latest_event: EventOut | None = None
+    latest_clothing: dict | None = None
     events: list[PersonEventOut] = Field(default_factory=list)
     first_seen_at: str | None = None
     last_seen_at: str | None = None

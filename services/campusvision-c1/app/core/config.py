@@ -22,6 +22,17 @@ def _path_from_env(name: str, default: str) -> Path:
     return path.resolve()
 
 
+def _bool_from_env(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _list_from_env(name: str, default: str) -> list[str]:
+    return [item.strip() for item in os.getenv(name, default).split(",") if item.strip()]
+
+
 class Settings:
     app_name: str = os.getenv("APP_NAME", "CampusVision C1")
     app_host: str = os.getenv("APP_HOST", "127.0.0.1")
@@ -37,6 +48,69 @@ class Settings:
     face_engine: str = os.getenv("FACE_ENGINE", "insightface").strip().lower()
     insightface_det_size: int = int(os.getenv("INSIGHTFACE_DET_SIZE", "1280"))
     default_frame_interval_sec: float = float(os.getenv("DEFAULT_FRAME_INTERVAL_SEC", "1.0"))
+
+    event_time_window_sec: float = float(os.getenv("EVENT_TIME_WINDOW_SEC", "10.0"))
+
+    enable_body_detection: bool = _bool_from_env("ENABLE_BODY_DETECTION", True)
+    body_detection_backend: str = os.getenv("BODY_DETECTION_BACKEND", "opencv_hog").strip().lower()
+    person_detection_confidence_threshold: float = float(
+        os.getenv("PERSON_DETECTION_CONFIDENCE_THRESHOLD", "0.35")
+    )
+    person_detection_nms_threshold: float = float(os.getenv("PERSON_DETECTION_NMS_THRESHOLD", "0.45"))
+    ultralytics_model_path: Path = _path_from_env(
+        "ULTRALYTICS_MODEL_PATH",
+        "data/models/ultralytics/yolo11x.pt",
+    )
+    ultralytics_device: str = os.getenv("ULTRALYTICS_DEVICE", "cuda:0")
+    ultralytics_imgsz: int = int(os.getenv("ULTRALYTICS_IMGSZ", "960"))
+    ultralytics_max_detections: int = int(os.getenv("ULTRALYTICS_MAX_DETECTIONS", "50"))
+    min_person_box_width: int = int(os.getenv("MIN_PERSON_BOX_WIDTH", "28"))
+    min_person_box_height: int = int(os.getenv("MIN_PERSON_BOX_HEIGHT", "56"))
+    max_bbox_edge_truncation_ratio: float = float(os.getenv("MAX_BBOX_EDGE_TRUNCATION_RATIO", "0.35"))
+    face_body_match_threshold: float = float(os.getenv("FACE_BODY_MATCH_THRESHOLD", "0.35"))
+    face_body_max_normalized_distance: float = float(
+        os.getenv("FACE_BODY_MAX_NORMALIZED_DISTANCE", "0.65")
+    )
+
+    enable_clothing_detection: bool = _bool_from_env("ENABLE_CLOTHING_DETECTION", True)
+    enable_upper_clothing_detection: bool = _bool_from_env("ENABLE_UPPER_CLOTHING_DETECTION", True)
+    enable_lower_clothing_detection: bool = _bool_from_env("ENABLE_LOWER_CLOTHING_DETECTION", True)
+    enable_lower_clothing_core: bool = _bool_from_env("ENABLE_LOWER_CLOTHING_CORE", False)
+    upper_roi_start_ratio: float = float(os.getenv("UPPER_ROI_START_RATIO", "0.20"))
+    upper_roi_end_ratio: float = float(os.getenv("UPPER_ROI_END_RATIO", "0.50"))
+    lower_roi_start_ratio: float = float(os.getenv("LOWER_ROI_START_RATIO", "0.46"))
+    lower_roi_end_ratio: float = float(os.getenv("LOWER_ROI_END_RATIO", "0.78"))
+    upper_color_confidence_threshold: float = float(
+        os.getenv("UPPER_COLOR_CONFIDENCE_THRESHOLD", "0.35")
+    )
+    lower_color_confidence_threshold: float = float(
+        os.getenv("LOWER_COLOR_CONFIDENCE_THRESHOLD", "0.35")
+    )
+    min_clothing_color_confidence: float = float(os.getenv("MIN_CLOTHING_COLOR_CONFIDENCE", "0.60"))
+    clothing_roi_center_width_ratio: float = float(os.getenv("CLOTHING_ROI_CENTER_WIDTH_RATIO", "0.58"))
+    lower_body_min_detection_confidence: float = float(
+        os.getenv("LOWER_BODY_MIN_DETECTION_CONFIDENCE", "0.45")
+    )
+    min_valid_pixel_ratio: float = float(os.getenv("MIN_VALID_PIXEL_RATIO", "0.18"))
+    min_clothing_roi_area: int = int(os.getenv("MIN_CLOTHING_ROI_AREA", "300"))
+    clothing_color_labels: list[str] = _list_from_env(
+        "CLOTHING_COLOR_LABELS",
+        "black,white,gray,red,orange,yellow,green,blue,purple,brown,pink,striped,other,unknown",
+    )
+    enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
+    clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
+    body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")
+    appearance_session_max_gap_sec: float = float(os.getenv("APPEARANCE_SESSION_MAX_GAP_SEC", "14400"))
+    appearance_session_min_support: int = int(os.getenv("APPEARANCE_SESSION_MIN_SUPPORT", "2"))
+    appearance_session_profile_confidence: float = float(
+        os.getenv("APPEARANCE_SESSION_PROFILE_CONFIDENCE", "0.58")
+    )
+    appearance_session_low_confidence_threshold: float = float(
+        os.getenv("APPEARANCE_SESSION_LOW_CONFIDENCE_THRESHOLD", "0.55")
+    )
+    appearance_session_change_confidence: float = float(
+        os.getenv("APPEARANCE_SESSION_CHANGE_CONFIDENCE", "0.82")
+    )
 
     def ensure_dirs(self) -> None:
         for p in [
