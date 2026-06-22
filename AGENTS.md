@@ -59,6 +59,7 @@
 - 影响范围、验证项、安全与数据检查必须按实际情况勾选；未运行的验证必须说明原因。
 - CI 未通过、审查未完成、对话未解决时不要合并。
 - 仓库使用 squash merge；合并后删除源分支。
+- AI agent 对 PR、commit、branch diff 或工作区改动进行代码审查时，审查输出必须中英双语；包括总体结论、风险说明、修改建议和 inline review comment。中文与 English 内容应结构一致、语义一致。
 
 ## GitHub Project 规范
 
@@ -162,6 +163,7 @@ npm run dist:linux
 - 真实姓名、学号/工号、手机号、车牌、轨迹、案件材料。
 - `.env`、数据库、模型缓存、运行日志中的敏感内容。
 - CampusVision C1 服务器密码、SSH 私钥、token、API key。
+- CampusVision C1 SSH 主机密钥 SHA256 固定指纹只能放在经维护者确认的受控运行配置或代码默认值中；Markdown 文档、示例和 Release 正文使用配置键或占位符，不写具体指纹。
 
 如果疑似提交了敏感内容：
 
@@ -255,6 +257,7 @@ For CampusVision C1 work, also read:
 - Scope, validation, security, and data-check boxes must be checked according to the actual change. Any skipped validation must be explained.
 - Do not merge while CI is failing, review is incomplete, or conversations remain unresolved.
 - The repository uses squash merge. Delete the source branch after merge.
+- When an AI agent reviews a PR, commit, branch diff, or working-tree change, the review output must be bilingual Chinese/English, including the overall conclusion, risk notes, change suggestions, and inline review comments. The Chinese and English content should stay structurally and semantically aligned.
 
 ## GitHub Project Rules
 
@@ -358,6 +361,7 @@ Do not commit or disclose:
 - Real names, student/staff IDs, phone numbers, license plates, trajectories, or case material.
 - `.env`, databases, model caches, or sensitive runtime logs.
 - CampusVision C1 server passwords, SSH private keys, tokens, or API keys.
+- CampusVision C1 SSH host-key SHA256 pinned fingerprints may only live in maintainer-approved runtime configuration or code defaults. Markdown documents, examples, and Release bodies should use configuration keys or placeholders instead of the concrete fingerprint.
 
 If sensitive content may have been committed:
 

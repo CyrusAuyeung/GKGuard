@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.35` 推荐流程：
+安装版 `v0.1.36` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.35.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.36.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -215,9 +215,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.35`:
+Recommended packaged-app flow for `v0.1.36`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.35.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.36.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.

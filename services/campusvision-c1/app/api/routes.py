@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from html import escape
 from pathlib import Path
 from typing import Optional
@@ -36,6 +37,41 @@ def _cleanup_query_uploads(paths: list[str], search_id: str) -> None:
         upload_dir.rmdir()
     except OSError:
         pass
+
+
+def _face_crop_jpeg(face_id: str) -> bytes:
+    import cv2
+
+    record = db.get_face_record(face_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="face_id not found")
+
+    image = cv2.imread(record["frame_path"])
+    if image is None:
+        raise HTTPException(status_code=404, detail="frame image not found")
+
+    height, width = image.shape[:2]
+    bbox = record["bbox"]
+    x1 = max(0, min(width - 1, int(bbox["x1"])))
+    y1 = max(0, min(height - 1, int(bbox["y1"])))
+    x2 = max(x1 + 1, min(width, int(bbox["x2"])))
+    y2 = max(y1 + 1, min(height, int(bbox["y2"])))
+
+    crop = image[y1:y2, x1:x2]
+    ok, encoded = cv2.imencode(".jpg", crop)
+    if not ok:
+        raise HTTPException(status_code=500, detail="failed to encode face crop")
+    return encoded.tobytes()
+
+
+def _face_crop_data_url(face_id: str | None) -> str:
+    if not face_id:
+        return ""
+    try:
+        encoded = base64.b64encode(_face_crop_jpeg(str(face_id))).decode("ascii")
+    except HTTPException:
+        return ""
+    return f"data:image/jpeg;base64,{encoded}"
 
 
 @router.post("/cameras", response_model=CameraOut)
@@ -118,68 +154,68 @@ def list_persons():
 
 @router.get("/persons/gallery", response_class=HTMLResponse)
 def persons_gallery():
-        persons = person_service.person_gallery_items()
-        cards = []
-        for person in persons:
-                samples = "".join(
-                        f'<img src="{escape(sample["face_crop_url"])}" alt="{escape(sample["face_id"])}">'
-                        for sample in person.get("sample_faces", [])
-                )
-                cards.append(
-                        f"""
-                        <article class="person-card">
-                            <img class="hero-face" src="{escape(person.get('representative_face_crop_url') or '')}" alt="representative face">
-                            <div class="person-meta">
-                                <h2>{escape(person['person_id'])}</h2>
-                                <dl>
-                                    <div><dt>face_count</dt><dd>{int(person.get('face_count') or 0)}</dd></div>
-                                    <div><dt>representative_face_id</dt><dd>{escape(str(person.get('representative_face_id') or ''))}</dd></div>
-                                    <div><dt>first_seen_at</dt><dd>{escape(str(person.get('first_seen_at') or ''))}</dd></div>
-                                    <div><dt>last_seen_at</dt><dd>{escape(str(person.get('last_seen_at') or ''))}</dd></div>
-                                </dl>
-                            </div>
-                            <div class="samples">{samples}</div>
-                        </article>
-                        """
-                )
-
-        body = "\n".join(cards) or '<p class="empty">No persons indexed yet.</p>'
-        return HTMLResponse(
-                f"""
-                <!doctype html>
-                <html lang="zh-CN">
-                <head>
-                    <meta charset="utf-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1">
-                    <title>CampusVision 人物库</title>
-                    <style>
-                        body {{ margin: 0; font-family: Arial, sans-serif; background: #f6f7f9; color: #20242a; }}
-                        main {{ max-width: 1180px; margin: 0 auto; padding: 24px; }}
-                        header {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 18px; }}
-                        h1 {{ font-size: 24px; margin: 0; }}
-                        .count {{ color: #69717d; }}
-                        .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }}
-                        .person-card {{ display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 14px; background: #fff; border: 1px solid #dde1e7; border-radius: 8px; }}
-                        .hero-face {{ width: 128px; height: 128px; object-fit: cover; background: #e9edf2; border-radius: 6px; }}
-                        h2 {{ font-size: 16px; margin: 0 0 10px; word-break: break-all; }}
-                        dl {{ margin: 0; display: grid; gap: 6px; }}
-                        dl div {{ display: grid; grid-template-columns: 128px 1fr; gap: 8px; }}
-                        dt {{ color: #69717d; }}
-                        dd {{ margin: 0; word-break: break-all; }}
-                        .samples {{ grid-column: 1 / -1; display: flex; gap: 8px; overflow-x: auto; padding-top: 4px; }}
-                        .samples img {{ width: 54px; height: 54px; object-fit: cover; border-radius: 5px; background: #e9edf2; }}
-                        .empty {{ color: #69717d; }}
-                    </style>
-                </head>
-                <body>
-                    <main>
-                        <header><h1>CampusVision 人物库</h1><span class="count">{len(persons)} persons</span></header>
-                        <section class="grid">{body}</section>
-                    </main>
-                </body>
-                </html>
-                """
+    persons = person_service.person_gallery_items()
+    cards = []
+    for person in persons:
+        samples = "".join(
+            f'<img src="{escape(_face_crop_data_url(sample.get("face_id")))}" alt="{escape(sample["face_id"])}">'
+            for sample in person.get("sample_faces", [])
         )
+        cards.append(
+            f"""
+            <article class="person-card">
+                <img class="hero-face" src="{escape(_face_crop_data_url(person.get('representative_face_id')))}" alt="representative face">
+                <div class="person-meta">
+                    <h2>{escape(person['person_id'])}</h2>
+                    <dl>
+                        <div><dt>face_count</dt><dd>{int(person.get('face_count') or 0)}</dd></div>
+                        <div><dt>representative_face_id</dt><dd>{escape(str(person.get('representative_face_id') or ''))}</dd></div>
+                        <div><dt>first_seen_at</dt><dd>{escape(str(person.get('first_seen_at') or ''))}</dd></div>
+                        <div><dt>last_seen_at</dt><dd>{escape(str(person.get('last_seen_at') or ''))}</dd></div>
+                    </dl>
+                </div>
+                <div class="samples">{samples}</div>
+            </article>
+            """
+        )
+
+    body = "\n".join(cards) or '<p class="empty">No persons indexed yet.</p>'
+    return HTMLResponse(
+        f"""
+        <!doctype html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>CampusVision 人物库</title>
+            <style>
+                body {{ margin: 0; font-family: Arial, sans-serif; background: #f6f7f9; color: #20242a; }}
+                main {{ max-width: 1180px; margin: 0 auto; padding: 24px; }}
+                header {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 18px; }}
+                h1 {{ font-size: 24px; margin: 0; }}
+                .count {{ color: #69717d; }}
+                .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }}
+                .person-card {{ display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 14px; background: #fff; border: 1px solid #dde1e7; border-radius: 8px; }}
+                .hero-face {{ width: 128px; height: 128px; object-fit: cover; background: #e9edf2; border-radius: 6px; }}
+                h2 {{ font-size: 16px; margin: 0 0 10px; word-break: break-all; }}
+                dl {{ margin: 0; display: grid; gap: 6px; }}
+                dl div {{ display: grid; grid-template-columns: 128px 1fr; gap: 8px; }}
+                dt {{ color: #69717d; }}
+                dd {{ margin: 0; word-break: break-all; }}
+                .samples {{ grid-column: 1 / -1; display: flex; gap: 8px; overflow-x: auto; padding-top: 4px; }}
+                .samples img {{ width: 54px; height: 54px; object-fit: cover; border-radius: 5px; background: #e9edf2; }}
+                .empty {{ color: #69717d; }}
+            </style>
+        </head>
+        <body>
+            <main>
+                <header><h1>CampusVision 人物库</h1><span class="count">{len(persons)} persons</span></header>
+                <section class="grid">{body}</section>
+            </main>
+        </body>
+        </html>
+        """
+    )
 
 
 @router.post("/videos/{video_id}/index", response_model=IndexResult)
@@ -224,15 +260,19 @@ async def search_by_image(
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
 
-    result = search_service.search_by_images(
-        paths,
-        top_k=top_k,
-        min_score=min_score,
-        max_gap_sec=max_gap_sec,
-        camera_id=camera_id,
-        start_time=start_time,
-        end_time=end_time,
-    )
+    try:
+        result = search_service.search_by_images(
+            paths,
+            top_k=top_k,
+            min_score=min_score,
+            max_gap_sec=max_gap_sec,
+            camera_id=camera_id,
+            start_time=start_time,
+            end_time=end_time,
+        )
+    except search_service.QueryImageTooLarge as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     return result
 
 
@@ -258,7 +298,11 @@ async def detect_query_faces(
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
 
-    return search_service.detect_query_faces(paths)
+    try:
+        return search_service.detect_query_faces(paths)
+    except search_service.QueryImageTooLarge as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
 
 @router.post("/search/person-by-image")
@@ -287,13 +331,17 @@ async def search_person_by_image(
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
 
-    return person_service.search_persons_by_images(
-        paths,
-        top_k=top_k,
-        min_score=min_score,
-        max_gap_sec=max_gap_sec,
-        query_face_index=query_face_index,
-    )
+    try:
+        return person_service.search_persons_by_images(
+            paths,
+            top_k=top_k,
+            min_score=min_score,
+            max_gap_sec=max_gap_sec,
+            query_face_index=query_face_index,
+        )
+    except search_service.QueryImageTooLarge as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
 
 @router.get("/searches/{search_id}")
@@ -315,28 +363,7 @@ def get_frame(face_id: str):
 
 @router.get("/media/face/{face_id}")
 def get_face_crop(face_id: str):
-    import cv2
-
-    record = db.get_face_record(face_id)
-    if not record:
-        raise HTTPException(status_code=404, detail="face_id not found")
-
-    image = cv2.imread(record["frame_path"])
-    if image is None:
-        raise HTTPException(status_code=404, detail="frame image not found")
-
-    height, width = image.shape[:2]
-    bbox = record["bbox"]
-    x1 = max(0, min(width - 1, int(bbox["x1"])))
-    y1 = max(0, min(height - 1, int(bbox["y1"])))
-    x2 = max(x1 + 1, min(width, int(bbox["x2"])))
-    y2 = max(y1 + 1, min(height, int(bbox["y2"])))
-
-    crop = image[y1:y2, x1:x2]
-    ok, encoded = cv2.imencode(".jpg", crop)
-    if not ok:
-        raise HTTPException(status_code=500, detail="failed to encode face crop")
-    return Response(content=encoded.tobytes(), media_type="image/jpeg")
+    return Response(content=_face_crop_jpeg(face_id), media_type="image/jpeg")
 
 
 @router.get("/records")

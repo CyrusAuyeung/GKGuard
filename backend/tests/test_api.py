@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 
+import importlib
 import httpx
 import os
 from fastapi.testclient import TestClient
@@ -43,8 +44,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.35-ui" in response.text
-    assert "/static/app.js?v=v0.1.35-ui" in response.text
+    assert "/static/styles.css?v=v0.1.36-ui" in response.text
+    assert "/static/app.js?v=v0.1.36-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -245,7 +246,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.35-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.1.36-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -260,11 +261,13 @@ def test_desktop_update_bridge_wired() -> None:
     assert "DEFAULT_C1_DIRECT_URL" not in main_script
     assert "hostHash: \"sha256\"" in main_script
     assert "hostVerifier" in main_script
-    assert "readyTimeout: tunnel.hostFingerprint ? 20000 : 120000" in main_script
-    assert "approvedFingerprint" in main_script
+    assert "hostFingerprint: \"SHA256:5JuxVHVX533OdD54f7RQFzUPeoHT2JhSy6oXnTIBl2w\"" in main_script
+    assert "readyTimeout: 20000" in main_script
+    assert "未配置 SSH 主机密钥固定指纹" in main_script
+    assert "approvedFingerprint" not in main_script
     assert "connectWithPassword(submittedPassword, sendProgress, modal)" in main_script
     assert "return Boolean(status?.selectedBaseUrl)" in main_script
-    assert "confirmSshHostKey" in main_script
+    assert "confirmSshHostKey" not in main_script
     assert "isC1TunnelConnected" in main_script
     assert "waitForC1TunnelReady" in main_script
     assert "probeC1Endpoint" in main_script
@@ -310,6 +313,21 @@ def test_desktop_update_bridge_wired() -> None:
     assert "cancelSshPassword" in password_page
     assert "progressBar" in password_page
     assert "onSshConnectProgress" in password_page
+
+
+def test_c1_proxy_api_key_prefers_campusvision_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("CAMPUSVISION_API_KEY", "primary-token")
+    monkeypatch.setenv("C1_API_KEY", "fallback-token")
+
+    from app.services import c1_service
+
+    try:
+        reloaded = importlib.reload(c1_service)
+        assert reloaded.C1_API_KEY == "primary-token"
+    finally:
+        monkeypatch.delenv("CAMPUSVISION_API_KEY", raising=False)
+        monkeypatch.delenv("C1_API_KEY", raising=False)
+        importlib.reload(c1_service)
 
 
 def test_c1_status_handles_unavailable_service(monkeypatch) -> None:

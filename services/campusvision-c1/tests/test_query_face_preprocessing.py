@@ -81,11 +81,8 @@ def test_query_image_variants_rejects_excessive_pixels(tmp_path, monkeypatch):
     monkeypatch.setattr(search_service, "MAX_QUERY_IMAGE_PIXELS", 100)
     Image.new("RGB", (20, 20), (245, 248, 255)).save(image_path)
 
-    variants, diagnostics = search_service._query_image_variants(str(image_path))
-
-    assert variants == []
-    assert diagnostics["rejected"] is True
-    assert "dimensions exceed" in diagnostics["reason"]
+    with pytest.raises(search_service.QueryImageTooLarge, match="dimensions exceed"):
+        search_service._query_image_variants(str(image_path))
 
 
 def test_query_image_variants_skips_oversized_padded_variants(tmp_path, monkeypatch):

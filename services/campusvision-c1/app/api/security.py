@@ -8,22 +8,28 @@ from starlette.datastructures import Headers
 from app.core.config import settings
 
 
-SENSITIVE_C1_PREFIXES = (
+SENSITIVE_C1_PATHS = {
     "/api/v1/cameras",
-    "/api/v1/videos/upload",
-    "/api/v1/videos/",
     "/api/v1/persons",
-    "/api/v1/search/by-image",
-    "/api/v1/search/query-faces",
-    "/api/v1/search/person-by-image",
-    "/api/v1/searches/",
-    "/api/v1/media/frame/",
-    "/api/v1/media/face/",
     "/api/v1/records",
+    "/api/v1/videos",
+}
+
+SENSITIVE_C1_PREFIXES = (
+    "/api/v1/cameras/",
+    "/api/v1/media/face/",
+    "/api/v1/media/frame/",
+    "/api/v1/persons/",
+    "/api/v1/records/",
+    "/api/v1/search/",
+    "/api/v1/searches/",
+    "/api/v1/videos/",
 )
 
 
 def c1_api_key_required_for_path(path: str, method: str) -> bool:
+    if path.rstrip("/") in SENSITIVE_C1_PATHS:
+        return True
     return any(path.startswith(prefix) for prefix in SENSITIVE_C1_PREFIXES)
 
 

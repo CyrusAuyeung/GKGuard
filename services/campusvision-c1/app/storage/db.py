@@ -237,6 +237,22 @@ def delete_face_records_for_video(video_id: str) -> None:
         conn.execute("DELETE FROM face_records WHERE video_id = ?", (video_id,))
 
 
+def delete_face_records_by_ids(face_ids: list[str]) -> None:
+    if not face_ids:
+        return
+
+    placeholders = ",".join("?" for _ in face_ids)
+    with get_conn() as conn:
+        conn.execute(
+            f"DELETE FROM person_faces WHERE face_id IN ({placeholders})",
+            face_ids,
+        )
+        conn.execute(
+            f"DELETE FROM face_records WHERE face_id IN ({placeholders})",
+            face_ids,
+        )
+
+
 def get_face_record(face_id: str) -> dict[str, Any] | None:
     with get_conn() as conn:
         row = conn.execute("SELECT * FROM face_records WHERE face_id = ?", (face_id,)).fetchone()
