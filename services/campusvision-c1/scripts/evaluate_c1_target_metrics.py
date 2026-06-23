@@ -26,6 +26,9 @@ DEFAULT_BASELINE_DB = (
     / "campusvision_eval_baseline_20260623_pre_full_api_rerun.sqlite3"
 )
 DEFAULT_OUTPUT = settings.data_dir / "evals" / "target_metrics" / "c1_target_metrics.json"
+DEFAULT_MANUAL_PERSON_MERGE_DIR = settings.data_dir / "backups" / "manual_person_merge_20260623_100235"
+DEFAULT_MANUAL_PERSON_MERGE_RESULT = DEFAULT_MANUAL_PERSON_MERGE_DIR / "manual_person_merge_result.json"
+DEFAULT_MANUAL_PERSON_MERGE_REFERENCE_DB = DEFAULT_MANUAL_PERSON_MERGE_DIR / "campusvision.sqlite3"
 
 TARGETS = {
     "person_aggregation_pairwise_precision": 0.95,
@@ -136,6 +139,261 @@ def _person_fragmentation(db_path: Path) -> dict[str, Any]:
         if face_counts
         else None,
         "histogram": {str(count): face_counts.count(count) for count in sorted(set(face_counts))},
+    }
+
+
+def _bbox_iou(left: dict[str, Any], right: dict[str, Any]) -> float:
+    left_x1, left_y1, left_x2, left_y2 = (float(left[key]) for key in ("x1", "y1", "x2", "y2"))
+    right_x1, right_y1, right_x2, right_y2 = (float(right[key]) for key in ("x1", "y1", "x2", "y2"))
+    inter_w = max(0.0, min(left_x2, right_x2) - max(left_x1, right_x1))
+    inter_h = max(0.0, min(left_y2, right_y2) - max(left_y1, right_y1))
+    inter = inter_w * inter_h
+    left_area = max(0.0, left_x2 - left_x1) * max(0.0, left_y2 - left_y1)
+    right_area = max(0.0, right_x2 - right_x1) * max(0.0, right_y2 - right_y1)
+    return inter / max(1e-9, left_area + right_area - inter)
+
+
+def _manual_merge_groups(data: dict[str, Any]) -> tuple[list[list[str]], dict[str, int]]:
+    number_to_person_id: dict[int, str] = {}
+    for item in data.get("merge_plan") or []:
+        if not isinstance(item, dict):
+            continue
+        for number_key, person_key in (
+            ("source_number", "source_person_id"),
+            ("target_number", "target_person_id"),
+        ):
+            number = item.get(number_key)
+            person_id = item.get(person_key)
+            if number is None or not person_id:
+                continue
+            number_to_person_id[int(number)] = str(person_id)
+
+    groups: list[list[str]] = []
+    for raw_group in data.get("groups") or []:
+        if not isinstance(raw_group, list):
+            continue
+        group = [number_to_person_id[int(number)] for number in raw_group if int(number) in number_to_person_id]
+        if len(group) >= 2:
+            groups.append(group)
+    person_number = {person_id: number for number, person_id in number_to_person_id.items()}
+    return groups, person_number
+
+
+def _manual_person_merge_current_db_report(
+    current_db: Path,
+    *,
+    reference_db: Path = DEFAULT_MANUAL_PERSON_MERGE_REFERENCE_DB,
+    manual_result_path: Path = DEFAULT_MANUAL_PERSON_MERGE_RESULT,
+    timestamp_tolerance_sec: float = 0.05,
+    min_iou: float = 0.50,
+) -> dict[str, Any]:
+    data = _read_json(manual_result_path)
+    if not data:
+        return {
+            "status": "not_available",
+            "source": str(manual_result_path),
+            "reference_db": str(reference_db),
+            "current_db": str(current_db),
+            "note": "manual person merge result is missing or unreadable",
+        }
+    if not reference_db.exists() or not current_db.exists():
+        return {
+            "status": "not_available",
+            "source": str(manual_result_path),
+            "reference_db": str(reference_db),
+            "current_db": str(current_db),
+            "note": "reference or current database is missing",
+        }
+
+    groups, person_number = _manual_merge_groups(data)
+    if not groups:
+        return {
+            "status": "not_available",
+            "source": str(manual_result_path),
+            "reference_db": str(reference_db),
+            "current_db": str(current_db),
+            "note": "manual person merge groups are missing",
+        }
+
+    current_by_camera: dict[str, list[dict[str, Any]]] = {}
+    with _connect(current_db) as current_conn:
+        rows = current_conn.execute(
+            """
+            SELECT fr.face_id, fr.camera_id, fr.video_timestamp_sec, fr.bbox_json, pf.person_id
+            FROM face_records fr
+            JOIN person_faces pf ON pf.face_id = fr.face_id
+            """
+        ).fetchall()
+        for row in rows:
+            try:
+                bbox = json.loads(row["bbox_json"])
+            except Exception:
+                continue
+            current_by_camera.setdefault(str(row["camera_id"]), []).append(
+                {
+                    "face_id": row["face_id"],
+                    "person_id": row["person_id"],
+                    "timestamp": float(row["video_timestamp_sec"] or 0.0),
+                    "bbox": bbox,
+                }
+            )
+
+    old_person_ids = sorted({person_id for group in groups for person_id in group})
+    old_to_current: dict[str, str | None] = {}
+    old_person_reports: list[dict[str, Any]] = []
+    total_reference_faces = 0
+    total_matched_faces = 0
+    total_unmatched_faces = 0
+    with _connect(reference_db) as reference_conn:
+        for old_person_id in old_person_ids:
+            rows = reference_conn.execute(
+                """
+                SELECT fr.face_id, fr.camera_id, fr.video_timestamp_sec, fr.bbox_json
+                FROM face_records fr
+                JOIN person_faces pf ON pf.face_id = fr.face_id
+                WHERE pf.person_id = ?
+                ORDER BY fr.camera_id, fr.video_timestamp_sec, fr.face_id
+                """,
+                (old_person_id,),
+            ).fetchall()
+            current_counts: Counter[str] = Counter()
+            matched_ious: list[float] = []
+            unmatched = 0
+            for row in rows:
+                total_reference_faces += 1
+                try:
+                    old_bbox = json.loads(row["bbox_json"])
+                except Exception:
+                    unmatched += 1
+                    total_unmatched_faces += 1
+                    continue
+
+                old_timestamp = float(row["video_timestamp_sec"] or 0.0)
+                candidates = [
+                    candidate
+                    for candidate in current_by_camera.get(str(row["camera_id"]), [])
+                    if abs(candidate["timestamp"] - old_timestamp) <= timestamp_tolerance_sec
+                ]
+                best_candidate = None
+                best_iou = -1.0
+                for candidate in candidates:
+                    candidate_iou = _bbox_iou(old_bbox, candidate["bbox"])
+                    if candidate_iou > best_iou:
+                        best_iou = candidate_iou
+                        best_candidate = candidate
+                if best_candidate is None or best_iou < min_iou:
+                    unmatched += 1
+                    total_unmatched_faces += 1
+                    continue
+
+                current_counts[str(best_candidate["person_id"])] += 1
+                matched_ious.append(best_iou)
+                total_matched_faces += 1
+
+            dominant = current_counts.most_common(1)[0] if current_counts else (None, 0)
+            old_to_current[old_person_id] = dominant[0]
+            old_person_reports.append(
+                {
+                    "manual_number": person_number.get(old_person_id),
+                    "reference_person_id": old_person_id,
+                    "reference_face_count": len(rows),
+                    "matched_face_count": sum(current_counts.values()),
+                    "unmatched_face_count": unmatched,
+                    "dominant_current_person_id": dominant[0],
+                    "dominant_current_face_count": dominant[1],
+                    "current_person_counts": dict(current_counts.most_common()),
+                    "mean_match_iou": round(mean(matched_ious), 6) if matched_ious else None,
+                }
+            )
+
+    tp = fp = tn = fn = 0
+    false_positive_pairs = []
+    false_negative_pairs = []
+    positive_pairs = 0
+    negative_pairs = 0
+    for left_group_index, left_group in enumerate(groups):
+        for left_index, left_person_id in enumerate(left_group):
+            for right_person_id in left_group[left_index + 1 :]:
+                positive_pairs += 1
+                left_current = old_to_current.get(left_person_id)
+                right_current = old_to_current.get(right_person_id)
+                predicted_same = bool(left_current and right_current and left_current == right_current)
+                if predicted_same:
+                    tp += 1
+                else:
+                    fn += 1
+                    false_negative_pairs.append(
+                        {
+                            "left_manual_number": person_number.get(left_person_id),
+                            "right_manual_number": person_number.get(right_person_id),
+                            "left_reference_person_id": left_person_id,
+                            "right_reference_person_id": right_person_id,
+                            "left_current_person_id": left_current,
+                            "right_current_person_id": right_current,
+                        }
+                    )
+
+        for right_group in groups[left_group_index + 1 :]:
+            for left_person_id in left_group:
+                for right_person_id in right_group:
+                    negative_pairs += 1
+                    left_current = old_to_current.get(left_person_id)
+                    right_current = old_to_current.get(right_person_id)
+                    predicted_same = bool(left_current and right_current and left_current == right_current)
+                    if predicted_same:
+                        fp += 1
+                        false_positive_pairs.append(
+                            {
+                                "left_manual_number": person_number.get(left_person_id),
+                                "right_manual_number": person_number.get(right_person_id),
+                                "left_reference_person_id": left_person_id,
+                                "right_reference_person_id": right_person_id,
+                                "current_person_id": left_current,
+                            }
+                        )
+                    else:
+                        tn += 1
+
+    precision = tp / (tp + fp) if tp + fp else None
+    recall = tp / (tp + fn) if tp + fn else None
+    f1 = (
+        2.0 * precision * recall / (precision + recall)
+        if precision is not None and recall is not None and (precision + recall) > 0.0
+        else None
+    )
+    return {
+        "status": "evaluated",
+        "source": str(manual_result_path),
+        "reference_db": str(reference_db),
+        "current_db": str(current_db),
+        "projection_method": "camera_timestamp_bbox_iou",
+        "timestamp_tolerance_sec": timestamp_tolerance_sec,
+        "min_iou": min_iou,
+        "manual_group_count": len(groups),
+        "manual_fragment_count": len(old_person_ids),
+        "reference_face_count": total_reference_faces,
+        "matched_face_count": total_matched_faces,
+        "unmatched_face_count": total_unmatched_faces,
+        "matched_face_rate": round(total_matched_faces / total_reference_faces, 6)
+        if total_reference_faces
+        else None,
+        "positive_pairs": positive_pairs,
+        "negative_pairs": negative_pairs,
+        "tp": tp,
+        "fp": fp,
+        "tn": tn,
+        "fn": fn,
+        "precision": round(precision, 6) if precision is not None else None,
+        "recall": round(recall, 6) if recall is not None else None,
+        "f1": round(f1, 6) if f1 is not None else None,
+        "passes_precision_target": (
+            precision is not None and precision >= TARGETS["person_aggregation_pairwise_precision"]
+        ),
+        "passes_f1_target": f1 is not None and f1 >= TARGETS["person_aggregation_pairwise_f1"],
+        "false_positive_pairs": false_positive_pairs[:50],
+        "false_negative_pairs": false_negative_pairs[:50],
+        "old_person_projection": old_person_reports,
+        "note": "Manual merge labels are eval-only; this projects old manual fragments to the current DB by camera/timestamp/bbox.",
     }
 
 
@@ -379,12 +637,17 @@ def _api_processing_source_summary(source: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _person_merge_report() -> dict[str, Any]:
+def _person_merge_report(current_db: Path) -> dict[str, Any]:
     path = settings.data_dir / "evals" / "person_merge_scorer" / "person_merge_scorer_eval.json"
     data = _read_json(path)
     metrics = data.get("metrics") if isinstance(data.get("metrics"), dict) else {}
     holdout = metrics.get("holdout") if isinstance(metrics.get("holdout"), dict) else {}
     manual = metrics.get("manual_calibration") if isinstance(metrics.get("manual_calibration"), dict) else {}
+    current_manual = _manual_person_merge_current_db_report(current_db)
+    current_precision = current_manual.get("precision") if current_manual.get("status") == "evaluated" else None
+    current_f1 = current_manual.get("f1") if current_manual.get("status") == "evaluated" else None
+    precision_for_target = current_precision if current_precision is not None else holdout.get("precision")
+    f1_for_target = current_f1 if current_f1 is not None else holdout.get("f1")
     return {
         "source": str(path),
         "model_version": data.get("model_version"),
@@ -396,15 +659,19 @@ def _person_merge_report() -> dict[str, Any]:
         "manual_calibration_precision": manual.get("precision"),
         "manual_calibration_recall": manual.get("recall"),
         "manual_calibration_f1": manual.get("f1"),
+        "current_db_manual_eval": current_manual,
+        "target_metric_source": "current_db_manual_eval"
+        if current_precision is not None and current_f1 is not None
+        else "holdout_report",
         "passes_precision_target": (
-            holdout.get("precision") is not None
-            and float(holdout["precision"]) >= TARGETS["person_aggregation_pairwise_precision"]
+            precision_for_target is not None
+            and float(precision_for_target) >= TARGETS["person_aggregation_pairwise_precision"]
         ),
         "passes_f1_target": (
-            holdout.get("f1") is not None
-            and float(holdout["f1"]) >= TARGETS["person_aggregation_pairwise_f1"]
+            f1_for_target is not None
+            and float(f1_for_target) >= TARGETS["person_aggregation_pairwise_f1"]
         ),
-        "caveat": "Limited calibration/holdout report; not a full identity ground-truth evaluation.",
+        "caveat": "Manual merge labels are eval-only and limited, but target pass/fail prefers current DB projection when available.",
     }
 
 
@@ -715,7 +982,7 @@ def _compare_counts(baseline: dict[str, Any], current: dict[str, Any]) -> dict[s
 def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
     current_counts = _db_counts(current_db)
     baseline_counts = _db_counts(baseline_db) if baseline_db.exists() else {}
-    person_merge = _person_merge_report()
+    person_merge = _person_merge_report(current_db)
     outfit_grouping = _outfit_grouping_report()
     upper_color = _upper_color_reports()
     api_processing = _api_processing_metrics(current_db)
