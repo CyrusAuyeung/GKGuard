@@ -55,6 +55,8 @@ _MANUAL_GENDER_PRESENTATION_LABEL_DIR = settings.data_dir / "evals" / "manual_ge
 _MANUAL_GENDER_PRESENTATION_LABEL_PATH = (
     _MANUAL_GENDER_PRESENTATION_LABEL_DIR / "person_gender_presentation_labels.json"
 )
+_MANUAL_PERSON_GLASSES_LABEL_DIR = settings.data_dir / "evals" / "manual_person_glasses_labels"
+_MANUAL_PERSON_GLASSES_LABEL_PATH = _MANUAL_PERSON_GLASSES_LABEL_DIR / "person_glasses_labels.json"
 _MANUAL_SAMPLE_SNAPSHOT_DIR = settings.data_dir / "evals" / "manual_sample_snapshots"
 _MANUAL_SAMPLE_SNAPSHOT_VERSION = "manual_sample_snapshots_v1"
 
@@ -87,6 +89,18 @@ _GENDER_PRESENTATION_OPTIONS = {
 }
 
 _GENDER_EVIDENCE_QUALITY_OPTIONS = {
+    "clear": "清晰",
+    "partial": "部分可见",
+    "poor": "画质较差",
+}
+
+_GLASSES_STATUS_OPTIONS = {
+    "glasses": "戴眼镜",
+    "no_glasses": "未戴眼镜",
+    "unknown": "无法判断",
+}
+
+_GLASSES_EVIDENCE_QUALITY_OPTIONS = {
     "clear": "清晰",
     "partial": "部分可见",
     "poor": "画质较差",
@@ -667,6 +681,42 @@ def _save_manual_gender_presentation_labels(data: dict) -> None:
     tmp_path.replace(_MANUAL_GENDER_PRESENTATION_LABEL_PATH)
 
 
+def _load_manual_person_glasses_labels() -> dict:
+    if not _MANUAL_PERSON_GLASSES_LABEL_PATH.exists():
+        return {
+            "schema_version": "manual_person_glasses_labels_v1",
+            "source": "manual_person_glasses_review",
+            "created_at": _utc_now(),
+            "updated_at": None,
+            "labels": {},
+        }
+    try:
+        data = json.loads(_MANUAL_PERSON_GLASSES_LABEL_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    labels = data.get("labels")
+    if not isinstance(labels, dict):
+        labels = {}
+    return {
+        "schema_version": data.get("schema_version") or "manual_person_glasses_labels_v1",
+        "source": "manual_person_glasses_review",
+        "created_at": data.get("created_at") or _utc_now(),
+        "updated_at": data.get("updated_at"),
+        "labels": labels,
+    }
+
+
+def _save_manual_person_glasses_labels(data: dict) -> None:
+    data["schema_version"] = data.get("schema_version") or "manual_person_glasses_labels_v1"
+    data["source"] = "manual_person_glasses_review"
+    _MANUAL_PERSON_GLASSES_LABEL_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = _MANUAL_PERSON_GLASSES_LABEL_PATH.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(_MANUAL_PERSON_GLASSES_LABEL_PATH)
+
+
 def _review_status_options(selected: str | None) -> str:
     selected = selected or "unreviewed"
     return "".join(
@@ -704,6 +754,22 @@ def _gender_evidence_quality_options(selected: str | None) -> str:
     return "".join(
         f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(label)}</option>'
         for value, label in _GENDER_EVIDENCE_QUALITY_OPTIONS.items()
+    )
+
+
+def _glasses_status_options(selected: str | None) -> str:
+    selected = selected if selected in _GLASSES_STATUS_OPTIONS else "unknown"
+    return "".join(
+        f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(label)}</option>'
+        for value, label in _GLASSES_STATUS_OPTIONS.items()
+    )
+
+
+def _glasses_evidence_quality_options(selected: str | None) -> str:
+    selected = selected if selected in _GLASSES_EVIDENCE_QUALITY_OPTIONS else "partial"
+    return "".join(
+        f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(label)}</option>'
+        for value, label in _GLASSES_EVIDENCE_QUALITY_OPTIONS.items()
     )
 
 
@@ -815,6 +881,65 @@ def _person_body_samples(person_id: str, sample_count: int) -> list[dict]:
             }
         )
     return samples[: max(1, min(int(sample_count), 12))]
+
+
+def _person_face_samples(person_id: str, sample_count: int) -> list[dict]:
+    samples = []
+    events = sorted(
+        db.list_events(person_id=person_id, identified=True, limit=5000),
+        key=lambda event: (
+            event.get("start_time") or "",
+            float(event.get("start_timestamp_sec") or 0.0),
+            event.get("event_id") or "",
+        ),
+    )
+    for event in _sample_evenly(events, max(1, min(int(sample_count), 12))):
+        face_id = event.get("representative_face_id")
+        observation_id = event.get("representative_observation_id")
+        body_crop_url = None
+        if observation_id:
+            observation = db.get_person_observation(str(observation_id))
+            if observation and observation.get("person_bbox"):
+                body_crop_url = f"/api/v1/media/event/body/{event['event_id']}"
+        samples.append(
+            {
+                "event_id": event.get("event_id"),
+                "observation_id": observation_id,
+                "camera_id": event.get("camera_id"),
+                "video_id": event.get("video_id"),
+                "time_label": _event_time_label(event),
+                "face_crop_url": f"/api/v1/media/face/{face_id}" if face_id else "",
+                "frame_url": f"/api/v1/media/event/frame/{event['event_id']}",
+                "body_crop_url": body_crop_url,
+                "face_count": int(event.get("face_count") or 0),
+            }
+        )
+    return samples
+
+
+def _person_event_glasses_labels(person_id: str, glasses_status: str, evidence_quality: str) -> list[dict]:
+    labels = []
+    for event in db.list_events(person_id=person_id, identified=True, limit=5000):
+        labels.append(
+            {
+                "event_id": event["event_id"],
+                "person_id": person_id,
+                "camera_id": event.get("camera_id"),
+                "video_id": event.get("video_id"),
+                "start_time": event.get("start_time"),
+                "end_time": event.get("end_time"),
+                "start_timestamp_sec": event.get("start_timestamp_sec"),
+                "end_timestamp_sec": event.get("end_timestamp_sec"),
+                "representative_observation_id": event.get("representative_observation_id"),
+                "representative_face_id": event.get("representative_face_id"),
+                "glasses_status": glasses_status,
+                "glasses_status_label": _GLASSES_STATUS_OPTIONS[glasses_status],
+                "glasses_evidence_quality": evidence_quality,
+                "glasses_evidence_quality_label": _GLASSES_EVIDENCE_QUALITY_OPTIONS[evidence_quality],
+                "propagation_source": "manual_person_level",
+            }
+        )
+    return labels
 
 
 def _person_outfit_group_samples(person_id: str, sample_count: int) -> list[dict]:
@@ -1389,6 +1514,12 @@ def get_manual_event_outfit_groups():
 def get_manual_gender_presentation_labels():
     data = _load_manual_gender_presentation_labels()
     return data | {"path": str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH)}
+
+
+@router.get("/person-glasses-labels")
+def get_manual_person_glasses_labels():
+    data = _load_manual_person_glasses_labels()
+    return data | {"path": str(_MANUAL_PERSON_GLASSES_LABEL_PATH)}
 
 
 @router.get("/gender-presentation-profiles")
@@ -3752,6 +3883,337 @@ async def save_manual_gender_presentation_labels(request: Request):
         "updated_at": now,
         "path": str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH),
     }
+
+
+@router.post("/person-glasses-labels")
+async def save_manual_person_glasses_labels(request: Request):
+    payload = await request.json()
+    labels = payload.get("labels") if isinstance(payload, dict) else None
+    if not isinstance(labels, list):
+        raise HTTPException(status_code=400, detail="labels must be a list")
+
+    current_person_ids = {
+        person["person_id"]
+        for person in person_service.list_persons(include_candidates=True)
+    }
+    allowed_statuses = set(_GLASSES_STATUS_OPTIONS)
+    allowed_quality = set(_GLASSES_EVIDENCE_QUALITY_OPTIONS)
+    allowed_review_statuses = set(_SESSION_REVIEW_STATUS_LABELS)
+    now = _utc_now()
+    data = _load_manual_person_glasses_labels()
+    saved = 0
+    propagated_events = 0
+
+    for label in labels:
+        if not isinstance(label, dict):
+            continue
+        person_id = str(label.get("person_id") or "")
+        if person_id not in current_person_ids:
+            raise HTTPException(status_code=400, detail=f"unknown person_id: {person_id}")
+
+        glasses_status = str(label.get("glasses_status") or "unknown")
+        if glasses_status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail=f"unsupported glasses_status: {glasses_status}")
+
+        evidence_quality = str(label.get("evidence_quality") or "partial")
+        if evidence_quality not in allowed_quality:
+            raise HTTPException(status_code=400, detail=f"unsupported evidence_quality: {evidence_quality}")
+
+        review_status = str(label.get("review_status") or "unreviewed")
+        if review_status not in allowed_review_statuses:
+            raise HTTPException(status_code=400, detail=f"unsupported review_status: {review_status}")
+
+        sample_event_ids = [
+            str(item)
+            for item in label.get("sample_event_ids", [])
+            if isinstance(item, str) and item
+        ]
+        sample_observation_ids = [
+            str(item)
+            for item in label.get("sample_observation_ids", [])
+            if isinstance(item, str) and item
+        ]
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_person_glasses_labels", person_id, snapshot_refs)
+        event_labels = _person_event_glasses_labels(person_id, glasses_status, evidence_quality)
+        propagated_events += len(event_labels)
+
+        data["labels"][person_id] = {
+            "person_id": person_id,
+            "glasses_status": glasses_status,
+            "glasses_status_label": _GLASSES_STATUS_OPTIONS[glasses_status],
+            "evidence_quality": evidence_quality,
+            "evidence_quality_label": _GLASSES_EVIDENCE_QUALITY_OPTIONS[evidence_quality],
+            "review_status": review_status,
+            "note": str(label.get("note") or "").strip(),
+            "sample_event_ids": sample_event_ids,
+            "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
+            "event_count": len(event_labels),
+            "event_glasses_labels": event_labels,
+            "propagation_source": "manual_person_level",
+            "source": "manual_person_glasses_review",
+            "saved_at": now,
+        }
+        saved += 1
+
+    data["updated_at"] = now
+    _save_manual_person_glasses_labels(data)
+    return {
+        "saved": saved,
+        "propagated_events": propagated_events,
+        "updated_at": now,
+        "path": str(_MANUAL_PERSON_GLASSES_LABEL_PATH),
+    }
+
+
+@router.get("/person-glasses-labels/review", response_class=HTMLResponse)
+def manual_person_glasses_label_review(
+    sample_count: int = 8,
+    unsaved_only: bool = False,
+    include_candidates: bool = True,
+):
+    saved_data = _load_manual_person_glasses_labels()
+    saved_labels = saved_data.get("labels", {})
+    persons = person_service.list_persons(include_candidates=include_candidates)
+    if unsaved_only:
+        persons = [person for person in persons if person["person_id"] not in saved_labels]
+
+    cards = []
+    total_samples = 0
+    saved_count = 0
+    total_events = 0
+    for person in persons:
+        person_id = person["person_id"]
+        samples = _person_face_samples(person_id, sample_count)
+        total_samples += len(samples)
+        event_count = int(person.get("event_count") or 0)
+        total_events += event_count
+        saved = saved_labels.get(person_id, {})
+        if saved:
+            saved_count += 1
+        glasses_status = saved.get("glasses_status") or "unknown"
+        evidence_quality = saved.get("evidence_quality") or "partial"
+        review_status = saved.get("review_status") or "unreviewed"
+        note = saved.get("note") or ""
+        face_id = person.get("representative_face_id")
+        face_html = (
+            f'<img class="face" src="/api/v1/media/face/{_h(face_id)}" alt="{_h(face_id)}">'
+            if face_id
+            else '<div class="face placeholder"></div>'
+        )
+
+        sample_tiles = []
+        for sample in samples:
+            context_url = sample.get("body_crop_url") or sample.get("frame_url") or ""
+            context_html = (
+                f'<a href="{_h(sample.get("frame_url"))}" target="_blank" rel="noopener">'
+                f'<img class="context-shot" src="{_h(context_url)}" alt=""></a>'
+                if context_url
+                else ""
+            )
+            face_url = sample.get("face_crop_url") or ""
+            sample_tiles.append(
+                f"""
+                <article class="sample"
+                    data-event-id="{_h(sample.get("event_id"))}"
+                    data-observation-id="{_h(sample.get("observation_id"))}">
+                    <a href="{_h(sample.get("frame_url"))}" target="_blank" rel="noopener">
+                        <img class="sample-face-large" src="{_h(face_url)}" alt="{_h(sample.get("event_id"))}">
+                    </a>
+                    {context_html}
+                    <div class="sample-meta">
+                        <strong>{_h(sample.get("camera_id"))}</strong>
+                        <span>{_h(sample.get("time_label"))}</span>
+                        <span>{int(sample.get("face_count") or 0)} faces</span>
+                    </div>
+                </article>
+                """
+            )
+
+        cards.append(
+            f"""
+            <section class="person-card" data-person-id="{_h(person_id)}">
+                <header class="person-head">
+                    {face_html}
+                    <div class="person-title">
+                        <h2 title="{_h(person_id)}">{_h(person_id)}</h2>
+                        <span>{_h(person.get("identity_status") or "")} · {len(samples)} samples · {int(person.get("face_count") or 0)} faces · {event_count} events</span>
+                    </div>
+                    <div class="person-actions">
+                        <span class="state">{_h("已保存" if person_id in saved_labels else "未保存")}</span>
+                        <button type="button" class="save-one">保存此人</button>
+                    </div>
+                </header>
+                <div class="samples">
+                    {"".join(sample_tiles) or '<p class="empty">No face samples</p>'}
+                </div>
+                <div class="label-form">
+                    <label>
+                        眼镜
+                        <select class="glasses-status">{_glasses_status_options(glasses_status)}</select>
+                    </label>
+                    <label>
+                        证据质量
+                        <select class="evidence-quality">{_glasses_evidence_quality_options(evidence_quality)}</select>
+                    </label>
+                    <label>
+                        审核状态
+                        <select class="review-status">{_review_status_options(review_status)}</select>
+                    </label>
+                    <label class="note-label">
+                        备注
+                        <input type="text" class="note" value="{_h(note)}" placeholder="可空">
+                    </label>
+                </div>
+            </section>
+            """
+        )
+
+    scope_label = "全部人物含候选" if include_candidates else "仅稳定身份"
+    clipped_sample_count = max(1, min(int(sample_count), 12))
+    unsaved_href = (
+        f"/api/v1/person-glasses-labels/review?include_candidates={str(include_candidates).lower()}"
+        f"&unsaved_only={str(not unsaved_only).lower()}&sample_count={clipped_sample_count}"
+    )
+    unsaved_text = "查看全部" if unsaved_only else "只看未保存"
+    scope_href = (
+        f"/api/v1/person-glasses-labels/review?include_candidates={str(not include_candidates).lower()}"
+        f"&unsaved_only={str(unsaved_only).lower()}&sample_count={clipped_sample_count}"
+    )
+    scope_text = "只看稳定身份" if include_candidates else "查看候选碎片"
+    return HTMLResponse(
+        f"""
+        <!doctype html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>眼镜状态人工审核</title>
+            <style>
+                * {{ box-sizing: border-box; }}
+                body {{ margin: 0; font-family: Arial, sans-serif; background: #f5f7f9; color: #20242a; }}
+                main {{ max-width: 1480px; margin: 0 auto; padding: 18px; }}
+                .toolbar {{ position: sticky; top: 0; z-index: 6; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; background: #f5f7f9; border-bottom: 1px solid #d8dee7; }}
+                h1 {{ margin: 0; font-size: 22px; }}
+                h2 {{ margin: 0; font-size: 14px; word-break: break-all; }}
+                .summary, .person-title span, .sample-meta span, .state {{ color: #5d6875; font-size: 12px; }}
+                .mode-link {{ color: #5d6875; font-size: 13px; text-decoration: none; border-bottom: 1px solid #aeb6c2; }}
+                .actions {{ display: flex; align-items: center; gap: 10px; }}
+                button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
+                button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
+                button:disabled {{ opacity: .55; cursor: default; }}
+                .status {{ min-width: 180px; color: #5d6875; font-size: 13px; text-align: right; }}
+                .person-card {{ margin-top: 14px; border: 1px solid #d8dee7; border-radius: 8px; background: #fff; overflow: hidden; }}
+                .person-head {{ display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid #e5eaf1; background: #fbfcfd; }}
+                .face {{ width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #e8ecf1; }}
+                .person-actions {{ display: flex; align-items: center; gap: 8px; }}
+                .state {{ min-width: 44px; text-align: right; }}
+                .samples {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; padding: 12px; }}
+                .sample {{ min-width: 0; border: 1px solid #e3e8ef; border-radius: 6px; overflow: hidden; background: #fbfcfd; }}
+                .sample-face-large {{ display: block; width: 100%; height: 150px; object-fit: contain; background: #e8ecf1; }}
+                .context-shot {{ display: block; width: 100%; height: 86px; object-fit: cover; border-top: 1px solid #e3e8ef; background: #e8ecf1; }}
+                .sample-meta {{ display: grid; gap: 3px; padding: 7px; }}
+                .sample-meta strong, .sample-meta span {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .sample-meta strong {{ font-size: 12px; }}
+                .label-form {{ display: grid; grid-template-columns: minmax(130px, 180px) minmax(120px, 160px) minmax(130px, 170px) 1fr; gap: 10px; align-items: end; padding: 12px; border-top: 1px solid #e5eaf1; }}
+                label {{ display: grid; gap: 5px; font-size: 12px; color: #5d6875; }}
+                select, input[type="text"] {{ height: 34px; border: 1px solid #c8d0da; border-radius: 6px; background: #fff; padding: 0 8px; color: #20242a; min-width: 0; }}
+                .note-label {{ min-width: 180px; }}
+                .empty {{ margin: 0; padding: 14px; color: #5d6875; }}
+                .placeholder {{ background: repeating-linear-gradient(45deg, #e8ecf1, #e8ecf1 7px, #dde3ea 7px, #dde3ea 14px); }}
+                @media (max-width: 880px) {{
+                    main {{ padding: 10px; }}
+                    .toolbar, .person-head {{ display: grid; grid-template-columns: 1fr; align-items: start; }}
+                    .label-form {{ grid-template-columns: 1fr 1fr; }}
+                    .note-label {{ grid-column: 1 / -1; }}
+                    .status {{ text-align: left; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <main>
+                <div class="toolbar">
+                    <div>
+                        <h1>眼镜状态人工审核</h1>
+                        <div class="summary">{len(persons)} persons · {scope_label} · {total_samples} samples · {total_events} propagated events · saved {saved_count} · file: {_h(str(_MANUAL_PERSON_GLASSES_LABEL_PATH))}</div>
+                    </div>
+                    <div class="actions">
+                        <a class="mode-link" href="{_h(scope_href)}">{_h(scope_text)}</a>
+                        <a class="mode-link" href="{_h(unsaved_href)}">{_h(unsaved_text)}</a>
+                        <button type="button" id="saveAll" class="primary">保存全部</button>
+                        <span id="status" class="status">等待审核</span>
+                    </div>
+                </div>
+                {"".join(cards) or '<p class="empty">No persons to review.</p>'}
+            </main>
+            <script>
+                const endpoint = "/api/v1/person-glasses-labels";
+                function collectCard(card) {{
+                    const samples = Array.from(card.querySelectorAll(".sample"));
+                    return {{
+                        person_id: card.dataset.personId,
+                        glasses_status: card.querySelector(".glasses-status").value,
+                        evidence_quality: card.querySelector(".evidence-quality").value,
+                        review_status: card.querySelector(".review-status").value,
+                        note: card.querySelector(".note").value,
+                        sample_event_ids: samples.map(item => item.dataset.eventId).filter(Boolean),
+                        sample_observation_ids: samples.map(item => item.dataset.observationId).filter(Boolean),
+                    }};
+                }}
+                async function saveLabels(cards) {{
+                    const status = document.getElementById("status");
+                    status.textContent = "保存中...";
+                    const labels = cards.map(collectCard);
+                    const response = await fetch(endpoint, {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ labels }}),
+                    }});
+                    const body = await response.json();
+                    if (!response.ok) {{
+                        throw new Error(body.detail || "保存失败");
+                    }}
+                    cards.forEach(card => {{
+                        const state = card.querySelector(".state");
+                        if (state) state.textContent = "已保存";
+                    }});
+                    status.textContent = `已保存 ${{body.saved}} 人，传播 ${{body.propagated_events}} 个事件`;
+                }}
+                document.getElementById("saveAll").addEventListener("click", async event => {{
+                    const button = event.currentTarget;
+                    button.disabled = true;
+                    try {{
+                        await saveLabels(Array.from(document.querySelectorAll(".person-card")));
+                    }} catch (error) {{
+                        document.getElementById("status").textContent = error.message;
+                    }} finally {{
+                        button.disabled = false;
+                    }}
+                }});
+                document.querySelectorAll(".save-one").forEach(button => {{
+                    button.addEventListener("click", async event => {{
+                        const current = event.currentTarget;
+                        current.disabled = true;
+                        try {{
+                            await saveLabels([current.closest(".person-card")]);
+                        }} catch (error) {{
+                            document.getElementById("status").textContent = error.message;
+                        }} finally {{
+                            current.disabled = false;
+                        }}
+                    }});
+                }});
+            </script>
+        </body>
+        </html>
+        """
+    )
 
 
 @router.get("/gender-presentation-labels/review", response_class=HTMLResponse)
