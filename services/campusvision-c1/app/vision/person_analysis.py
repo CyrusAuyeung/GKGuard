@@ -15,6 +15,7 @@ class RegionResult:
     confidence: float | None
     visible: bool
     valid_pixel_ratio: float | None
+    probabilities: dict[str, float] | None = None
 
     def as_prefix(self, prefix: str) -> dict:
         return {
@@ -22,6 +23,7 @@ class RegionResult:
             f"{prefix}_color_confidence": self.confidence,
             f"{prefix}_visible": self.visible,
             f"{prefix}_valid_pixel_ratio": self.valid_pixel_ratio,
+            f"{prefix}_color_probs": self.probabilities,
         }
 
 
@@ -402,13 +404,55 @@ def _classify_upper_color_with_backend(image_bgr: np.ndarray, body_box: dict) ->
         color = "unknown"
     confidence = prediction.get("confidence")
     valid_ratio = prediction.get("valid_pixel_ratio")
+    diagnostics = prediction.get("diagnostics") if isinstance(prediction.get("diagnostics"), dict) else {}
+    raw_probs = diagnostics.get("probs") if isinstance(diagnostics, dict) else None
+    probabilities = None
+    if isinstance(raw_probs, dict):
+        probabilities = {
+            str(label): round(float(probability), 6)
+            for label, probability in raw_probs.items()
+            if str(label) in settings.clothing_color_labels
+        }
     visible = bool(prediction.get("visible")) and color != "unknown"
-    return RegionResult(
+    clip_result = RegionResult(
         str(color),
         round(float(confidence), 4) if confidence is not None else None,
         visible,
         round(float(valid_ratio), 4) if valid_ratio is not None else None,
+        probabilities,
     )
+    return _apply_upper_neutral_guard(image_bgr, body_box, clip_result)
+
+
+def _apply_upper_neutral_guard(image_bgr: np.ndarray, body_box: dict, clip_result: RegionResult) -> RegionResult:
+    upper_roi = _roi_from_ratio(
+        image_bgr,
+        body_box,
+        settings.upper_roi_start_ratio,
+        settings.upper_roi_end_ratio,
+    )
+    rule_result = classify_clothing_color(upper_roi, part="upper")
+    if not rule_result.visible or rule_result.color not in {"black", "white", "gray", "striped"}:
+        return clip_result
+
+    rule_confidence = float(rule_result.confidence or 0.0)
+    clip_confidence = float(clip_result.confidence or 0.0)
+    clip_color = clip_result.color or "unknown"
+    if clip_result.visible and clip_color not in {"blue", "unknown"} and clip_confidence >= 0.35:
+        return clip_result
+
+    neutral_color = rule_result.color in {"black", "white", "gray"}
+    high_confidence_neutral = neutral_color and rule_confidence >= 0.62
+    strong_blue_cast_evidence = clip_color == "blue" and neutral_color and rule_confidence >= 0.72
+    low_confidence_clip = clip_confidence < 0.22
+
+    if high_confidence_neutral and (low_confidence_clip or strong_blue_cast_evidence):
+        return rule_result
+    if rule_result.color == "striped" and rule_confidence >= 0.50 and clip_confidence < 0.20:
+        return rule_result
+    if not clip_result.visible and rule_confidence >= 0.45:
+        return rule_result
+    return clip_result
 
 
 def analyze_clothing(image_bgr: np.ndarray, body_box: dict | None, body_visibility: str) -> dict:

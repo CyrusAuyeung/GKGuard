@@ -9,6 +9,13 @@ from app.storage import db
 from app.vision.person_analysis import bbox_area
 
 
+_UPPER_PROB_COLORS = tuple(
+    color
+    for color in settings.clothing_color_labels
+    if color not in {"unknown", "other"}
+)
+
+
 def _core_clothing_parts() -> tuple[str, ...]:
     return ("upper", "lower") if settings.enable_lower_clothing_core else ("upper",)
 
@@ -20,6 +27,7 @@ def _unknown_part() -> dict:
         "support": 0,
         "visible": False,
         "counts": {},
+        "probabilities": None,
     }
 
 
@@ -119,7 +127,15 @@ def _can_merge(left: dict, right: dict) -> bool:
     return distance <= 0.55 and _colors_compatible(left, right)
 
 
-def _aggregate_color(observations: list[dict], prefix: str) -> tuple[str | None, float | None, bool | None]:
+def _aggregate_color(
+    observations: list[dict],
+    prefix: str,
+) -> tuple[str | None, float | None, bool | None, dict[str, float] | None]:
+    if prefix == "upper":
+        prob_color, prob_confidence, prob_visible, probabilities = _aggregate_upper_color_probs(observations)
+        if probabilities:
+            return prob_color, prob_confidence, prob_visible, probabilities
+
     threshold = (
         settings.upper_color_confidence_threshold
         if prefix == "upper"
@@ -143,13 +159,56 @@ def _aggregate_color(observations: list[dict], prefix: str) -> tuple[str | None,
 
     if not weights or total_weight <= 0.0:
         visible = any(bool(obs.get(f"{prefix}_visible")) for obs in observations)
-        return ("unknown", 0.0 if visible else None, visible)
+        return "unknown", 0.0 if visible else None, visible, None
 
     color, weight = max(weights.items(), key=lambda item: item[1])
     dominance = weight / total_weight
     average_source_confidence = weight / max(1, support[color])
     confidence = dominance * min(1.0, average_source_confidence)
-    return color, round(float(confidence), 4), True
+    return color, round(float(confidence), 4), True, None
+
+
+def _valid_upper_probabilities(value: dict | None) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+    out = {}
+    for color in _UPPER_PROB_COLORS:
+        try:
+            probability = float(value.get(color) or 0.0)
+        except (TypeError, ValueError):
+            probability = 0.0
+        if probability > 0.0:
+            out[color] = probability
+    total = sum(out.values())
+    if total <= 0.0:
+        return {}
+    return {color: probability / total for color, probability in out.items()}
+
+
+def _aggregate_upper_color_probs(observations: list[dict]) -> tuple[str, float | None, bool, dict[str, float] | None]:
+    totals: dict[str, float] = {}
+    total_weight = 0.0
+    for obs in observations:
+        probabilities = _valid_upper_probabilities(obs.get("upper_color_probs"))
+        if not probabilities:
+            continue
+        valid_ratio = float(obs.get("upper_valid_pixel_ratio") or 1.0)
+        confidence = float(obs.get("upper_color_confidence") or 0.0)
+        weight = max(0.20, min(1.0, valid_ratio)) * max(0.30, min(1.0, confidence * 4.0))
+        for color, probability in probabilities.items():
+            totals[color] = totals.get(color, 0.0) + probability * weight
+        total_weight += weight
+
+    if not totals or total_weight <= 0.0:
+        visible = any(bool(obs.get("upper_visible")) for obs in observations)
+        return "unknown", 0.0 if visible else None, visible, None
+
+    normalized = {color: value / total_weight for color, value in totals.items()}
+    color, probability = max(normalized.items(), key=lambda item: item[1])
+    return color, round(float(probability), 4), True, {
+        color_name: round(float(normalized.get(color_name, 0.0)), 6)
+        for color_name in _UPPER_PROB_COLORS
+    }
 
 
 def _representative_observation(observations: list[dict]) -> dict:
@@ -229,16 +288,27 @@ def _raw_part(event: dict, prefix: str) -> dict:
     visible = event.get(f"raw_{prefix}_visible")
     if visible is None:
         visible = event.get(f"{prefix}_visible")
+    probabilities = None
+    if prefix == "upper":
+        probabilities = event.get("raw_upper_color_probs")
+        if probabilities is None:
+            probabilities = event.get("upper_color_probs")
     observed = bool(visible)
     return {
         "color": color or "unknown",
         "confidence": confidence,
         "observed": observed,
         "visible": observed and color not in (None, "", "unknown"),
+        "probabilities": _valid_upper_probabilities(probabilities) if prefix == "upper" else None,
     }
 
 
 def _profile_for_events(events: list[dict], prefix: str) -> dict:
+    if prefix == "upper":
+        profile = _upper_probability_profile(events)
+        if profile is not None:
+            return profile
+
     weights: Counter[str] = Counter()
     support: Counter[str] = Counter()
     confidence_sum: Counter[str] = Counter()
@@ -258,6 +328,7 @@ def _profile_for_events(events: list[dict], prefix: str) -> dict:
             "support": 0,
             "visible": False,
             "counts": {},
+            "probabilities": None,
         }
 
     color, weight = weights.most_common(1)[0]
@@ -269,6 +340,43 @@ def _profile_for_events(events: list[dict], prefix: str) -> dict:
         "support": int(support[color]),
         "visible": True,
         "counts": dict(support.most_common()),
+        "probabilities": None,
+    }
+
+
+def _upper_probability_profile(events: list[dict]) -> dict | None:
+    totals: dict[str, float] = {}
+    support = 0
+    counts: Counter[str] = Counter()
+    for event in events:
+        part = _raw_part(event, "upper")
+        probabilities = part.get("probabilities")
+        if not probabilities:
+            continue
+        confidence = float(part.get("confidence") or 0.0)
+        weight = max(0.35, min(1.0, confidence * 4.0))
+        for color, probability in probabilities.items():
+            totals[color] = totals.get(color, 0.0) + float(probability) * weight
+        if part["visible"]:
+            counts[part["color"]] += 1
+        support += 1
+
+    if not totals or support == 0:
+        return None
+
+    total_weight = sum(totals.values())
+    probabilities = {color: value / max(1e-6, total_weight) for color, value in totals.items()}
+    color, probability = max(probabilities.items(), key=lambda item: item[1])
+    return {
+        "color": color,
+        "confidence": round(float(probability), 4),
+        "support": support,
+        "visible": True,
+        "counts": dict(counts.most_common()),
+        "probabilities": {
+            color_name: round(float(probabilities.get(color_name, 0.0)), 6)
+            for color_name in _UPPER_PROB_COLORS
+        },
     }
 
 
@@ -327,15 +435,18 @@ def _normalize_part(event: dict, session_profile: dict, prefix: str) -> tuple[di
         "raw_color": raw["color"],
         "raw_confidence": raw["confidence"],
         "raw_observed": raw["observed"],
+        "raw_probabilities": raw.get("probabilities"),
         "profile_color": profile.get("color"),
         "profile_confidence": profile.get("confidence"),
         "profile_support": profile.get("support"),
+        "profile_probabilities": profile.get("probabilities"),
         "action": "keep_raw",
     }
 
     if _strong_profile(profile):
         profile_color = profile["color"]
         profile_confidence = float(profile.get("confidence") or 0.0)
+        profile_probabilities = profile.get("probabilities")
         raw_confidence = float(raw["confidence"] or 0.0)
         if not raw["observed"]:
             reason["action"] = "keep_unobserved"
@@ -344,6 +455,7 @@ def _normalize_part(event: dict, session_profile: dict, prefix: str) -> tuple[di
                 "color": profile_color,
                 "confidence": round(min(0.75, profile_confidence * 0.75), 4),
                 "visible": True,
+                "probabilities": profile_probabilities,
             }
             reason["action"] = "fill_unknown_color_from_appearance_session"
         elif raw["color"] != profile_color and raw_confidence < settings.appearance_session_low_confidence_threshold:
@@ -351,11 +463,13 @@ def _normalize_part(event: dict, session_profile: dict, prefix: str) -> tuple[di
                 "color": profile_color,
                 "confidence": round(min(0.82, max(raw_confidence, profile_confidence * 0.85)), 4),
                 "visible": True,
+                "probabilities": profile_probabilities,
             }
             reason["action"] = "override_low_confidence_with_appearance_session"
 
     reason["normalized_color"] = normalized["color"]
     reason["normalized_confidence"] = normalized["confidence"]
+    reason["normalized_probabilities"] = normalized.get("probabilities")
     return normalized, reason
 
 
@@ -434,12 +548,14 @@ def rebuild_appearance_sessions_for_person(person_id: str) -> dict:
                     "upper_color": normalized_upper["color"],
                     "upper_color_confidence": normalized_upper["confidence"],
                     "upper_visible": normalized_upper["visible"],
+                    "upper_color_probs": normalized_upper.get("probabilities"),
                     "lower_color": normalized_lower["color"],
                     "lower_color_confidence": normalized_lower["confidence"],
                     "lower_visible": normalized_lower["visible"],
                     "normalized_upper_color": normalized_upper["color"],
                     "normalized_upper_color_confidence": normalized_upper["confidence"],
                     "normalized_upper_visible": normalized_upper["visible"],
+                    "normalized_upper_color_probs": normalized_upper.get("probabilities"),
                     "normalized_lower_color": normalized_lower["color"],
                     "normalized_lower_color_confidence": normalized_lower["confidence"],
                     "normalized_lower_visible": normalized_lower["visible"],
@@ -491,8 +607,8 @@ def _event_from_observations(observations: list[dict]) -> dict:
     captured_values = [obs.get("captured_at") for obs in ordered if obs.get("captured_at")]
     timestamps = [float(obs.get("video_timestamp_sec") or 0.0) for obs in ordered]
     person_ids = [obs.get("person_id") for obs in ordered if obs.get("person_id")]
-    upper_color, upper_confidence, upper_visible = _aggregate_color(ordered, "upper")
-    raw_lower_color, raw_lower_confidence, raw_lower_visible = _aggregate_color(ordered, "lower")
+    upper_color, upper_confidence, upper_visible, upper_probs = _aggregate_color(ordered, "upper")
+    raw_lower_color, raw_lower_confidence, raw_lower_visible, _ = _aggregate_color(ordered, "lower")
     if settings.enable_lower_clothing_core:
         lower_color = raw_lower_color
         lower_confidence = raw_lower_confidence
@@ -520,18 +636,21 @@ def _event_from_observations(observations: list[dict]) -> dict:
         "upper_color": upper_color,
         "upper_color_confidence": upper_confidence,
         "upper_visible": upper_visible,
+        "upper_color_probs": upper_probs,
         "lower_color": lower_color,
         "lower_color_confidence": lower_confidence,
         "lower_visible": lower_visible,
         "raw_upper_color": upper_color,
         "raw_upper_color_confidence": upper_confidence,
         "raw_upper_visible": upper_visible,
+        "raw_upper_color_probs": upper_probs,
         "raw_lower_color": raw_lower_color,
         "raw_lower_color_confidence": raw_lower_confidence,
         "raw_lower_visible": raw_lower_visible,
         "normalized_upper_color": upper_color,
         "normalized_upper_color_confidence": upper_confidence,
         "normalized_upper_visible": upper_visible,
+        "normalized_upper_color_probs": upper_probs,
         "normalized_lower_color": lower_color,
         "normalized_lower_color_confidence": lower_confidence,
         "normalized_lower_visible": lower_visible,

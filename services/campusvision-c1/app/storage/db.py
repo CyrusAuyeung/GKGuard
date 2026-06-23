@@ -35,6 +35,18 @@ def _bool_value(value: Any) -> bool:
     return bool(int(value or 0))
 
 
+def _json_or_none(value: Any) -> str | None:
+    if value is None:
+        return None
+    return json.dumps(value, ensure_ascii=False)
+
+
+def _loads_json_or_none(value: str | None) -> Any | None:
+    if not value:
+        return None
+    return json.loads(value)
+
+
 def init_db() -> None:
     with get_conn() as conn:
         conn.execute(
@@ -139,6 +151,7 @@ def init_db() -> None:
             )
             """
         )
+        _ensure_column(conn, "person_observations", "upper_color_probs_json", "TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS events (
@@ -172,14 +185,17 @@ def init_db() -> None:
             """
         )
         _ensure_column(conn, "events", "raw_upper_color", "TEXT")
+        _ensure_column(conn, "events", "upper_color_probs_json", "TEXT")
         _ensure_column(conn, "events", "raw_upper_color_confidence", "REAL")
         _ensure_column(conn, "events", "raw_upper_visible", "INTEGER")
+        _ensure_column(conn, "events", "raw_upper_color_probs_json", "TEXT")
         _ensure_column(conn, "events", "raw_lower_color", "TEXT")
         _ensure_column(conn, "events", "raw_lower_color_confidence", "REAL")
         _ensure_column(conn, "events", "raw_lower_visible", "INTEGER")
         _ensure_column(conn, "events", "normalized_upper_color", "TEXT")
         _ensure_column(conn, "events", "normalized_upper_color_confidence", "REAL")
         _ensure_column(conn, "events", "normalized_upper_visible", "INTEGER")
+        _ensure_column(conn, "events", "normalized_upper_color_probs_json", "TEXT")
         _ensure_column(conn, "events", "normalized_lower_color", "TEXT")
         _ensure_column(conn, "events", "normalized_lower_color_confidence", "REAL")
         _ensure_column(conn, "events", "normalized_lower_visible", "INTEGER")
@@ -192,12 +208,14 @@ def init_db() -> None:
                 raw_upper_color = COALESCE(raw_upper_color, upper_color),
                 raw_upper_color_confidence = COALESCE(raw_upper_color_confidence, upper_color_confidence),
                 raw_upper_visible = COALESCE(raw_upper_visible, upper_visible),
+                raw_upper_color_probs_json = COALESCE(raw_upper_color_probs_json, upper_color_probs_json),
                 raw_lower_color = COALESCE(raw_lower_color, lower_color),
                 raw_lower_color_confidence = COALESCE(raw_lower_color_confidence, lower_color_confidence),
                 raw_lower_visible = COALESCE(raw_lower_visible, lower_visible),
                 normalized_upper_color = COALESCE(normalized_upper_color, upper_color),
                 normalized_upper_color_confidence = COALESCE(normalized_upper_color_confidence, upper_color_confidence),
                 normalized_upper_visible = COALESCE(normalized_upper_visible, upper_visible),
+                normalized_upper_color_probs_json = COALESCE(normalized_upper_color_probs_json, upper_color_probs_json),
                 normalized_lower_color = COALESCE(normalized_lower_color, lower_color),
                 normalized_lower_color_confidence = COALESCE(normalized_lower_color_confidence, lower_color_confidence),
                 normalized_lower_visible = COALESCE(normalized_lower_visible, lower_visible),
@@ -655,7 +673,9 @@ def _observation_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         return None
     data = dict(row)
     raw_bbox = data.pop("person_bbox_json", None)
+    raw_upper_probs = data.pop("upper_color_probs_json", None)
     data["person_bbox"] = json.loads(raw_bbox) if raw_bbox else None
+    data["upper_color_probs"] = _loads_json_or_none(raw_upper_probs)
     data["upper_visible"] = _bool_value(data.get("upper_visible"))
     data["lower_visible"] = _bool_value(data.get("lower_visible"))
     data["frame_url"] = f"/api/v1/media/observation/frame/{data['observation_id']}"
@@ -678,10 +698,11 @@ def add_person_observation(observation: dict[str, Any]) -> dict[str, Any]:
                 observation_type, body_visibility, person_bbox_json,
                 person_detection_confidence, face_record_id, person_id,
                 upper_color, upper_color_confidence, upper_visible, upper_valid_pixel_ratio,
+                upper_color_probs_json,
                 lower_color, lower_color_confidence, lower_visible, lower_valid_pixel_ratio,
                 clothing_model_version, body_model_version, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 observation["observation_id"],
@@ -705,6 +726,7 @@ def add_person_observation(observation: dict[str, Any]) -> dict[str, Any]:
                 observation.get("upper_color_confidence"),
                 1 if observation.get("upper_visible") else 0,
                 observation.get("upper_valid_pixel_ratio"),
+                _json_or_none(observation.get("upper_color_probs")),
                 observation.get("lower_color"),
                 observation.get("lower_color_confidence"),
                 1 if observation.get("lower_visible") else 0,
@@ -806,6 +828,13 @@ def _event_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         "normalized_lower_visible",
     ):
         data[key] = None if data.get(key) is None else _bool_value(data.get(key))
+    for key in (
+        "upper_color_probs_json",
+        "raw_upper_color_probs_json",
+        "normalized_upper_color_probs_json",
+    ):
+        raw_probs = data.pop(key, None)
+        data[key.removesuffix("_json")] = _loads_json_or_none(raw_probs)
     raw_reason = data.pop("clothing_normalization_reason_json", None)
     data["clothing_normalization_reason"] = json.loads(raw_reason) if raw_reason else None
     data["representative_frame_url"] = (
@@ -839,6 +868,7 @@ def add_event(event: dict[str, Any], observations: list[dict[str, Any]]) -> dict
     raw_upper_color = event.get("raw_upper_color", event.get("upper_color"))
     raw_upper_confidence = event.get("raw_upper_color_confidence", event.get("upper_color_confidence"))
     raw_upper_visible = event.get("raw_upper_visible", event.get("upper_visible"))
+    raw_upper_probs = event.get("raw_upper_color_probs", event.get("upper_color_probs"))
     raw_lower_color = event.get("raw_lower_color", event.get("lower_color"))
     raw_lower_confidence = event.get("raw_lower_color_confidence", event.get("lower_color_confidence"))
     raw_lower_visible = event.get("raw_lower_visible", event.get("lower_visible"))
@@ -848,6 +878,7 @@ def add_event(event: dict[str, Any], observations: list[dict[str, Any]]) -> dict
         event.get("upper_color_confidence"),
     )
     normalized_upper_visible = event.get("normalized_upper_visible", event.get("upper_visible"))
+    normalized_upper_probs = event.get("normalized_upper_color_probs", event.get("upper_color_probs"))
     normalized_lower_color = event.get("normalized_lower_color", event.get("lower_color"))
     normalized_lower_confidence = event.get(
         "normalized_lower_color_confidence",
@@ -862,17 +893,18 @@ def add_event(event: dict[str, Any], observations: list[dict[str, Any]]) -> dict
                 start_time, end_time, start_timestamp_sec, end_timestamp_sec,
                 observation_count, face_count, representative_observation_id,
                 representative_face_id, representative_frame_path,
-                upper_color, upper_color_confidence, upper_visible,
+                upper_color, upper_color_confidence, upper_visible, upper_color_probs_json,
                 lower_color, lower_color_confidence, lower_visible,
-                raw_upper_color, raw_upper_color_confidence, raw_upper_visible,
+                raw_upper_color, raw_upper_color_confidence, raw_upper_visible, raw_upper_color_probs_json,
                 raw_lower_color, raw_lower_color_confidence, raw_lower_visible,
                 normalized_upper_color, normalized_upper_color_confidence, normalized_upper_visible,
+                normalized_upper_color_probs_json,
                 normalized_lower_color, normalized_lower_color_confidence, normalized_lower_visible,
                 appearance_session_id, clothing_normalization_version,
                 clothing_normalization_reason_json,
                 identity_confidence, event_status, aggregation_version, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 event["event_id"],
@@ -893,18 +925,21 @@ def add_event(event: dict[str, Any], observations: list[dict[str, Any]]) -> dict
                 normalized_upper_color,
                 normalized_upper_confidence,
                 None if normalized_upper_visible is None else (1 if normalized_upper_visible else 0),
+                _json_or_none(normalized_upper_probs),
                 normalized_lower_color,
                 normalized_lower_confidence,
                 None if normalized_lower_visible is None else (1 if normalized_lower_visible else 0),
                 raw_upper_color,
                 raw_upper_confidence,
                 None if raw_upper_visible is None else (1 if raw_upper_visible else 0),
+                _json_or_none(raw_upper_probs),
                 raw_lower_color,
                 raw_lower_confidence,
                 None if raw_lower_visible is None else (1 if raw_lower_visible else 0),
                 normalized_upper_color,
                 normalized_upper_confidence,
                 None if normalized_upper_visible is None else (1 if normalized_upper_visible else 0),
+                _json_or_none(normalized_upper_probs),
                 normalized_lower_color,
                 normalized_lower_confidence,
                 None if normalized_lower_visible is None else (1 if normalized_lower_visible else 0),
@@ -1016,12 +1051,14 @@ def delete_appearance_sessions_for_person(person_id: str) -> None:
                 upper_color = COALESCE(raw_upper_color, upper_color),
                 upper_color_confidence = COALESCE(raw_upper_color_confidence, upper_color_confidence),
                 upper_visible = COALESCE(raw_upper_visible, upper_visible),
+                upper_color_probs_json = COALESCE(raw_upper_color_probs_json, upper_color_probs_json),
                 lower_color = COALESCE(raw_lower_color, lower_color),
                 lower_color_confidence = COALESCE(raw_lower_color_confidence, lower_color_confidence),
                 lower_visible = COALESCE(raw_lower_visible, lower_visible),
                 normalized_upper_color = COALESCE(raw_upper_color, upper_color),
                 normalized_upper_color_confidence = COALESCE(raw_upper_color_confidence, upper_color_confidence),
                 normalized_upper_visible = COALESCE(raw_upper_visible, upper_visible),
+                normalized_upper_color_probs_json = COALESCE(raw_upper_color_probs_json, upper_color_probs_json),
                 normalized_lower_color = COALESCE(raw_lower_color, lower_color),
                 normalized_lower_color_confidence = COALESCE(raw_lower_color_confidence, lower_color_confidence),
                 normalized_lower_visible = COALESCE(raw_lower_visible, lower_visible),
@@ -1111,12 +1148,14 @@ def update_event_clothing_normalization(event_id: str, payload: dict[str, Any]) 
                 upper_color = ?,
                 upper_color_confidence = ?,
                 upper_visible = ?,
+                upper_color_probs_json = ?,
                 lower_color = ?,
                 lower_color_confidence = ?,
                 lower_visible = ?,
                 normalized_upper_color = ?,
                 normalized_upper_color_confidence = ?,
                 normalized_upper_visible = ?,
+                normalized_upper_color_probs_json = ?,
                 normalized_lower_color = ?,
                 normalized_lower_color_confidence = ?,
                 normalized_lower_visible = ?,
@@ -1130,6 +1169,7 @@ def update_event_clothing_normalization(event_id: str, payload: dict[str, Any]) 
                 payload.get("upper_color"),
                 payload.get("upper_color_confidence"),
                 None if payload.get("upper_visible") is None else (1 if payload.get("upper_visible") else 0),
+                _json_or_none(payload.get("upper_color_probs")),
                 payload.get("lower_color"),
                 payload.get("lower_color_confidence"),
                 None if payload.get("lower_visible") is None else (1 if payload.get("lower_visible") else 0),
@@ -1138,6 +1178,7 @@ def update_event_clothing_normalization(event_id: str, payload: dict[str, Any]) 
                 None
                 if payload.get("normalized_upper_visible") is None
                 else (1 if payload.get("normalized_upper_visible") else 0),
+                _json_or_none(payload.get("normalized_upper_color_probs")),
                 payload.get("normalized_lower_color"),
                 payload.get("normalized_lower_color_confidence"),
                 None
@@ -1244,12 +1285,14 @@ def clear_person_index() -> None:
                 upper_color = COALESCE(raw_upper_color, upper_color),
                 upper_color_confidence = COALESCE(raw_upper_color_confidence, upper_color_confidence),
                 upper_visible = COALESCE(raw_upper_visible, upper_visible),
+                upper_color_probs_json = COALESCE(raw_upper_color_probs_json, upper_color_probs_json),
                 lower_color = COALESCE(raw_lower_color, lower_color),
                 lower_color_confidence = COALESCE(raw_lower_color_confidence, lower_color_confidence),
                 lower_visible = COALESCE(raw_lower_visible, lower_visible),
                 normalized_upper_color = COALESCE(raw_upper_color, upper_color),
                 normalized_upper_color_confidence = COALESCE(raw_upper_color_confidence, upper_color_confidence),
                 normalized_upper_visible = COALESCE(raw_upper_visible, upper_visible),
+                normalized_upper_color_probs_json = COALESCE(raw_upper_color_probs_json, upper_color_probs_json),
                 normalized_lower_color = COALESCE(raw_lower_color, lower_color),
                 normalized_lower_color_confidence = COALESCE(raw_lower_color_confidence, lower_color_confidence),
                 normalized_lower_visible = COALESCE(raw_lower_visible, lower_visible),

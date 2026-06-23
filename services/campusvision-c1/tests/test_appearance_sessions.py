@@ -17,6 +17,7 @@ def _event(
     *,
     upper_color: str,
     upper_confidence: float,
+    upper_color_probs: dict | None = None,
     lower_color: str = "black",
     lower_confidence: float = 0.9,
 ) -> dict:
@@ -30,6 +31,7 @@ def _event(
         "raw_upper_color": upper_color,
         "raw_upper_color_confidence": upper_confidence,
         "raw_upper_visible": upper_color != "unknown",
+        "raw_upper_color_probs": upper_color_probs,
         "raw_lower_color": lower_color,
         "raw_lower_color_confidence": lower_confidence,
         "raw_lower_visible": lower_color != "unknown",
@@ -58,7 +60,7 @@ def test_low_confidence_event_color_uses_session_profile(monkeypatch):
 def test_event_color_confidence_keeps_absolute_source_confidence(monkeypatch):
     monkeypatch.setattr(event_service.settings, "upper_color_confidence_threshold", 0.35)
 
-    color, confidence, visible = event_service._aggregate_color(
+    color, confidence, visible, probabilities = event_service._aggregate_color(
         [
             {
                 "upper_visible": True,
@@ -73,6 +75,36 @@ def test_event_color_confidence_keeps_absolute_source_confidence(monkeypatch):
     assert color == "blue"
     assert confidence == 0.42
     assert visible is True
+    assert probabilities is None
+
+
+def test_event_color_probabilities_are_averaged_before_label_votes(monkeypatch):
+    monkeypatch.setattr(event_service.settings, "upper_color_confidence_threshold", 0.35)
+
+    color, confidence, visible, probabilities = event_service._aggregate_color(
+        [
+            {
+                "upper_visible": True,
+                "upper_color": "blue",
+                "upper_color_confidence": 0.10,
+                "upper_valid_pixel_ratio": 1.0,
+                "upper_color_probs": {"blue": 0.35, "black": 0.65},
+            },
+            {
+                "upper_visible": True,
+                "upper_color": "blue",
+                "upper_color_confidence": 0.10,
+                "upper_valid_pixel_ratio": 1.0,
+                "upper_color_probs": {"blue": 0.40, "black": 0.60},
+            },
+        ],
+        "upper",
+    )
+
+    assert color == "black"
+    assert confidence == 0.625
+    assert visible is True
+    assert probabilities["black"] == 0.625
 
 
 def test_session_profile_confidence_keeps_absolute_event_confidence():
