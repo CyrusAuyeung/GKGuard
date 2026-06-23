@@ -385,6 +385,32 @@ def _should_extract_lower_clothing(body_box: dict, body_visibility: str) -> bool
     return body_visibility == "upper_body" and bool(body_box.get("estimated_from_face"))
 
 
+def _classify_upper_color_with_backend(image_bgr: np.ndarray, body_box: dict) -> RegionResult | None:
+    if settings.upper_color_backend != "clip_schp":
+        return None
+    try:
+        from app.vision import upper_color_clip
+
+        prediction = upper_color_clip.predict_upper_color(image_bgr, body_box)
+    except Exception:
+        return None
+    if not prediction:
+        return None
+
+    color = prediction.get("color") or "unknown"
+    if color not in settings.clothing_color_labels:
+        color = "unknown"
+    confidence = prediction.get("confidence")
+    valid_ratio = prediction.get("valid_pixel_ratio")
+    visible = bool(prediction.get("visible")) and color != "unknown"
+    return RegionResult(
+        str(color),
+        round(float(confidence), 4) if confidence is not None else None,
+        visible,
+        round(float(valid_ratio), 4) if valid_ratio is not None else None,
+    )
+
+
 def analyze_clothing(image_bgr: np.ndarray, body_box: dict | None, body_visibility: str) -> dict:
     if body_box is None or body_visibility in {"face_only", "unknown_body", "partial_body"}:
         return RegionResult("unknown", None, False, None).as_prefix("upper") | RegionResult(
@@ -395,13 +421,15 @@ def analyze_clothing(image_bgr: np.ndarray, body_box: dict | None, body_visibili
     lower = RegionResult("unknown", None, False, None)
 
     if settings.enable_clothing_detection and settings.enable_upper_clothing_detection:
-        upper_roi = _roi_from_ratio(
-            image_bgr,
-            body_box,
-            settings.upper_roi_start_ratio,
-            settings.upper_roi_end_ratio,
-        )
-        upper = classify_clothing_color(upper_roi, part="upper")
+        upper = _classify_upper_color_with_backend(image_bgr, body_box) or upper
+        if upper.color == "unknown" and upper.confidence is None:
+            upper_roi = _roi_from_ratio(
+                image_bgr,
+                body_box,
+                settings.upper_roi_start_ratio,
+                settings.upper_roi_end_ratio,
+            )
+            upper = classify_clothing_color(upper_roi, part="upper")
 
     if (
         settings.enable_clothing_detection

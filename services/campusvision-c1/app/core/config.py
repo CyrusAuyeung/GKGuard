@@ -106,6 +106,29 @@ class Settings:
     upper_color_calibrator_min_confidence: float = float(
         os.getenv("UPPER_COLOR_CALIBRATOR_MIN_CONFIDENCE", "0.0")
     )
+    upper_color_backend: str = os.getenv("UPPER_COLOR_BACKEND", "hsv").strip().lower()
+    upper_color_clip_backend: str = os.getenv("UPPER_COLOR_CLIP_BACKEND", "hf").strip().lower()
+    upper_color_clip_model_dir: Path = _path_from_env(
+        "UPPER_COLOR_CLIP_MODEL_DIR",
+        "data/models/clip/laion_CLIP-ViT-H-14-laion2B-s32B-b79K",
+    )
+    upper_color_clip_device: str = os.getenv("UPPER_COLOR_CLIP_DEVICE", "cuda:0")
+    upper_color_clip_profile: str = os.getenv(
+        "UPPER_COLOR_CLIP_PROFILE",
+        "profile_realtime_balanced_prompt_v2",
+    )
+    upper_color_clip_temperature: float = float(os.getenv("UPPER_COLOR_CLIP_TEMPERATURE", "10.0"))
+    upper_color_clip_min_confidence: float = float(os.getenv("UPPER_COLOR_CLIP_MIN_CONFIDENCE", "0.0"))
+    upper_color_clip_fail_open: bool = _bool_from_env("UPPER_COLOR_CLIP_FAIL_OPEN", True)
+    upper_color_schp_root: Path = _path_from_env(
+        "UPPER_COLOR_SCHP_ROOT",
+        "data/models/schp/Self-Correction-Human-Parsing",
+    )
+    upper_color_schp_checkpoint: Path = _path_from_env(
+        "UPPER_COLOR_SCHP_CHECKPOINT",
+        "data/models/schp/checkpoints/schp/exp-schp-201908261155-lip.pth",
+    )
+    upper_color_schp_min_mask_pixels: int = int(os.getenv("UPPER_COLOR_SCHP_MIN_MASK_PIXELS", "250"))
     enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")

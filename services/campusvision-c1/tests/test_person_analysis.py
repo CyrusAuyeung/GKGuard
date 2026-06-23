@@ -19,6 +19,7 @@ if CV2_AVAILABLE:
 @pytest.fixture(autouse=True)
 def disable_upper_color_calibrator(monkeypatch):
     monkeypatch.setattr(person_analysis.settings, "enable_upper_color_calibrator", False)
+    monkeypatch.setattr(person_analysis.settings, "upper_color_backend", "hsv")
 
 
 def test_face_only_visibility_when_body_missing():
@@ -49,6 +50,34 @@ def test_upper_body_does_not_force_lower_color():
     assert clothing["upper_color"] == "blue"
     assert clothing["lower_visible"] is False
     assert clothing["lower_color"] == "unknown"
+
+
+def test_clip_schp_backend_is_used_for_upper_color(monkeypatch):
+    from app.vision import upper_color_clip
+
+    image = np.zeros((140, 100, 3), dtype=np.uint8)
+    body = {"x1": 20, "y1": 10, "x2": 80, "y2": 120, "score": 0.8}
+    calls = []
+
+    def fake_predict_upper_color(image_bgr, body_box):
+        calls.append((image_bgr, body_box))
+        return {
+            "color": "purple",
+            "confidence": 0.81234,
+            "visible": True,
+            "valid_pixel_ratio": 0.421,
+        }
+
+    monkeypatch.setattr(person_analysis.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(upper_color_clip, "predict_upper_color", fake_predict_upper_color)
+
+    clothing = person_analysis.analyze_clothing(image, body, "upper_body")
+
+    assert calls
+    assert clothing["upper_visible"] is True
+    assert clothing["upper_color"] == "purple"
+    assert clothing["upper_color_confidence"] == 0.8123
+    assert clothing["upper_valid_pixel_ratio"] == 0.421
 
 
 def test_full_body_extracts_upper_and_lower_colors():
