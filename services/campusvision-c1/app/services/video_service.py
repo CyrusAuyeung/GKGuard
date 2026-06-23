@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import shutil
+import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -83,7 +84,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     engine = get_face_engine()
     body_detector = get_body_detector()
 
-    db.update_video_status(video_id, "indexing")
+    processing_started = time.perf_counter()
+    db.start_video_processing(video_id)
 
     indexed = 0
     observed = 0
@@ -147,9 +149,18 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
         if settings.enable_event_persistence:
             event_result = event_service.rebuild_events_for_video(video_id)
 
-        db.update_video_status(video_id, "indexed")
-    except Exception:
-        db.update_video_status(video_id, "failed")
+        db.finish_video_processing(
+            video_id,
+            status="indexed",
+            duration_sec=time.perf_counter() - processing_started,
+        )
+    except Exception as exc:
+        db.finish_video_processing(
+            video_id,
+            status="failed",
+            duration_sec=time.perf_counter() - processing_started,
+            error=str(exc),
+        )
         raise
 
     return {

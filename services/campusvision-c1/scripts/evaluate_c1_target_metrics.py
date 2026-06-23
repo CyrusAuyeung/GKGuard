@@ -196,9 +196,12 @@ def _video_duration_sec(path: str | None) -> float | None:
 def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
     rows: list[sqlite3.Row]
     with _connect(db_path) as conn:
+        video_columns = {row["name"] for row in conn.execute("PRAGMA table_info(videos)").fetchall()}
+        has_processing_duration = "processing_duration_sec" in video_columns
+        duration_select = "processing_duration_sec" if has_processing_duration else "NULL AS processing_duration_sec"
         rows = conn.execute(
-            """
-            SELECT video_id, filename, camera_id, path, created_at, updated_at
+            f"""
+            SELECT video_id, filename, camera_id, path, created_at, updated_at, {duration_select}
             FROM videos
             WHERE status = 'indexed'
             ORDER BY created_at
@@ -209,7 +212,13 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
     for row in rows:
         created = _parse_datetime(row["created_at"])
         updated = _parse_datetime(row["updated_at"])
-        processing_sec = (updated - created).total_seconds() if created and updated else None
+        measured_processing_sec = row["processing_duration_sec"]
+        processing_sec = (
+            float(measured_processing_sec)
+            if measured_processing_sec is not None
+            else ((updated - created).total_seconds() if created and updated else None)
+        )
+        processing_source = "processing_duration_sec" if measured_processing_sec is not None else "updated_at_minus_created_at"
         duration_sec = _video_duration_sec(row["path"])
         realtime_factor = (
             processing_sec / duration_sec
@@ -222,6 +231,7 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
                 "filename": row["filename"],
                 "camera_id": row["camera_id"],
                 "processing_sec": round(processing_sec, 3) if processing_sec is not None else None,
+                "processing_source": processing_source,
                 "video_duration_sec": round(duration_sec, 3) if duration_sec is not None else None,
                 "realtime_factor": round(realtime_factor, 6) if realtime_factor is not None else None,
             }
@@ -254,6 +264,7 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
                 "filename": item["filename"],
                 "camera_id": item["camera_id"],
                 "processing_sec": item["processing_sec"],
+                "processing_source": item["processing_source"],
                 "video_duration_sec": item["video_duration_sec"],
                 "realtime_factor": item["realtime_factor"],
             }
@@ -265,6 +276,7 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
                 "filename": item["filename"],
                 "camera_id": item["camera_id"],
                 "processing_sec": item["processing_sec"],
+                "processing_source": item["processing_source"],
             }
             for item in slower_than_ideal
         ],

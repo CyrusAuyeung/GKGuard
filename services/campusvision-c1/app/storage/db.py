@@ -77,6 +77,10 @@ def init_db() -> None:
             )
             """
         )
+        _ensure_column(conn, "videos", "processing_started_at", "TEXT")
+        _ensure_column(conn, "videos", "processing_finished_at", "TEXT")
+        _ensure_column(conn, "videos", "processing_duration_sec", "REAL")
+        _ensure_column(conn, "videos", "processing_error", "TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS live_sources (
@@ -491,6 +495,47 @@ def update_video_status(video_id: str, status: str) -> None:
         conn.execute(
             "UPDATE videos SET status = ?, updated_at = ? WHERE video_id = ?",
             (status, now_iso(), video_id),
+        )
+
+
+def start_video_processing(video_id: str) -> None:
+    ts = now_iso()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE videos SET
+                status = 'indexing',
+                processing_started_at = ?,
+                processing_finished_at = NULL,
+                processing_duration_sec = NULL,
+                processing_error = NULL,
+                updated_at = ?
+            WHERE video_id = ?
+            """,
+            (ts, ts, video_id),
+        )
+
+
+def finish_video_processing(
+    video_id: str,
+    *,
+    status: str,
+    duration_sec: float,
+    error: str | None = None,
+) -> None:
+    ts = now_iso()
+    with get_conn() as conn:
+        conn.execute(
+            """
+            UPDATE videos SET
+                status = ?,
+                processing_finished_at = ?,
+                processing_duration_sec = ?,
+                processing_error = ?,
+                updated_at = ?
+            WHERE video_id = ?
+            """,
+            (status, ts, round(float(duration_sec), 6), error, ts, video_id),
         )
 
 
