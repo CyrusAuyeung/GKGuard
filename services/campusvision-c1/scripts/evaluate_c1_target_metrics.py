@@ -724,11 +724,18 @@ def _upper_color_reports() -> dict[str, Any]:
         event = {}
 
     calibrated_group = _calibrated_upper_group_metrics(online_candidate)
+    event_unknown_false = _upper_unknown_false_metrics(online_candidate.get("details"))
+    group_unknown_false = _upper_unknown_false_metrics(group.get("per_group"))
+    prob_group_unknown_false = _upper_unknown_false_metrics(prob_group.get("per_group"))
+    calibrated_group_unknown_false = (
+        _upper_unknown_false_metrics(calibrated_group.get("per_group")) if calibrated_group else None
+    )
     outfit_accuracy = (
         calibrated_group.get("accuracy")
         if calibrated_group
         else prob_group.get("accuracy") or group.get("accuracy")
     )
+    selected_unknown_false = calibrated_group_unknown_false or prob_group_unknown_false or group_unknown_false
     return {
         "manual_eval_source": str(manual_path),
         "clip_eval_source": str(clip_path),
@@ -743,11 +750,71 @@ def _upper_color_reports() -> dict[str, Any]:
         "candidate_group_accuracy": group.get("accuracy"),
         "candidate_prob_group_accuracy": prob_group.get("accuracy"),
         "candidate_calibrated_prob_group_accuracy": calibrated_group.get("accuracy") if calibrated_group else None,
+        "candidate_event_unknown_false_metrics": event_unknown_false,
+        "candidate_group_unknown_false_metrics": group_unknown_false,
+        "candidate_prob_group_unknown_false_metrics": prob_group_unknown_false,
+        "candidate_calibrated_prob_group_unknown_false_metrics": calibrated_group_unknown_false,
+        "selected_outfit_unknown_false_rate": (
+            selected_unknown_false.get("false_unknown_rate") if selected_unknown_false else None
+        ),
+        "selected_outfit_unknown_false_count": (
+            selected_unknown_false.get("false_unknown_count") if selected_unknown_false else None
+        ),
         "candidate_calibrated_prob_group_metrics": calibrated_group,
         "selected_outfit_accuracy": outfit_accuracy,
         "passes_outfit_accuracy_target": (
             outfit_accuracy is not None and float(outfit_accuracy) >= TARGETS["upper_color_outfit_accuracy"]
         ),
+    }
+
+
+def _upper_unknown_false_metrics(records: Any) -> dict[str, Any]:
+    if not isinstance(records, list):
+        return {
+            "manual_visible_total": 0,
+            "false_unknown_count": 0,
+            "false_unknown_rate": None,
+            "unknown_prediction_count": 0,
+            "unknown_prediction_rate": None,
+        }
+
+    manual_visible_total = 0
+    false_unknown_count = 0
+    unknown_prediction_count = 0
+    examples = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        manual = str(record.get("manual_upper_color") or "unknown")
+        predicted = str(record.get("predicted_upper_color") or "unknown")
+        if predicted == "unknown":
+            unknown_prediction_count += 1
+        if manual in {"unknown", "other"}:
+            continue
+        manual_visible_total += 1
+        if predicted == "unknown":
+            false_unknown_count += 1
+            if len(examples) < 20:
+                examples.append(
+                    {
+                        "person_id": record.get("person_id"),
+                        "split_group": record.get("split_group"),
+                        "event_id": record.get("event_id"),
+                        "observation_id": record.get("observation_id"),
+                        "manual_upper_color": manual,
+                        "predicted_upper_color": predicted,
+                    }
+                )
+
+    return {
+        "manual_visible_total": manual_visible_total,
+        "false_unknown_count": false_unknown_count,
+        "false_unknown_rate": round(false_unknown_count / manual_visible_total, 6)
+        if manual_visible_total
+        else None,
+        "unknown_prediction_count": unknown_prediction_count,
+        "unknown_prediction_rate": round(unknown_prediction_count / len(records), 6) if records else None,
+        "examples": examples,
     }
 
 
