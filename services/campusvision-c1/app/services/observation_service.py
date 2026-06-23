@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from math import hypot
 from typing import Any
 
 import numpy as np
@@ -33,6 +34,41 @@ def _bbox_iou(left: dict, right: dict) -> float:
     return inter / union if union > 0.0 else 0.0
 
 
+def _bbox_size(box: dict) -> tuple[float, float]:
+    return (
+        max(1.0, float(box.get("x2", 0) - box.get("x1", 0))),
+        max(1.0, float(box.get("y2", 0) - box.get("y1", 0))),
+    )
+
+
+def _bbox_center(box: dict) -> tuple[float, float]:
+    return (
+        (float(box.get("x1", 0)) + float(box.get("x2", 0))) / 2.0,
+        (float(box.get("y1", 0)) + float(box.get("y2", 0))) / 2.0,
+    )
+
+
+def _center_distance_ratio(left: dict, right: dict) -> float:
+    left_w, left_h = _bbox_size(left)
+    right_w, right_h = _bbox_size(right)
+    left_cx, left_cy = _bbox_center(left)
+    right_cx, right_cy = _bbox_center(right)
+    distance = hypot(left_cx - right_cx, left_cy - right_cy)
+    avg_diagonal = (hypot(left_w, left_h) + hypot(right_w, right_h)) / 2.0
+    return distance / max(1.0, avg_diagonal)
+
+
+def _similar_box_size(left: dict, right: dict) -> bool:
+    left_w, left_h = _bbox_size(left)
+    right_w, right_h = _bbox_size(right)
+    width_ratio = max(left_w, right_w) / max(1.0, min(left_w, right_w))
+    height_ratio = max(left_h, right_h) / max(1.0, min(left_h, right_h))
+    area_left = max(1.0, left_w * left_h)
+    area_right = max(1.0, right_w * right_h)
+    area_ratio = max(area_left, area_right) / max(1.0, min(area_left, area_right))
+    return width_ratio <= 1.75 and height_ratio <= 1.75 and area_ratio <= 2.40
+
+
 def _same_body_source(left: dict, right: dict) -> bool:
     return bool(left.get("estimated_from_face")) == bool(right.get("estimated_from_face")) and str(
         left.get("detector") or ""
@@ -45,6 +81,7 @@ class UpperColorTemporalCache:
         *,
         max_age_sec: float | None = None,
         iou_threshold: float | None = None,
+        center_threshold: float | None = None,
     ) -> None:
         self.max_age_sec = (
             float(settings.upper_color_temporal_cache_max_age_sec)
@@ -55,6 +92,11 @@ class UpperColorTemporalCache:
             float(settings.upper_color_temporal_cache_iou_threshold)
             if iou_threshold is None
             else float(iou_threshold)
+        )
+        self.center_threshold = (
+            float(settings.upper_color_temporal_cache_center_threshold)
+            if center_threshold is None
+            else float(center_threshold)
         )
         self._entries: list[_UpperColorCacheEntry] = []
 
@@ -83,10 +125,14 @@ class UpperColorTemporalCache:
             if age < 0.0 or age > self.max_age_sec:
                 continue
             iou = _bbox_iou(body, entry.body)
-            if iou < self.iou_threshold:
+            center_ratio = _center_distance_ratio(body, entry.body)
+            center_match = center_ratio <= self.center_threshold and _similar_box_size(body, entry.body)
+            if iou < self.iou_threshold and not center_match:
                 continue
-            if best is None or iou > best[0]:
-                best = (iou, index, entry)
+            center_score = max(0.0, 1.0 - center_ratio / max(1e-6, self.center_threshold))
+            score = max(iou, center_score * 0.75)
+            if best is None or score > best[0]:
+                best = (score, index, entry)
         if best is None:
             return None
         used_entry_indexes.add(best[1])

@@ -136,6 +136,9 @@ class Settings:
     upper_color_temporal_cache_iou_threshold: float = float(
         os.getenv("UPPER_COLOR_TEMPORAL_CACHE_IOU_THRESHOLD", "0.45")
     )
+    upper_color_temporal_cache_center_threshold: float = float(
+        os.getenv("UPPER_COLOR_TEMPORAL_CACHE_CENTER_THRESHOLD", "0.30")
+    )
     enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")

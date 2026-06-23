@@ -249,7 +249,7 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
         for item in videos
         if item["processing_sec"] is not None and item["processing_sec"] > TARGETS["api_processing_ideal_max_sec"]
     ]
-    return {
+    history = {
         "videos": len(videos),
         "mean_processing_sec": round(mean(processing), 6) if processing else None,
         "max_processing_sec": max(processing) if processing else None,
@@ -281,6 +281,99 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
             for item in slower_than_ideal
         ],
         "per_video": videos,
+    }
+    benchmark = _api_processing_benchmark_report()
+    if benchmark:
+        source = benchmark
+        metric_source = "current_benchmark"
+        slower_realtime = (
+            []
+            if _metric_leq(source.get("max_realtime_factor"), TARGETS["api_processing_realtime_factor"])
+            else [_api_processing_source_summary(source)]
+        )
+        slower_ideal = (
+            []
+            if _metric_leq(source.get("max_processing_sec"), TARGETS["api_processing_ideal_max_sec"])
+            else [_api_processing_source_summary(source)]
+        )
+    else:
+        source = history
+        metric_source = "video_history"
+        slower_realtime = history["videos_slower_than_realtime"]
+        slower_ideal = history["videos_slower_than_ideal"]
+
+    return {
+        "metric_source": metric_source,
+        "benchmark": benchmark,
+        "history": history,
+        "videos": source.get("videos", len(benchmark.get("measured_runs", [])) if benchmark else len(videos)),
+        "mean_processing_sec": source.get("mean_processing_sec"),
+        "max_processing_sec": source.get("max_processing_sec"),
+        "mean_realtime_factor": source.get("mean_realtime_factor"),
+        "max_realtime_factor": source.get("max_realtime_factor"),
+        "passes_realtime_mean": _metric_leq(
+            source.get("mean_realtime_factor"),
+            TARGETS["api_processing_realtime_factor"],
+        ),
+        "passes_realtime_all": _metric_leq(
+            source.get("max_realtime_factor"),
+            TARGETS["api_processing_realtime_factor"],
+        ),
+        "passes_ideal_max_processing_sec": _metric_leq(
+            source.get("max_processing_sec"),
+            TARGETS["api_processing_ideal_max_sec"],
+        ),
+        "videos_slower_than_realtime": slower_realtime,
+        "videos_slower_than_ideal": slower_ideal,
+        "per_video": videos,
+    }
+
+
+def _metric_leq(value: Any, target: float) -> bool:
+    try:
+        return value is not None and float(value) <= float(target)
+    except (TypeError, ValueError):
+        return False
+
+
+def _api_processing_benchmark_report() -> dict[str, Any] | None:
+    path = settings.data_dir / "evals" / "runtime" / "c1_api_processing_benchmark.json"
+    data = _read_json(path)
+    if not data:
+        return None
+    measured = data.get("measured_runs")
+    if not isinstance(measured, list) or not measured:
+        return None
+    return {
+        "source": str(path),
+        "schema_version": data.get("schema_version"),
+        "generated_at": data.get("generated_at"),
+        "benchmark_source": data.get("source"),
+        "video_id": data.get("video_id"),
+        "filename": data.get("filename"),
+        "camera_id": data.get("camera_id"),
+        "video_duration_sec": data.get("video_duration_sec"),
+        "frame_interval_sec": data.get("frame_interval_sec"),
+        "videos": len(measured),
+        "mean_processing_sec": data.get("mean_processing_sec"),
+        "max_processing_sec": data.get("max_processing_sec"),
+        "mean_realtime_factor": data.get("mean_realtime_factor"),
+        "max_realtime_factor": data.get("max_realtime_factor"),
+        "warmup_runs": data.get("warmup_runs") or [],
+        "measured_runs": measured,
+        "temp_data_dir": data.get("temp_data_dir"),
+    }
+
+
+def _api_processing_source_summary(source: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "video_id": source.get("video_id"),
+        "filename": source.get("filename"),
+        "camera_id": source.get("camera_id"),
+        "processing_sec": source.get("max_processing_sec"),
+        "video_duration_sec": source.get("video_duration_sec"),
+        "realtime_factor": source.get("max_realtime_factor"),
+        "processing_source": source.get("benchmark_source") or source.get("metric_source"),
     }
 
 
