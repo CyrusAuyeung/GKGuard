@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter, defaultdict
 from hashlib import sha1
+import re
 from typing import Any
 
 import cv2
@@ -12,7 +13,12 @@ from app.storage import db
 from app.vision import person_analysis
 
 
-OUTFIT_GROUPING_VERSION = "visual_outfit_group_v1"
+OUTFIT_GROUPING_VERSION = "source_visual_outfit_group_v2"
+SOURCE_MERGE_DISTANCE_THRESHOLD = 0.18
+SOURCE_MERGE_DOMINANT_COLOR_RATIO = 0.70
+
+_CHOKEPOINT_SOURCE_RE = re.compile(r"^(p\d+)[a-z]?_s\d+(?:_c\d+)?$")
+_CAMERA_CHANNEL_SUFFIX_RE = re.compile(r"(?:[_-](?:camera|cam|c))\d+$")
 
 
 def _event_time_key(event: dict[str, Any]) -> tuple[str, float, str]:
@@ -30,6 +36,19 @@ def _event_image_url(event: dict[str, Any]) -> str:
         or event.get("representative_face_crop_url")
         or ""
     )
+
+
+def _source_segment_key(event: dict[str, Any]) -> str:
+    camera_id = str(event.get("camera_id") or "").strip().lower()
+    if not camera_id:
+        return str(event.get("live_source_id") or event.get("video_id") or "unknown_source")
+
+    chokepoint_match = _CHOKEPOINT_SOURCE_RE.match(camera_id)
+    if chokepoint_match:
+        return chokepoint_match.group(1)
+
+    without_channel = _CAMERA_CHANNEL_SUFFIX_RE.sub("", camera_id).strip("_-")
+    return without_channel or camera_id
 
 
 def _upper_roi_for_event(event: dict[str, Any]) -> np.ndarray | None:
@@ -213,6 +232,82 @@ def _attach_missing_feature_items(
     return groups
 
 
+def _group_centroid(group: list[dict[str, Any]]) -> np.ndarray | None:
+    features = [item["feature"] for item in group if item.get("feature") is not None]
+    if not features:
+        return None
+    centroid = np.stack(features).mean(axis=0)
+    norm = float(np.linalg.norm(centroid))
+    return centroid / norm if norm > 0.0 else centroid
+
+
+def _dominant_color(group: list[dict[str, Any]]) -> tuple[str, float]:
+    counts = Counter(str(item.get("model_upper_color") or "unknown") for item in group)
+    if not counts:
+        return "unknown", 0.0
+    color, count = counts.most_common(1)[0]
+    return color, float(count / max(1, sum(counts.values())))
+
+
+def _source_segments_for_group(group: list[dict[str, Any]]) -> set[str]:
+    return {
+        str(item.get("source_segment") or "")
+        for item in group
+        if item.get("source_segment")
+    }
+
+
+def _should_merge_source_groups(left: list[dict[str, Any]], right: list[dict[str, Any]]) -> bool:
+    left_sources = _source_segments_for_group(left)
+    right_sources = _source_segments_for_group(right)
+    if left_sources & right_sources:
+        return False
+
+    left_color, left_ratio = _dominant_color(left)
+    right_color, right_ratio = _dominant_color(right)
+    if left_color == "unknown" or left_color != right_color:
+        return False
+    if left_ratio < SOURCE_MERGE_DOMINANT_COLOR_RATIO or right_ratio < SOURCE_MERGE_DOMINANT_COLOR_RATIO:
+        return False
+
+    left_centroid = _group_centroid(left)
+    right_centroid = _group_centroid(right)
+    if left_centroid is None or right_centroid is None:
+        return False
+
+    return _visual_distance(left_centroid, right_centroid) <= SOURCE_MERGE_DISTANCE_THRESHOLD
+
+
+def _merge_source_compatible_groups(groups: list[list[dict[str, Any]]]) -> list[list[dict[str, Any]]]:
+    if len(groups) <= 1:
+        return groups
+
+    parents = list(range(len(groups)))
+
+    def find(index: int) -> int:
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(left: int, right: int) -> None:
+        parents[find(right)] = find(left)
+
+    for left_index in range(len(groups)):
+        for right_index in range(left_index + 1, len(groups)):
+            if _should_merge_source_groups(groups[left_index], groups[right_index]):
+                union(left_index, right_index)
+
+    merged: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for index, group in enumerate(groups):
+        merged[find(index)].extend(group)
+
+    return sorted(
+        merged.values(),
+        key=lambda group: _event_time_key(sorted((item["event"] for item in group), key=_event_time_key)[0]),
+    )
+
+
 def _outfit_id(person_id: str, events: list[dict[str, Any]]) -> str:
     raw = "|".join([person_id] + sorted(str(event.get("event_id") or "") for event in events))
     return "outfit_" + sha1(raw.encode("utf-8")).hexdigest()[:16]
@@ -223,6 +318,7 @@ def _group_summary(person_id: str, group: list[dict[str, Any]], group_index: int
     color_counts = Counter(str(item.get("model_upper_color") or "unknown") for item in group)
     session_ids = sorted({str(event.get("appearance_session_id") or "") for event in events if event.get("appearance_session_id")})
     camera_ids = sorted({str(event.get("camera_id") or "") for event in events if event.get("camera_id")})
+    source_segment_ids = sorted(_source_segments_for_group(group))
     confidences = [
         float(event.get("upper_color_confidence") or 0.0)
         for event in events
@@ -241,6 +337,7 @@ def _group_summary(person_id: str, group: list[dict[str, Any]], group_index: int
         "event_count": len(events),
         "session_count": len(session_ids),
         "source_session_ids": session_ids,
+        "source_segment_ids": source_segment_ids,
         "camera_ids": camera_ids,
         "start_time": events[0].get("start_time"),
         "end_time": events[-1].get("end_time"),
@@ -322,13 +419,24 @@ def build_outfit_groups_for_events(
                 "feature": feature,
                 "diagnostics": diagnostics,
                 "model_upper_color": event.get("upper_color") or "unknown",
+                "source_segment": _source_segment_key(event),
             }
         )
 
-    feature_items = [item for item in items if item.get("feature") is not None]
-    missing_items = [item for item in items if item.get("feature") is None]
-    clustered = _cluster_feature_items(feature_items, distance_threshold)
-    clustered = _attach_missing_feature_items(clustered, missing_items)
+    clustered = []
+    items_by_source: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in items:
+        items_by_source[str(item.get("source_segment") or "unknown_source")].append(item)
+
+    for source_segment in sorted(items_by_source):
+        source_items = items_by_source[source_segment]
+        feature_items = [item for item in source_items if item.get("feature") is not None]
+        missing_items = [item for item in source_items if item.get("feature") is None]
+        source_groups = _cluster_feature_items(feature_items, distance_threshold)
+        source_groups = _attach_missing_feature_items(source_groups, missing_items)
+        clustered.extend(source_groups)
+
+    clustered = _merge_source_compatible_groups(clustered)
     return [
         _group_summary(person_id, group, index)
         for index, group in enumerate(clustered, start=1)
