@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.services import person_service  # noqa: E402
+from app.services import person_merge_scorer  # noqa: E402
 from app.schemas import AppearanceSessionOut, EventOut, PersonEventOut, PersonObservationOut  # noqa: E402
 
 
@@ -147,7 +148,7 @@ def test_auto_consolidate_can_scan_all_small_persons(monkeypatch):
     monkeypatch.setattr(
         person_service,
         "_best_fragment_target",
-        lambda source, targets: (targets[0], metrics | {"source_person_id": source["person_id"]}),
+        lambda source, targets, **_kwargs: (targets[0], metrics | {"source_person_id": source["person_id"]}),
     )
     monkeypatch.setattr(
         person_service,
@@ -172,6 +173,46 @@ def test_auto_consolidate_can_scan_all_small_persons(monkeypatch):
     assert result["target_candidates"] == 1
     assert result["merge_count"] == 2
     assert result["skip_count"] == 0
+
+
+def test_person_merge_scorer_predicts_probability_from_serialized_model():
+    model = {
+        "model_version": person_merge_scorer.MODEL_VERSION,
+        "feature_names": person_merge_scorer.FEATURE_NAMES,
+        "threshold": 0.5,
+        "scaler_mean": [0.0 for _ in person_merge_scorer.FEATURE_NAMES],
+        "scaler_scale": [1.0 for _ in person_merge_scorer.FEATURE_NAMES],
+        "coef": [1.0 if name == "centroid_similarity" else 0.0 for name in person_merge_scorer.FEATURE_NAMES],
+        "intercept": 0.0,
+    }
+    features = {name: 0.0 for name in person_merge_scorer.FEATURE_NAMES}
+    features["centroid_similarity"] = 2.0
+
+    probability = person_merge_scorer.predict_probability(model, features)
+
+    assert 0.88 < probability < 0.89
+
+
+def test_merge_scorer_guard_requires_probability():
+    base = {
+        "same_frame_conflict": False,
+        "strong_clothing_conflict": False,
+        "centroid_similarity": 0.65,
+        "max_pair_similarity": 0.56,
+        "nearest_margin": 0.36,
+        "merge_probability": 0.84,
+    }
+
+    passed, reason = person_service._passes_auto_fragment_merge_guards(
+        base,
+        min_centroid_similarity=0.64,
+        min_max_pair_similarity=0.55,
+        min_nearest_margin=0.35,
+        min_merge_probability=0.85,
+    )
+
+    assert passed is False
+    assert reason == "low_merge_probability"
 
 
 def test_public_schemas_do_not_expose_lower_clothing_fields():

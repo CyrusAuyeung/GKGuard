@@ -143,6 +143,10 @@ class Settings:
     appearance_session_change_confidence: float = float(
         os.getenv("APPEARANCE_SESSION_CHANGE_CONFIDENCE", "0.82")
     )
+    person_merge_scorer_model_path: Path = _path_from_env(
+        "PERSON_MERGE_SCORER_MODEL_PATH",
+        "data/models/person_merge/person_merge_scorer_v1.json",
+    )
 
     def ensure_dirs(self) -> None:
         for p in [

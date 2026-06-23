@@ -25,6 +25,7 @@ def _compact(result: dict[str, Any]) -> dict[str, Any]:
                 "target_person_id": item.get("target_person_id"),
                 "centroid_similarity": metrics.get("centroid_similarity"),
                 "max_pair_similarity": metrics.get("max_pair_similarity"),
+                "merge_probability": metrics.get("merge_probability"),
                 "nearest_margin": metrics.get("nearest_margin"),
                 "moved_faces": item.get("moved_faces"),
                 "video_ids": item.get("video_ids"),
@@ -37,6 +38,7 @@ def _compact(result: dict[str, Any]) -> dict[str, Any]:
             "target_person_id": item.get("target_person_id"),
             "centroid_similarity": item.get("centroid_similarity"),
             "max_pair_similarity": item.get("max_pair_similarity"),
+            "merge_probability": item.get("merge_probability"),
             "nearest_margin": item.get("nearest_margin"),
             "reason": item.get("reason"),
         }
@@ -53,6 +55,9 @@ def _compact(result: dict[str, Any]) -> dict[str, Any]:
             "min_max_pair_similarity",
             "min_nearest_margin",
             "use_clothing_conflict_guard",
+            "use_merge_scorer",
+            "merge_scorer_model_path",
+            "min_merge_probability",
             "source_candidates",
             "target_candidates",
             "merge_count",
@@ -79,6 +84,9 @@ def main() -> int:
     parser.add_argument("--min-centroid-similarity", type=float, default=0.64)
     parser.add_argument("--min-max-pair-similarity", type=float, default=0.55)
     parser.add_argument("--min-nearest-margin", type=float, default=0.35)
+    parser.add_argument("--use-merge-scorer", action="store_true")
+    parser.add_argument("--merge-scorer-model", default=None)
+    parser.add_argument("--min-merge-probability", type=float, default=None)
     parser.add_argument(
         "--use-clothing-conflict-guard",
         action="store_true",
@@ -97,6 +105,9 @@ def main() -> int:
         min_max_pair_similarity=args.min_max_pair_similarity,
         min_nearest_margin=args.min_nearest_margin,
         use_clothing_conflict_guard=args.use_clothing_conflict_guard,
+        use_merge_scorer=args.use_merge_scorer,
+        merge_scorer_model_path=args.merge_scorer_model,
+        min_merge_probability=args.min_merge_probability,
         dry_run=not args.apply,
     )
     print(json.dumps(_compact(result), ensure_ascii=False, indent=2))

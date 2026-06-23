@@ -14,6 +14,7 @@ from app.vision.face_engine import (
 )
 from app.vision.vector_math import cosine_similarity
 from app.services import search_service
+from app.services import person_merge_scorer
 
 
 def _normalized_mean(vectors: list[list[float]]) -> list[float]:
@@ -867,7 +868,13 @@ def _has_strong_clothing_conflict(source_person_id: str, target_person_id: str) 
     return False
 
 
-def _merge_fragment_metrics(source_person: dict, target_person: dict, target_persons: list[dict]) -> dict:
+def _merge_fragment_metrics(
+    source_person: dict,
+    target_person: dict,
+    target_persons: list[dict],
+    *,
+    merge_scorer_model: dict | None = None,
+) -> dict:
     source_cluster = _person_records_cluster(source_person["person_id"])
     target_cluster = _person_records_cluster(target_person["person_id"])
     if source_cluster is None or target_cluster is None:
@@ -882,6 +889,11 @@ def _merge_fragment_metrics(source_person: dict, target_person: dict, target_per
             "strong_clothing_conflict": False,
         }
 
+    other_person_embeddings = [
+        person["embedding"]
+        for person in target_persons
+        if person["person_id"] not in {source_person["person_id"], target_person["person_id"]}
+    ]
     similarities = []
     for person in target_persons:
         if person["person_id"] in {source_person["person_id"], target_person["person_id"]}:
@@ -897,7 +909,7 @@ def _merge_fragment_metrics(source_person: dict, target_person: dict, target_per
     pair_scores.sort(reverse=True)
     centroid_similarity = cosine_similarity(source_cluster["embedding"], target_cluster["embedding"])
     top5_count = min(5, len(pair_scores))
-    return {
+    metrics = {
         "source_person_id": source_person["person_id"],
         "source_display_name": source_person.get("display_name"),
         "source_faces": len(source_cluster["records"]),
@@ -917,26 +929,62 @@ def _merge_fragment_metrics(source_person: dict, target_person: dict, target_per
             target_person["person_id"],
         ),
     }
+    if merge_scorer_model is not None:
+        features = person_merge_scorer.build_pair_features(
+            source_cluster["records"],
+            target_cluster["records"],
+            other_person_embeddings=other_person_embeddings,
+        )
+        probability = person_merge_scorer.predict_probability(merge_scorer_model, features)
+        metrics["merge_probability"] = round(float(probability), 6)
+        metrics["merge_model_version"] = merge_scorer_model.get("model_version")
+        metrics["merge_model_threshold"] = merge_scorer_model.get("threshold")
+        metrics["merge_features"] = {
+            key: round(float(value), 6)
+            for key, value in features.items()
+        }
+    return metrics
 
 
-def _best_fragment_target(source_person: dict, target_persons: list[dict]) -> tuple[dict | None, dict | None]:
+def _best_fragment_target(
+    source_person: dict,
+    target_persons: list[dict],
+    *,
+    comparison_persons: list[dict] | None = None,
+    merge_scorer_model: dict | None = None,
+) -> tuple[dict | None, dict | None]:
     source_cluster = _person_records_cluster(source_person["person_id"])
     if source_cluster is None:
         return None, None
 
+    comparison_persons = comparison_persons or target_persons
     best_person = None
-    best_score = -1.0
+    best_score: tuple[float, float] = (-1.0, -1.0)
+    best_metrics = None
     for person in target_persons:
         if person["person_id"] == source_person["person_id"]:
             continue
-        score = cosine_similarity(source_cluster["embedding"], person["embedding"])
+        metrics = _merge_fragment_metrics(
+            source_person,
+            person,
+            comparison_persons,
+            merge_scorer_model=merge_scorer_model,
+        )
+        score = (
+            float(metrics.get("merge_probability") or 0.0),
+            float(metrics.get("centroid_similarity") or 0.0),
+        ) if merge_scorer_model is not None else (
+            float(metrics.get("centroid_similarity") or 0.0),
+            float(metrics.get("max_pair_similarity") or 0.0),
+        )
         if score > best_score:
             best_score = score
             best_person = person
+            best_metrics = metrics
 
     if best_person is None:
         return None, None
-    return best_person, _merge_fragment_metrics(source_person, best_person, target_persons)
+    return best_person, best_metrics
 
 
 def _passes_auto_fragment_merge_guards(
@@ -946,6 +994,7 @@ def _passes_auto_fragment_merge_guards(
     min_max_pair_similarity: float,
     min_nearest_margin: float,
     use_clothing_conflict_guard: bool = False,
+    min_merge_probability: float | None = None,
 ) -> tuple[bool, str]:
     if metrics["same_frame_conflict"]:
         return False, "same_frame_conflict"
@@ -957,6 +1006,12 @@ def _passes_auto_fragment_merge_guards(
         return False, "low_max_pair_similarity"
     if float(metrics["nearest_margin"]) < min_nearest_margin:
         return False, "low_nearest_margin"
+    if min_merge_probability is not None:
+        probability = metrics.get("merge_probability")
+        if probability is None:
+            return False, "missing_merge_probability"
+        if float(probability) < min_merge_probability:
+            return False, "low_merge_probability"
     return True, "passed"
 
 
@@ -1038,9 +1093,19 @@ def auto_consolidate_person_fragments(
     min_max_pair_similarity: float = 0.55,
     min_nearest_margin: float = 0.35,
     use_clothing_conflict_guard: bool = False,
+    use_merge_scorer: bool = False,
+    merge_scorer_model_path: str | None = None,
+    min_merge_probability: float | None = None,
     dry_run: bool = True,
 ) -> dict:
     persons = db.list_persons()
+    merge_scorer_model = (
+        person_merge_scorer.load_model(merge_scorer_model_path)
+        if use_merge_scorer
+        else None
+    )
+    if use_merge_scorer and min_merge_probability is None and merge_scorer_model is not None:
+        min_merge_probability = float(merge_scorer_model.get("threshold") or 0.85)
     if include_all_small_sources:
         sources = [
             person
@@ -1069,7 +1134,12 @@ def auto_consolidate_person_fragments(
     for source in sources:
         if source["person_id"] in consumed_sources:
             continue
-        target, metrics = _best_fragment_target(source, targets)
+        target, metrics = _best_fragment_target(
+            source,
+            targets,
+            comparison_persons=persons,
+            merge_scorer_model=merge_scorer_model,
+        )
         if target is None or metrics is None:
             skipped.append({"source_person_id": source["person_id"], "reason": "no_target"})
             continue
@@ -1079,6 +1149,7 @@ def auto_consolidate_person_fragments(
             min_max_pair_similarity=min_max_pair_similarity,
             min_nearest_margin=min_nearest_margin,
             use_clothing_conflict_guard=use_clothing_conflict_guard,
+            min_merge_probability=min_merge_probability,
         )
         decision = metrics | {"action": "merge" if passed else "skip", "reason": reason}
         decisions.append(decision)
@@ -1091,6 +1162,7 @@ def auto_consolidate_person_fragments(
             target_person_id=target["person_id"],
             dry_run=dry_run,
         )
+        merge_result["metrics"] = metrics
         merged.append(merge_result)
         consumed_sources.add(source["person_id"])
 
@@ -1104,6 +1176,9 @@ def auto_consolidate_person_fragments(
         "min_max_pair_similarity": min_max_pair_similarity,
         "min_nearest_margin": min_nearest_margin,
         "use_clothing_conflict_guard": use_clothing_conflict_guard,
+        "use_merge_scorer": use_merge_scorer,
+        "merge_scorer_model_path": str(merge_scorer_model_path) if merge_scorer_model_path else None,
+        "min_merge_probability": min_merge_probability,
         "source_candidates": len(sources),
         "target_candidates": len(targets),
         "merge_count": len(merged),
