@@ -3640,9 +3640,9 @@ async def save_manual_gender_presentation_labels(request: Request):
     if not isinstance(labels, list):
         raise HTTPException(status_code=400, detail="labels must be a list")
 
-    stable_person_ids = {
+    current_person_ids = {
         person["person_id"]
-        for person in person_service.list_persons(include_candidates=False)
+        for person in person_service.list_persons(include_candidates=True)
     }
     allowed_presentations = set(_GENDER_PRESENTATION_OPTIONS)
     allowed_quality = set(_GENDER_EVIDENCE_QUALITY_OPTIONS)
@@ -3655,8 +3655,8 @@ async def save_manual_gender_presentation_labels(request: Request):
         if not isinstance(label, dict):
             continue
         person_id = str(label.get("person_id") or "")
-        if person_id not in stable_person_ids:
-            raise HTTPException(status_code=400, detail=f"unknown stable person_id: {person_id}")
+        if person_id not in current_person_ids:
+            raise HTTPException(status_code=400, detail=f"unknown person_id: {person_id}")
 
         presentation = str(label.get("gender_presentation") or "unknown")
         if presentation not in allowed_presentations:
@@ -3715,10 +3715,14 @@ async def save_manual_gender_presentation_labels(request: Request):
 
 
 @router.get("/gender-presentation-labels/review", response_class=HTMLResponse)
-def manual_gender_presentation_label_review(sample_count: int = 8, unsaved_only: bool = False):
+def manual_gender_presentation_label_review(
+    sample_count: int = 8,
+    unsaved_only: bool = False,
+    include_candidates: bool = True,
+):
     saved_data = _load_manual_gender_presentation_labels()
     saved_labels = saved_data.get("labels", {})
-    persons = person_service.list_persons(include_candidates=False)
+    persons = person_service.list_persons(include_candidates=include_candidates)
     if unsaved_only:
         persons = [person for person in persons if person["person_id"] not in saved_labels]
 
@@ -3775,7 +3779,7 @@ def manual_gender_presentation_label_review(sample_count: int = 8, unsaved_only:
                     {face_html}
                     <div class="person-title">
                         <h2 title="{_h(person_id)}">{_h(person_id)}</h2>
-                        <span>{len(samples)} samples · {int(person.get("face_count") or 0)} faces · {int(person.get("event_count") or 0)} events</span>
+                        <span>{_h(person.get("identity_status") or "")} · {len(samples)} samples · {int(person.get("face_count") or 0)} faces · {int(person.get("event_count") or 0)} events</span>
                     </div>
                     <div class="person-actions">
                         <span class="state">{_h("已保存" if person_id in saved_labels else "未保存")}</span>
@@ -3807,10 +3811,17 @@ def manual_gender_presentation_label_review(sample_count: int = 8, unsaved_only:
             """
         )
 
-    toggle_href = "/api/v1/gender-presentation-labels/review" if unsaved_only else (
-        "/api/v1/gender-presentation-labels/review?unsaved_only=true"
+    scope_label = "全部人物含候选" if include_candidates else "仅稳定身份"
+    unsaved_href = (
+        f"/api/v1/gender-presentation-labels/review?include_candidates={str(include_candidates).lower()}"
+        f"&unsaved_only={str(not unsaved_only).lower()}&sample_count={max(1, min(int(sample_count), 12))}"
     )
-    toggle_text = "查看全部" if unsaved_only else "只看未保存"
+    unsaved_text = "查看全部" if unsaved_only else "只看未保存"
+    scope_href = (
+        f"/api/v1/gender-presentation-labels/review?include_candidates={str(not include_candidates).lower()}"
+        f"&unsaved_only={str(unsaved_only).lower()}&sample_count={max(1, min(int(sample_count), 12))}"
+    )
+    scope_text = "只看稳定身份" if include_candidates else "查看候选碎片"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -3865,15 +3876,16 @@ def manual_gender_presentation_label_review(sample_count: int = 8, unsaved_only:
                 <div class="toolbar">
                     <div>
                         <h1>外观倾向人工审核</h1>
-                        <div class="summary">{len(persons)} stable persons · {total_samples} samples · saved {saved_count} · file: {_h(str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH))}</div>
+                        <div class="summary">{len(persons)} persons · {scope_label} · {total_samples} samples · saved {saved_count} · file: {_h(str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH))}</div>
                     </div>
                     <div class="actions">
-                        <a class="mode-link" href="{_h(toggle_href)}">{_h(toggle_text)}</a>
+                        <a class="mode-link" href="{_h(scope_href)}">{_h(scope_text)}</a>
+                        <a class="mode-link" href="{_h(unsaved_href)}">{_h(unsaved_text)}</a>
                         <button type="button" id="saveAll" class="primary">保存全部</button>
                         <span id="status" class="status">等待审核</span>
                     </div>
                 </div>
-                {"".join(cards) or '<p class="empty">No stable persons indexed yet.</p>'}
+                {"".join(cards) or '<p class="empty">No persons to review.</p>'}
             </main>
             <script>
                 const endpoint = "/api/v1/gender-presentation-labels";
