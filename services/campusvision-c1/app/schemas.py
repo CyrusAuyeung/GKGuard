@@ -188,6 +188,12 @@ class PersonEventOut(BaseModel):
     appearance_session_id: str | None = None
     clothing_normalization_version: str | None = None
     clothing_normalization_reason: dict | None = None
+    glasses_status: str | None = None
+    glasses_status_label: str | None = None
+    glasses_confidence: float | None = None
+    glasses_evidence_quality: str | None = None
+    glasses_model_version: str | None = None
+    glasses_profile: dict | None = None
 
 
 class PersonObservationOut(BaseModel):
@@ -250,6 +256,12 @@ class EventOut(BaseModel):
     appearance_session_id: str | None = None
     clothing_normalization_version: str | None = None
     clothing_normalization_reason: dict | None = None
+    glasses_status: str | None = None
+    glasses_status_label: str | None = None
+    glasses_confidence: float | None = None
+    glasses_evidence_quality: str | None = None
+    glasses_model_version: str | None = None
+    glasses_profile: dict | None = None
     identity_confidence: float | None = None
     event_status: str | None = None
     aggregation_version: str | None = None
@@ -299,6 +311,11 @@ class PersonOut(BaseModel):
     gender_presentation_confidence: float | None = None
     gender_presentation_evidence_quality: str | None = None
     gender_presentation_profile: dict | None = None
+    glasses_status: str | None = None
+    glasses_status_label: str | None = None
+    glasses_status_confidence: float | None = None
+    glasses_status_evidence_quality: str | None = None
+    glasses_status_profile: dict | None = None
     events: list[PersonEventOut] = Field(default_factory=list)
     first_seen_at: str | None = None
     last_seen_at: str | None = None

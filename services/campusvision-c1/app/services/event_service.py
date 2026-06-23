@@ -5,6 +5,7 @@ from datetime import datetime
 from hashlib import sha1
 
 from app.core.config import settings
+from app.services import glasses_status_service
 from app.storage import db
 from app.vision.person_analysis import bbox_area
 from app.vision.upper_color_postprocess import choose_upper_color_from_probs
@@ -731,8 +732,20 @@ def rebuild_events_for_videos(video_ids: set[str]) -> dict:
     }
 
 
+def _attach_glasses_status(event: dict, profile: dict | None) -> dict:
+    event["glasses_status"] = profile.get("glasses_status") if profile else None
+    event["glasses_status_label"] = profile.get("glasses_status_label") if profile else None
+    event["glasses_confidence"] = profile.get("glasses_confidence") if profile else None
+    event["glasses_evidence_quality"] = profile.get("glasses_evidence_quality") if profile else None
+    event["glasses_model_version"] = profile.get("glasses_model_version") if profile else None
+    event["glasses_profile"] = profile
+    return event
+
+
 def list_events(**filters) -> list[dict]:
-    return db.list_events(**filters)
+    events = db.list_events(**filters)
+    profiles = glasses_status_service.load_profiles().get("event_profiles") or {}
+    return [_attach_glasses_status(event, profiles.get(event.get("event_id"))) for event in events]
 
 
 def search_by_clothes(

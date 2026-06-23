@@ -13,7 +13,7 @@ from app.vision.face_engine import (
     get_face_engine,
 )
 from app.vision.vector_math import cosine_similarity
-from app.services import gender_presentation_service, search_service
+from app.services import gender_presentation_service, glasses_status_service, search_service
 from app.services import person_merge_scorer
 
 
@@ -1354,6 +1354,12 @@ def _persisted_event_for_person(event: dict, person_id: str) -> dict:
         "appearance_session_id",
         "clothing_normalization_version",
         "clothing_normalization_reason",
+        "glasses_status",
+        "glasses_status_label",
+        "glasses_confidence",
+        "glasses_evidence_quality",
+        "glasses_model_version",
+        "glasses_profile",
     ):
         output[key] = event.get(key)
     return output
@@ -1410,18 +1416,60 @@ def _attach_gender_presentation_profile(person: dict, profile: dict | None) -> N
     person["gender_presentation_profile"] = profile
 
 
+def _attach_glasses_status_profile(person: dict, profile: dict | None) -> None:
+    if not profile:
+        person["glasses_status"] = None
+        person["glasses_status_label"] = None
+        person["glasses_status_confidence"] = None
+        person["glasses_status_evidence_quality"] = None
+        person["glasses_status_profile"] = None
+        return
+
+    person["glasses_status"] = profile.get("glasses_status")
+    person["glasses_status_label"] = profile.get("glasses_status_label")
+    person["glasses_status_confidence"] = profile.get("confidence")
+    person["glasses_status_evidence_quality"] = profile.get("evidence_quality")
+    person["glasses_status_profile"] = profile
+
+
+def _attach_glasses_status_to_event(event: dict, profile: dict | None) -> None:
+    if not profile:
+        event["glasses_status"] = None
+        event["glasses_status_label"] = None
+        event["glasses_confidence"] = None
+        event["glasses_evidence_quality"] = None
+        event["glasses_model_version"] = None
+        event["glasses_profile"] = None
+        return
+
+    event["glasses_status"] = profile.get("glasses_status")
+    event["glasses_status_label"] = profile.get("glasses_status_label")
+    event["glasses_confidence"] = profile.get("glasses_confidence")
+    event["glasses_evidence_quality"] = profile.get("glasses_evidence_quality")
+    event["glasses_model_version"] = profile.get("glasses_model_version")
+    event["glasses_profile"] = profile
+
+
 def list_persons(*, include_candidates: bool = False) -> list[dict]:
     persons = db.list_persons()
     persons = [_with_identity_status(person) for person in persons]
     if not include_candidates:
         persons = [person for person in persons if person["is_stable_identity"]]
     gender_profiles = gender_presentation_service.load_profiles().get("profiles") or {}
+    glasses_data = glasses_status_service.load_profiles()
+    glasses_profiles = glasses_data.get("profiles") or {}
+    glasses_event_profiles = glasses_data.get("event_profiles") or {}
     for person in persons:
         persisted_events = db.list_events(person_id=person["person_id"], limit=200)
         if persisted_events:
             events = [_persisted_event_for_person(event, person["person_id"]) for event in persisted_events]
         else:
             events = person_events(person["person_id"])
+        for event in events:
+            _attach_glasses_status_to_event(
+                event,
+                glasses_event_profiles.get(event.get("event_id")),
+            )
         person.pop("embedding", None)
         if person.get("representative_face_id"):
             person["representative_face_crop_url"] = (
@@ -1435,6 +1483,7 @@ def list_persons(*, include_candidates: bool = False) -> list[dict]:
         )
         person["latest_clothing"] = _latest_clothing(latest_event)
         _attach_gender_presentation_profile(person, gender_profiles.get(person["person_id"]))
+        _attach_glasses_status_profile(person, glasses_profiles.get(person["person_id"]))
     return persons
 
 

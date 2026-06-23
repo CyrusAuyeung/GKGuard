@@ -33,6 +33,7 @@ from app.core.config import settings
 from app.services import (
     event_service,
     gender_presentation_service,
+    glasses_status_service,
     live_service,
     outfit_service,
     person_service,
@@ -1174,6 +1175,14 @@ def persons_gallery(include_candidates: bool = False):
             f"{float(gender_confidence):.2f}" if gender_confidence is not None else "-"
         )
         gender_quality = gender_profile.get("evidence_quality_label") or "-"
+        glasses_profile = person.get("glasses_status_profile") or {}
+        glasses_label = glasses_profile.get("glasses_status_label") or "未计算"
+        glasses_value = glasses_profile.get("glasses_status") or "unknown"
+        glasses_confidence = glasses_profile.get("confidence")
+        glasses_confidence_text = (
+            f"{float(glasses_confidence):.2f}" if glasses_confidence is not None else "-"
+        )
+        glasses_quality = glasses_profile.get("evidence_quality_label") or "-"
         for event in events:
             event["display_time"] = event.get("start_time") or (
                 f'{event.get("start_time_display") or ""} - {event.get("end_time_display") or ""}'
@@ -1189,6 +1198,7 @@ def persons_gallery(include_candidates: bool = False):
             event["raw_upper_label"] = event.get("raw_upper_color") or event["upper_label"]
             event["session_label"] = (event.get("appearance_session_id") or "").replace("appearance_", "session:")
             event["upper_changed"] = event["raw_upper_label"] != event["upper_label"]
+            event["glasses_label"] = event.get("glasses_status_label") or "未计算"
         event_tiles = "".join(
             f"""
             <article class="event-tile">
@@ -1200,6 +1210,7 @@ def persons_gallery(include_candidates: bool = False):
                     <strong>{escape(event.get("camera_name") or event.get("camera_id") or "")}</strong>
                     <span>{escape(str(event.get("display_time") or ""))}</span>
                     <span>上装 {escape(str(event["upper_label"]))}</span>
+                    <span>眼镜 {escape(str(event["glasses_label"]))}</span>
                     <span>{escape(str(event["session_label"] or "no session"))}</span>
                     <span>{int(event.get("face_count") or 0)} faces</span>
                 </div>
@@ -1219,6 +1230,7 @@ def persons_gallery(include_candidates: bool = False):
                         <div><dt>event_count</dt><dd>{int(person.get('event_count') or 0)}</dd></div>
                         <div><dt>latest_upper</dt><dd>{escape(str(upper))}</dd></div>
                         <div><dt>外观倾向</dt><dd>{escape(str(gender_label))} · {escape(str(gender_value))} · conf {escape(gender_confidence_text)} · {escape(str(gender_quality))}</dd></div>
+                        <div><dt>眼镜状态</dt><dd>{escape(str(glasses_label))} · {escape(str(glasses_value))} · conf {escape(glasses_confidence_text)} · {escape(str(glasses_quality))}</dd></div>
                         <div><dt>representative_face_id</dt><dd>{escape(str(person.get('representative_face_id') or ''))}</dd></div>
                         <div><dt>first_seen_at</dt><dd>{escape(str(person.get('first_seen_at') or ''))}</dd></div>
                         <div><dt>last_seen_at</dt><dd>{escape(str(person.get('last_seen_at') or ''))}</dd></div>
@@ -1520,6 +1532,29 @@ def get_manual_gender_presentation_labels():
 def get_manual_person_glasses_labels():
     data = _load_manual_person_glasses_labels()
     return data | {"path": str(_MANUAL_PERSON_GLASSES_LABEL_PATH)}
+
+
+@router.get("/glasses-status-profiles")
+def get_glasses_status_profiles():
+    return glasses_status_service.load_profiles()
+
+
+@router.get("/glasses-status-profiles/evaluation")
+def get_glasses_status_profile_evaluation():
+    return glasses_status_service.evaluate_profiles()
+
+
+@router.post("/glasses-status-profiles/rebuild")
+def rebuild_glasses_status_profiles(
+    include_candidates: bool = Form(True),
+    sample_count: int = Form(8),
+    limit: Optional[int] = Form(None),
+):
+    return glasses_status_service.rebuild_profiles(
+        include_candidates=include_candidates,
+        sample_count=sample_count,
+        limit=limit,
+    )
 
 
 @router.get("/gender-presentation-profiles")
@@ -4657,7 +4692,7 @@ def manual_person_clothing_label_review(sample_count: int = 5):
 def get_person_events(person_id: str, max_gap_sec: float = 10.0):
     if db.get_person(person_id) is None:
         raise HTTPException(status_code=404, detail="Person not found")
-    persisted = db.list_events(person_id=person_id, limit=500)
+    persisted = event_service.list_events(person_id=person_id, limit=500)
     if persisted:
         return [person_service._persisted_event_for_person(event, person_id) for event in persisted]
     return person_service.person_events(person_id, max_gap_sec=max_gap_sec)
@@ -4714,6 +4749,13 @@ def get_event(event_id: str):
     event = db.get_event(event_id)
     if not event:
         raise HTTPException(status_code=404, detail="event_id not found")
+    profile = glasses_status_service.profile_for_event(event_id)
+    event["glasses_status"] = profile.get("glasses_status") if profile else None
+    event["glasses_status_label"] = profile.get("glasses_status_label") if profile else None
+    event["glasses_confidence"] = profile.get("glasses_confidence") if profile else None
+    event["glasses_evidence_quality"] = profile.get("glasses_evidence_quality") if profile else None
+    event["glasses_model_version"] = profile.get("glasses_model_version") if profile else None
+    event["glasses_profile"] = profile
     return event
 
 

@@ -172,6 +172,15 @@ class Settings:
     )
     gender_presentation_sample_count: int = int(os.getenv("GENDER_PRESENTATION_SAMPLE_COUNT", "8"))
     gender_presentation_fail_open: bool = _bool_from_env("GENDER_PRESENTATION_FAIL_OPEN", True)
+    enable_glasses_status_detection: bool = _bool_from_env("ENABLE_GLASSES_STATUS_DETECTION", True)
+    glasses_status_model_dir: Path = _path_from_env(
+        "GLASSES_STATUS_MODEL_DIR",
+        "data/models/clip/laion_CLIP-ViT-H-14-laion2B-s32B-b79K",
+    )
+    glasses_status_device: str = os.getenv("GLASSES_STATUS_DEVICE", "cuda:0")
+    glasses_status_temperature: float = float(os.getenv("GLASSES_STATUS_TEMPERATURE", "10.0"))
+    glasses_status_sample_count: int = int(os.getenv("GLASSES_STATUS_SAMPLE_COUNT", "8"))
+    glasses_status_fail_open: bool = _bool_from_env("GLASSES_STATUS_FAIL_OPEN", True)
 
     def ensure_dirs(self) -> None:
         for p in [

@@ -279,6 +279,66 @@ def test_list_persons_attaches_cached_gender_presentation_profile(monkeypatch):
     assert result[0]["gender_presentation_profile"]["evidence_quality"] == "partial"
 
 
+def test_list_persons_attaches_cached_glasses_profiles_to_person_and_events(monkeypatch):
+    persons = [
+        {
+            "person_id": "stable",
+            "face_count": 10,
+            "embedding": [1.0, 0.0],
+            "representative_face_id": "face_stable",
+        },
+    ]
+    events = [
+        {
+            "event_id": "event_1",
+            "person_id": "stable",
+            "camera_id": "cam_1",
+            "observation_count": 1,
+            "face_count": 1,
+            "representative_face_id": "face_stable",
+        }
+    ]
+    monkeypatch.setattr(person_service.settings, "person_identity_stable_min_faces", 10)
+    monkeypatch.setattr(person_service.db, "list_persons", lambda: [dict(person) for person in persons])
+    monkeypatch.setattr(person_service.db, "list_events", lambda **_kwargs: [dict(event) for event in events])
+    monkeypatch.setattr(
+        person_service.gender_presentation_service,
+        "load_profiles",
+        lambda: {"profiles": {}},
+    )
+    monkeypatch.setattr(
+        person_service.glasses_status_service,
+        "load_profiles",
+        lambda: {
+            "profiles": {
+                "stable": {
+                    "glasses_status": "glasses",
+                    "glasses_status_label": "戴眼镜",
+                    "confidence": 0.91,
+                    "evidence_quality": "clear",
+                }
+            },
+            "event_profiles": {
+                "event_1": {
+                    "glasses_status": "glasses",
+                    "glasses_status_label": "戴眼镜",
+                    "glasses_confidence": 0.91,
+                    "glasses_evidence_quality": "clear",
+                    "glasses_model_version": "test",
+                }
+            },
+        },
+    )
+
+    result = person_service.list_persons()
+
+    assert result[0]["glasses_status"] == "glasses"
+    assert result[0]["glasses_status_label"] == "戴眼镜"
+    assert result[0]["glasses_status_confidence"] == 0.91
+    assert result[0]["events"][0]["glasses_status"] == "glasses"
+    assert result[0]["events"][0]["glasses_model_version"] == "test"
+
+
 def test_public_schemas_do_not_expose_lower_clothing_fields():
     payloads = [
         EventOut.model_validate(
