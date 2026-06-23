@@ -45,10 +45,16 @@ def _body_observation_payload(
     frame: np.ndarray,
     body: dict,
     face: dict | None,
+    upper_prediction: person_analysis.RegionResult | None = None,
 ) -> dict[str, Any]:
     visibility = person_analysis.classify_body_visibility(frame, body, face)
     try:
-        clothing = person_analysis.analyze_clothing(frame, body, visibility)
+        clothing = person_analysis.analyze_clothing(
+            frame,
+            body,
+            visibility,
+            upper_prediction=upper_prediction,
+        )
     except Exception:
         clothing = _unknown_clothing()
     return {
@@ -56,6 +62,36 @@ def _body_observation_payload(
         "person_bbox": body,
         "person_detection_confidence": body.get("score"),
         **clothing,
+    }
+
+
+def _batch_upper_predictions(
+    frame: np.ndarray,
+    bodies: list[dict],
+) -> dict[int, person_analysis.RegionResult]:
+    if not bodies or not settings.enable_clothing_detection or not settings.enable_upper_clothing_detection:
+        return {}
+    if settings.upper_color_backend != "clip_schp":
+        return {}
+
+    unique_bodies = []
+    seen: set[int] = set()
+    for body in bodies:
+        body_key = id(body)
+        if body_key in seen:
+            continue
+        seen.add(body_key)
+        unique_bodies.append(body)
+
+    try:
+        predictions = person_analysis._classify_upper_colors_with_backend(frame, unique_bodies)
+    except Exception:
+        return {}
+
+    return {
+        id(body): prediction
+        for body, prediction in zip(unique_bodies, predictions)
+        if prediction is not None
     }
 
 
@@ -73,12 +109,30 @@ def create_frame_observations(
     live_source_id: str | None = None,
 ) -> list[dict]:
     match_result = person_analysis.match_faces_to_bodies(faces, bodies)
+    estimated_body_by_face_index: dict[int, dict] = {}
+    upper_prediction_bodies: list[dict] = [
+        bodies[pair["body_index"]]
+        for pair in match_result["pairs"]
+    ]
+    for face_index in match_result["unmatched_face_indices"]:
+        estimated_body = _estimated_body_from_face_if_visible(frame, faces[face_index])
+        if estimated_body is not None:
+            estimated_body_by_face_index[face_index] = estimated_body
+            upper_prediction_bodies.append(estimated_body)
+    for body_index in match_result["unmatched_body_indices"]:
+        upper_prediction_bodies.append(bodies[body_index])
+    upper_predictions = _batch_upper_predictions(frame, upper_prediction_bodies)
     observations = []
 
     for pair in match_result["pairs"]:
         face = faces[pair["face_index"]]
         body = bodies[pair["body_index"]]
-        body_payload = _body_observation_payload(frame=frame, body=body, face=face)
+        body_payload = _body_observation_payload(
+            frame=frame,
+            body=body,
+            face=face,
+            upper_prediction=upper_predictions.get(id(body)),
+        )
         observation = db.add_person_observation(
             {
                 "observation_id": "obs_" + uuid.uuid4().hex,
@@ -103,12 +157,17 @@ def create_frame_observations(
 
     for face_index in match_result["unmatched_face_indices"]:
         face = faces[face_index]
-        estimated_body = _estimated_body_from_face_if_visible(frame, face)
+        estimated_body = estimated_body_by_face_index.get(face_index)
         body_payload = None
         body_model_version = settings.body_model_version
         observation_type = "face_only"
         if estimated_body is not None:
-            body_payload = _body_observation_payload(frame=frame, body=estimated_body, face=face)
+            body_payload = _body_observation_payload(
+                frame=frame,
+                body=estimated_body,
+                face=face,
+                upper_prediction=upper_predictions.get(id(estimated_body)),
+            )
             body_model_version = ESTIMATED_BODY_MODEL_VERSION
             observation_type = "face_and_body"
 
@@ -145,7 +204,12 @@ def create_frame_observations(
 
     for body_index in match_result["unmatched_body_indices"]:
         body = bodies[body_index]
-        body_payload = _body_observation_payload(frame=frame, body=body, face=None)
+        body_payload = _body_observation_payload(
+            frame=frame,
+            body=body,
+            face=None,
+            upper_prediction=upper_predictions.get(id(body)),
+        )
         observation = db.add_person_observation(
             {
                 "observation_id": "obs_" + uuid.uuid4().hex,

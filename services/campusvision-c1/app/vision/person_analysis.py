@@ -388,17 +388,10 @@ def _should_extract_lower_clothing(body_box: dict, body_visibility: str) -> bool
 
 
 def _classify_upper_color_with_backend(image_bgr: np.ndarray, body_box: dict) -> RegionResult | None:
-    if settings.upper_color_backend != "clip_schp":
-        return None
-    try:
-        from app.vision import upper_color_clip
+    return _classify_upper_colors_with_backend(image_bgr, [body_box])[0]
 
-        prediction = upper_color_clip.predict_upper_color(image_bgr, body_box)
-    except Exception:
-        return None
-    if not prediction:
-        return None
 
+def _upper_prediction_to_region_result(prediction: dict[str, object]) -> RegionResult:
     color = prediction.get("color") or "unknown"
     if color not in settings.clothing_color_labels:
         color = "unknown"
@@ -414,14 +407,38 @@ def _classify_upper_color_with_backend(image_bgr: np.ndarray, body_box: dict) ->
             if str(label) in settings.clothing_color_labels
         }
     visible = bool(prediction.get("visible")) and color != "unknown"
-    clip_result = RegionResult(
+    return RegionResult(
         str(color),
         round(float(confidence), 4) if confidence is not None else None,
         visible,
         round(float(valid_ratio), 4) if valid_ratio is not None else None,
         probabilities,
     )
-    return _apply_upper_neutral_guard(image_bgr, body_box, clip_result)
+
+
+def _classify_upper_colors_with_backend(
+    image_bgr: np.ndarray,
+    body_boxes: list[dict],
+) -> list[RegionResult | None]:
+    if settings.upper_color_backend != "clip_schp":
+        return [None for _ in body_boxes]
+    try:
+        from app.vision import upper_color_clip
+
+        predictions = upper_color_clip.predict_upper_colors(image_bgr, body_boxes)
+    except Exception:
+        return [None for _ in body_boxes]
+
+    results: list[RegionResult | None] = []
+    for body_box, prediction in zip(body_boxes, predictions):
+        if not prediction:
+            results.append(None)
+            continue
+        clip_result = _upper_prediction_to_region_result(prediction)
+        results.append(_apply_upper_neutral_guard(image_bgr, body_box, clip_result))
+    if len(results) < len(body_boxes):
+        results.extend([None for _ in range(len(body_boxes) - len(results))])
+    return results
 
 
 def _upper_prob_colors() -> list[str]:
@@ -545,7 +562,13 @@ def _apply_upper_neutral_guard(image_bgr: np.ndarray, body_box: dict, clip_resul
     return clip_result
 
 
-def analyze_clothing(image_bgr: np.ndarray, body_box: dict | None, body_visibility: str) -> dict:
+def analyze_clothing(
+    image_bgr: np.ndarray,
+    body_box: dict | None,
+    body_visibility: str,
+    *,
+    upper_prediction: RegionResult | None = None,
+) -> dict:
     if body_box is None or body_visibility in {"face_only", "unknown_body", "partial_body"}:
         return RegionResult("unknown", None, False, None).as_prefix("upper") | RegionResult(
             "unknown", None, False, None
@@ -555,7 +578,7 @@ def analyze_clothing(image_bgr: np.ndarray, body_box: dict | None, body_visibili
     lower = RegionResult("unknown", None, False, None)
 
     if settings.enable_clothing_detection and settings.enable_upper_clothing_detection:
-        upper = _classify_upper_color_with_backend(image_bgr, body_box) or upper
+        upper = upper_prediction or _classify_upper_color_with_backend(image_bgr, body_box) or upper
         if upper.color == "unknown" and upper.confidence is None:
             upper_roi = _roi_from_ratio(
                 image_bgr,

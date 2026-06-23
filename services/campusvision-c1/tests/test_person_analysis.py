@@ -59,18 +59,20 @@ def test_clip_schp_backend_is_used_for_upper_color(monkeypatch):
     body = {"x1": 20, "y1": 10, "x2": 80, "y2": 120, "score": 0.8}
     calls = []
 
-    def fake_predict_upper_color(image_bgr, body_box):
-        calls.append((image_bgr, body_box))
-        return {
-            "color": "purple",
-            "confidence": 0.81234,
-            "visible": True,
-            "valid_pixel_ratio": 0.421,
-            "diagnostics": {"probs": {"purple": 0.81234, "blue": 0.102}},
-        }
+    def fake_predict_upper_colors(image_bgr, body_boxes):
+        calls.append((image_bgr, body_boxes))
+        return [
+            {
+                "color": "purple",
+                "confidence": 0.81234,
+                "visible": True,
+                "valid_pixel_ratio": 0.421,
+                "diagnostics": {"probs": {"purple": 0.81234, "blue": 0.102}},
+            }
+        ]
 
     monkeypatch.setattr(person_analysis.settings, "upper_color_backend", "clip_schp")
-    monkeypatch.setattr(upper_color_clip, "predict_upper_color", fake_predict_upper_color)
+    monkeypatch.setattr(upper_color_clip, "predict_upper_colors", fake_predict_upper_colors)
 
     clothing = person_analysis.analyze_clothing(image, body, "upper_body")
 
@@ -89,16 +91,18 @@ def test_clip_low_confidence_blue_cast_uses_neutral_guard(monkeypatch):
     image[40:120, 20:100] = (242, 242, 242)
     body = {"x1": 20, "y1": 10, "x2": 100, "y2": 160, "score": 0.8}
 
-    def fake_predict_upper_color(_image_bgr, _body_box):
-        return {
-            "color": "blue",
-            "confidence": 0.14,
-            "visible": True,
-            "valid_pixel_ratio": 0.8,
-        }
+    def fake_predict_upper_colors(_image_bgr, _body_boxes):
+        return [
+            {
+                "color": "blue",
+                "confidence": 0.14,
+                "visible": True,
+                "valid_pixel_ratio": 0.8,
+            }
+        ]
 
     monkeypatch.setattr(person_analysis.settings, "upper_color_backend", "clip_schp")
-    monkeypatch.setattr(upper_color_clip, "predict_upper_color", fake_predict_upper_color)
+    monkeypatch.setattr(upper_color_clip, "predict_upper_colors", fake_predict_upper_colors)
 
     clothing = person_analysis.analyze_clothing(image, body, "upper_body")
 
@@ -114,16 +118,18 @@ def test_clip_high_confidence_color_bypasses_neutral_guard(monkeypatch):
     image[40:120, 20:100] = (242, 242, 242)
     body = {"x1": 20, "y1": 10, "x2": 100, "y2": 160, "score": 0.8}
 
-    def fake_predict_upper_color(_image_bgr, _body_box):
-        return {
-            "color": "purple",
-            "confidence": 0.82,
-            "visible": True,
-            "valid_pixel_ratio": 0.8,
-        }
+    def fake_predict_upper_colors(_image_bgr, _body_boxes):
+        return [
+            {
+                "color": "purple",
+                "confidence": 0.82,
+                "visible": True,
+                "valid_pixel_ratio": 0.8,
+            }
+        ]
 
     monkeypatch.setattr(person_analysis.settings, "upper_color_backend", "clip_schp")
-    monkeypatch.setattr(upper_color_clip, "predict_upper_color", fake_predict_upper_color)
+    monkeypatch.setattr(upper_color_clip, "predict_upper_colors", fake_predict_upper_colors)
 
     clothing = person_analysis.analyze_clothing(image, body, "upper_body")
 

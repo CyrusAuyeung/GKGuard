@@ -32,6 +32,7 @@ TARGETS = {
     "outfit_grouping_purity": 0.98,
     "upper_color_outfit_accuracy": 0.80,
     "api_processing_realtime_factor": 1.0,
+    "api_processing_ideal_max_sec": 15.0,
 }
 
 
@@ -228,6 +229,16 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
 
     factors = [item["realtime_factor"] for item in videos if item["realtime_factor"] is not None]
     processing = [item["processing_sec"] for item in videos if item["processing_sec"] is not None]
+    slower_than_realtime = [
+        item
+        for item in videos
+        if item["realtime_factor"] is not None and item["realtime_factor"] > TARGETS["api_processing_realtime_factor"]
+    ]
+    slower_than_ideal = [
+        item
+        for item in videos
+        if item["processing_sec"] is not None and item["processing_sec"] > TARGETS["api_processing_ideal_max_sec"]
+    ]
     return {
         "videos": len(videos),
         "mean_processing_sec": round(mean(processing), 6) if processing else None,
@@ -235,6 +246,28 @@ def _api_processing_metrics(db_path: Path) -> dict[str, Any]:
         "mean_realtime_factor": round(mean(factors), 6) if factors else None,
         "max_realtime_factor": max(factors) if factors else None,
         "passes_realtime_mean": bool(factors and mean(factors) <= TARGETS["api_processing_realtime_factor"]),
+        "passes_realtime_all": bool(factors and not slower_than_realtime),
+        "passes_ideal_max_processing_sec": bool(processing and max(processing) <= TARGETS["api_processing_ideal_max_sec"]),
+        "videos_slower_than_realtime": [
+            {
+                "video_id": item["video_id"],
+                "filename": item["filename"],
+                "camera_id": item["camera_id"],
+                "processing_sec": item["processing_sec"],
+                "video_duration_sec": item["video_duration_sec"],
+                "realtime_factor": item["realtime_factor"],
+            }
+            for item in slower_than_realtime
+        ],
+        "videos_slower_than_ideal": [
+            {
+                "video_id": item["video_id"],
+                "filename": item["filename"],
+                "camera_id": item["camera_id"],
+                "processing_sec": item["processing_sec"],
+            }
+            for item in slower_than_ideal
+        ],
         "per_video": videos,
     }
 
@@ -528,6 +561,8 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
             "outfit_grouping_purity": outfit_grouping["passes_purity_target"],
             "upper_color_outfit_accuracy": upper_color["passes_outfit_accuracy_target"],
             "api_processing_realtime_mean": api_processing["passes_realtime_mean"],
+            "api_processing_realtime_all": api_processing["passes_realtime_all"],
+            "api_processing_ideal_max": api_processing["passes_ideal_max_processing_sec"],
             "long_running_memory": memory["passes_memory_stability"],
         },
     }

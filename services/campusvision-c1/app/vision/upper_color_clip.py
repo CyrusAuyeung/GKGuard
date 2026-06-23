@@ -66,19 +66,27 @@ class UpperColorPrediction:
 
 
 def predict_upper_color(image_bgr: np.ndarray, body_box: dict) -> dict[str, Any] | None:
+    predictions = predict_upper_colors(image_bgr, [body_box])
+    return predictions[0] if predictions else None
+
+
+def predict_upper_colors(image_bgr: np.ndarray, body_boxes: list[dict]) -> list[dict[str, Any] | None]:
     global _UNAVAILABLE_REASON
+    if not body_boxes:
+        return []
     if _UNAVAILABLE_REASON and settings.upper_color_clip_fail_open:
-        return None
+        return [None for _ in body_boxes]
     try:
         pipeline = _get_pipeline()
-        return pipeline.predict(image_bgr, body_box).as_dict()
-    except UpperColorNoUsableCrop:
-        return None
+        return [
+            prediction.as_dict() if prediction is not None else None
+            for prediction in pipeline.predict_many(image_bgr, body_boxes)
+        ]
     except Exception as exc:
         if not settings.upper_color_clip_fail_open:
             raise
         _UNAVAILABLE_REASON = f"{type(exc).__name__}: {exc}"
-        return None
+        return [None for _ in body_boxes]
 
 
 def unavailable_reason() -> str | None:
@@ -124,28 +132,57 @@ class _ClipSchpUpperColorPipeline:
         self.schp_model = self._load_schp_model()
 
     def predict(self, image_bgr: np.ndarray, body_box: dict) -> UpperColorPrediction:
-        variants = self._crop_variants(image_bgr, body_box)
-        crop_specs: list[tuple[str, str, float, np.ndarray]] = []
-        for ensemble_name, crop_name, weight in PROFILE_REALTIME_BALANCED_PROMPT_V2:
-            roi = variants.get(crop_name)
-            if roi is None:
-                continue
-            crop_specs.append((ensemble_name, crop_name, float(weight), roi))
-
-        if not crop_specs:
+        prediction = self.predict_many(image_bgr, [body_box])[0]
+        if prediction is None:
             raise UpperColorNoUsableCrop("no usable CLIP/SCHP upper-color crop")
+        return prediction
 
-        image_features = self._image_features([roi for _, _, _, roi in crop_specs])
-        weighted_probs: list[np.ndarray] = []
-        weights: list[float] = []
-        used: list[str] = []
-        for image_feature, (ensemble_name, crop_name, weight, _roi) in zip(image_features, crop_specs):
+    def predict_many(self, image_bgr: np.ndarray, body_boxes: list[dict]) -> list[UpperColorPrediction | None]:
+        if not body_boxes:
+            return []
+
+        variant_sets = [self._crop_variants(image_bgr, body_box) for body_box in body_boxes]
+        crop_specs: list[tuple[int, str, str, float, np.ndarray]] = []
+        for item_index, variants in enumerate(variant_sets):
+            for ensemble_name, crop_name, weight in PROFILE_REALTIME_BALANCED_PROMPT_V2:
+                roi = variants.get(crop_name)
+                if roi is None:
+                    continue
+                crop_specs.append((item_index, ensemble_name, crop_name, float(weight), roi))
+
+        predictions: list[UpperColorPrediction | None] = [None for _ in body_boxes]
+        if not crop_specs:
+            return predictions
+
+        image_features = self._image_features([roi for _, _, _, _, roi in crop_specs])
+        weighted_probs_by_item: dict[int, list[np.ndarray]] = {index: [] for index in range(len(body_boxes))}
+        weights_by_item: dict[int, list[float]] = {index: [] for index in range(len(body_boxes))}
+        used_by_item: dict[int, list[str]] = {index: [] for index in range(len(body_boxes))}
+        for image_feature, (item_index, ensemble_name, crop_name, weight, _roi) in zip(image_features, crop_specs):
             probs = self._predict_probs_from_feature(image_feature, ensemble_name)
-            weighted_probs.append(probs * float(weight))
-            weights.append(float(weight))
-            used.append(f"{ensemble_name}_{crop_name}")
+            weighted_probs_by_item[item_index].append(probs * float(weight))
+            weights_by_item[item_index].append(float(weight))
+            used_by_item[item_index].append(f"{ensemble_name}_{crop_name}")
 
-        probs = np.stack(weighted_probs).sum(axis=0) / max(1e-6, sum(weights))
+        for item_index, weighted_probs in weighted_probs_by_item.items():
+            if not weighted_probs:
+                continue
+            variants = variant_sets[item_index]
+            probs = np.stack(weighted_probs).sum(axis=0) / max(1e-6, sum(weights_by_item[item_index]))
+            predictions[item_index] = self._prediction_from_probs(
+                probs,
+                variants=variants,
+                used=used_by_item[item_index],
+            )
+        return predictions
+
+    def _prediction_from_probs(
+        self,
+        probs: np.ndarray,
+        *,
+        variants: dict[str, np.ndarray | float],
+        used: list[str],
+    ) -> UpperColorPrediction:
         total = float(probs.sum())
         if total > 0:
             probs = probs / total

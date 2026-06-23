@@ -27,7 +27,7 @@ def test_unmatched_face_uses_estimated_body_when_torso_space_exists(monkeypatch)
     image = np.zeros((220, 120, 3), dtype=np.uint8)
     face = {"face_id": "face_1", "x1": 45, "y1": 16, "x2": 75, "y2": 46, "score": 0.92}
 
-    def analyze_clothing(_frame, _body, _visibility):
+    def analyze_clothing(_frame, _body, _visibility, **_kwargs):
         return {
             "upper_color": "white",
             "upper_color_confidence": 0.8,
@@ -87,3 +87,43 @@ def test_unmatched_close_face_remains_face_only_unknown(monkeypatch):
     assert observation["person_bbox"] is None
     assert observation["upper_visible"] is False
     assert observation["upper_color"] == "unknown"
+
+
+def test_frame_observations_batch_upper_color_for_multiple_bodies(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 180, 3), dtype=np.uint8)
+    bodies = [
+        {"x1": 10, "y1": 10, "x2": 70, "y2": 190, "score": 0.9},
+        {"x1": 95, "y1": 12, "x2": 160, "y2": 195, "score": 0.88},
+    ]
+    calls = []
+
+    def classify_upper_colors(_frame, body_boxes):
+        calls.append(list(body_boxes))
+        return [
+            observation_service.person_analysis.RegionResult("black", 0.8, True, 1.0),
+            observation_service.person_analysis.RegionResult("white", 0.7, True, 1.0),
+        ]
+
+    monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(
+        observation_service.person_analysis,
+        "_classify_upper_colors_with_backend",
+        classify_upper_colors,
+    )
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[],
+        bodies=bodies,
+    )
+
+    assert len(calls) == 1
+    assert calls[0] == bodies
+    assert [item["upper_color"] for item in observations] == ["black", "white"]
