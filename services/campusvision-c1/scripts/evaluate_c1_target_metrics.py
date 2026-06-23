@@ -367,6 +367,110 @@ def _long_running_memory_report() -> dict[str, Any]:
     }
 
 
+def _count_existing_ids(conn: sqlite3.Connection, table: str, column: str, ids: set[str]) -> int:
+    if not ids:
+        return 0
+    values = sorted(ids)
+    total = 0
+    for index in range(0, len(values), 500):
+        chunk = values[index : index + 500]
+        placeholders = ",".join("?" for _ in chunk)
+        total += int(
+            conn.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE {column} IN ({placeholders})",
+                chunk,
+            ).fetchone()[0]
+        )
+    return total
+
+
+def _manual_label_replayability(db_path: Path) -> list[dict[str, Any]]:
+    label_specs = [
+        ("manual_outfit_labels", settings.data_dir / "evals" / "manual_outfit_labels" / "outfit_labels.json"),
+        (
+            "manual_event_outfit_groups",
+            settings.data_dir / "evals" / "manual_event_outfit_groups" / "event_outfit_groups.json",
+        ),
+        (
+            "manual_clothing_labels",
+            settings.data_dir / "evals" / "manual_clothing_labels" / "person_clothing_labels.json",
+        ),
+        (
+            "manual_appearance_session_labels",
+            settings.data_dir / "evals" / "manual_appearance_session_labels" / "appearance_session_labels.json",
+        ),
+    ]
+    reports = []
+    with _connect(db_path) as conn:
+        for name, path in label_specs:
+            data = _read_json(path)
+            labels = data.get("labels") if isinstance(data.get("labels"), dict) else {}
+            person_ids: set[str] = set()
+            event_ids: set[str] = set()
+            observation_ids: set[str] = set()
+            snapshot_count = 0
+            snapshot_available = 0
+            for label in labels.values():
+                if not isinstance(label, dict):
+                    continue
+                if label.get("person_id"):
+                    person_ids.add(str(label["person_id"]))
+                for event_id in label.get("sample_event_ids") or []:
+                    if isinstance(event_id, str) and event_id:
+                        event_ids.add(event_id)
+                for observation_id in label.get("sample_observation_ids") or []:
+                    if isinstance(observation_id, str) and observation_id:
+                        observation_ids.add(observation_id)
+                for key in ("manual_split_assignments", "manual_assignments"):
+                    for assignment in label.get(key) or []:
+                        if not isinstance(assignment, dict):
+                            continue
+                        if assignment.get("event_id"):
+                            event_ids.add(str(assignment["event_id"]))
+                        if assignment.get("observation_id"):
+                            observation_ids.add(str(assignment["observation_id"]))
+                for snapshot in label.get("sample_snapshots") or []:
+                    if not isinstance(snapshot, dict):
+                        continue
+                    snapshot_count += 1
+                    if snapshot.get("snapshot_available"):
+                        snapshot_available += 1
+
+            person_matches = _count_existing_ids(conn, "persons", "person_id", person_ids)
+            event_matches = _count_existing_ids(conn, "events", "event_id", event_ids)
+            observation_matches = _count_existing_ids(
+                conn,
+                "person_observations",
+                "observation_id",
+                observation_ids,
+            )
+            db_id_replayable = (
+                (not person_ids or person_matches == len(person_ids))
+                and (not event_ids or event_matches == len(event_ids))
+                and (not observation_ids or observation_matches == len(observation_ids))
+            )
+            snapshot_replayable = bool(snapshot_count and snapshot_available == snapshot_count)
+            reports.append(
+                {
+                    "name": name,
+                    "path": str(path),
+                    "labels": len(labels),
+                    "person_ids": len(person_ids),
+                    "person_matches": person_matches,
+                    "event_ids": len(event_ids),
+                    "event_matches": event_matches,
+                    "observation_ids": len(observation_ids),
+                    "observation_matches": observation_matches,
+                    "snapshot_count": snapshot_count,
+                    "snapshot_available": snapshot_available,
+                    "db_id_replayable": db_id_replayable,
+                    "snapshot_replayable": snapshot_replayable,
+                    "replayable": db_id_replayable or snapshot_replayable,
+                }
+            )
+    return reports
+
+
 def _compare_counts(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
     keys = sorted(set(baseline) | set(current))
     return {
@@ -416,6 +520,7 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
         "upper_color": upper_color,
         "api_processing": api_processing,
         "long_running_memory": memory,
+        "manual_label_replayability": _manual_label_replayability(current_db),
         "pass_summary": {
             "person_aggregation_pairwise_precision": person_merge["passes_precision_target"],
             "person_aggregation_pairwise_f1": person_merge["passes_f1_target"],
