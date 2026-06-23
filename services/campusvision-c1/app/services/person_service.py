@@ -13,7 +13,7 @@ from app.vision.face_engine import (
     get_face_engine,
 )
 from app.vision.vector_math import cosine_similarity
-from app.services import search_service
+from app.services import gender_presentation_service, search_service
 from app.services import person_merge_scorer
 
 
@@ -1394,11 +1394,28 @@ def _with_identity_status(person: dict) -> dict:
     return person
 
 
+def _attach_gender_presentation_profile(person: dict, profile: dict | None) -> None:
+    if not profile:
+        person["gender_presentation"] = None
+        person["gender_presentation_label"] = None
+        person["gender_presentation_confidence"] = None
+        person["gender_presentation_evidence_quality"] = None
+        person["gender_presentation_profile"] = None
+        return
+
+    person["gender_presentation"] = profile.get("gender_presentation")
+    person["gender_presentation_label"] = profile.get("gender_presentation_label")
+    person["gender_presentation_confidence"] = profile.get("confidence")
+    person["gender_presentation_evidence_quality"] = profile.get("evidence_quality")
+    person["gender_presentation_profile"] = profile
+
+
 def list_persons(*, include_candidates: bool = False) -> list[dict]:
     persons = db.list_persons()
     persons = [_with_identity_status(person) for person in persons]
     if not include_candidates:
         persons = [person for person in persons if person["is_stable_identity"]]
+    gender_profiles = gender_presentation_service.load_profiles().get("profiles") or {}
     for person in persons:
         persisted_events = db.list_events(person_id=person["person_id"], limit=200)
         if persisted_events:
@@ -1417,6 +1434,7 @@ def list_persons(*, include_candidates: bool = False) -> list[dict]:
             _persisted_event_for_person(latest_event, person["person_id"]) if latest_event else None
         )
         person["latest_clothing"] = _latest_clothing(latest_event)
+        _attach_gender_presentation_profile(person, gender_profiles.get(person["person_id"]))
     return persons
 
 

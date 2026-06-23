@@ -1,6 +1,7 @@
 import asyncio
 
 from app.api import routes
+from app.services import gender_presentation_service
 
 
 class _JsonRequest:
@@ -77,3 +78,40 @@ def test_gender_presentation_labels_accept_candidate_people(monkeypatch, tmp_pat
     saved = routes._load_manual_gender_presentation_labels()
     assert saved["labels"]["candidate_person"]["gender_presentation"] == "unknown"
     assert saved["labels"]["candidate_person"]["evidence_quality"] == "poor"
+
+
+def test_gender_presentation_profile_evaluation_is_eval_only(monkeypatch, tmp_path):
+    label_path = tmp_path / "manual_gender.json"
+    label_path.write_text(
+        """
+        {
+          "eval_only": true,
+          "labels": {
+            "person_1": {"gender_presentation": "masculine"},
+            "person_2": {"gender_presentation": "feminine"}
+          }
+        }
+        """,
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gender_presentation_service, "MANUAL_EVAL_LABEL_PATH", label_path)
+    monkeypatch.setattr(
+        gender_presentation_service,
+        "_person_status_lookup",
+        lambda: {"person_1": "stable", "person_2": "candidate"},
+    )
+
+    report = gender_presentation_service.evaluate_profiles(
+        {
+            "profiles": {
+                "person_1": {"gender_presentation": "masculine", "sample_predictions": []},
+                "person_2": {"gender_presentation": "feminine", "sample_predictions": []},
+            }
+        }
+    )
+
+    assert report["eval_only"] is True
+    assert report["accuracy"] == 1.0
+    assert report["macro_f1_observed_classes"] == 1.0
+    assert report["targets"]["person_accuracy"]["passed"] is True
+    assert report["targets"]["unknown_recall"]["passed"] is None

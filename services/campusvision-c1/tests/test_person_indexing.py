@@ -243,6 +243,42 @@ def test_list_persons_filters_candidate_identities_by_default(monkeypatch):
     assert [person["identity_status"] for person in all_people] == ["stable", "candidate"]
 
 
+def test_list_persons_attaches_cached_gender_presentation_profile(monkeypatch):
+    persons = [
+        {
+            "person_id": "stable",
+            "face_count": 10,
+            "embedding": [1.0, 0.0],
+            "representative_face_id": "face_stable",
+        },
+    ]
+    monkeypatch.setattr(person_service.settings, "person_identity_stable_min_faces", 10)
+    monkeypatch.setattr(person_service.db, "list_persons", lambda: [dict(person) for person in persons])
+    monkeypatch.setattr(person_service.db, "list_events", lambda **_kwargs: [])
+    monkeypatch.setattr(person_service, "person_events", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(
+        person_service.gender_presentation_service,
+        "load_profiles",
+        lambda: {
+            "profiles": {
+                "stable": {
+                    "gender_presentation": "masculine",
+                    "gender_presentation_label": "偏男性",
+                    "confidence": 0.91,
+                    "evidence_quality": "partial",
+                }
+            }
+        },
+    )
+
+    result = person_service.list_persons()
+
+    assert result[0]["gender_presentation"] == "masculine"
+    assert result[0]["gender_presentation_label"] == "偏男性"
+    assert result[0]["gender_presentation_confidence"] == 0.91
+    assert result[0]["gender_presentation_profile"]["evidence_quality"] == "partial"
+
+
 def test_public_schemas_do_not_expose_lower_clothing_fields():
     payloads = [
         EventOut.model_validate(

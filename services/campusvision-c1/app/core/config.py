@@ -158,6 +158,20 @@ class Settings:
         "data/models/person_merge/person_merge_scorer_v1.json",
     )
     person_identity_stable_min_faces: int = int(os.getenv("PERSON_IDENTITY_STABLE_MIN_FACES", "10"))
+    enable_gender_presentation_detection: bool = _bool_from_env(
+        "ENABLE_GENDER_PRESENTATION_DETECTION",
+        True,
+    )
+    gender_presentation_model_dir: Path = _path_from_env(
+        "GENDER_PRESENTATION_MODEL_DIR",
+        "data/models/clip/laion_CLIP-ViT-H-14-laion2B-s32B-b79K",
+    )
+    gender_presentation_device: str = os.getenv("GENDER_PRESENTATION_DEVICE", "cuda:0")
+    gender_presentation_temperature: float = float(
+        os.getenv("GENDER_PRESENTATION_TEMPERATURE", "10.0")
+    )
+    gender_presentation_sample_count: int = int(os.getenv("GENDER_PRESENTATION_SAMPLE_COUNT", "8"))
+    gender_presentation_fail_open: bool = _bool_from_env("GENDER_PRESENTATION_FAIL_OPEN", True)
 
     def ensure_dirs(self) -> None:
         for p in [

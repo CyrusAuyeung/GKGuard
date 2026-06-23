@@ -294,6 +294,11 @@ class PersonOut(BaseModel):
     last_seen_camera_id: str | None = None
     latest_event: EventOut | None = None
     latest_clothing: dict | None = None
+    gender_presentation: str | None = None
+    gender_presentation_label: str | None = None
+    gender_presentation_confidence: float | None = None
+    gender_presentation_evidence_quality: str | None = None
+    gender_presentation_profile: dict | None = None
     events: list[PersonEventOut] = Field(default_factory=list)
     first_seen_at: str | None = None
     last_seen_at: str | None = None

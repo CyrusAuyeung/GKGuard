@@ -30,7 +30,15 @@ from app.schemas import (
     VideoOut,
 )
 from app.core.config import settings
-from app.services import event_service, live_service, outfit_service, person_service, search_service, video_service
+from app.services import (
+    event_service,
+    gender_presentation_service,
+    live_service,
+    outfit_service,
+    person_service,
+    search_service,
+    video_service,
+)
 from app.storage import db
 
 router = APIRouter()
@@ -1033,6 +1041,14 @@ def persons_gallery(include_candidates: bool = False):
         events = person.get("events", [])
         latest_clothing = person.get("latest_clothing") or {}
         upper = latest_clothing.get("upper_color") or "unknown"
+        gender_profile = person.get("gender_presentation_profile") or {}
+        gender_label = gender_profile.get("gender_presentation_label") or "未计算"
+        gender_value = gender_profile.get("gender_presentation") or "unknown"
+        gender_confidence = gender_profile.get("confidence")
+        gender_confidence_text = (
+            f"{float(gender_confidence):.2f}" if gender_confidence is not None else "-"
+        )
+        gender_quality = gender_profile.get("evidence_quality_label") or "-"
         for event in events:
             event["display_time"] = event.get("start_time") or (
                 f'{event.get("start_time_display") or ""} - {event.get("end_time_display") or ""}'
@@ -1077,6 +1093,7 @@ def persons_gallery(include_candidates: bool = False):
                         <div><dt>face_count</dt><dd>{int(person.get('face_count') or 0)}</dd></div>
                         <div><dt>event_count</dt><dd>{int(person.get('event_count') or 0)}</dd></div>
                         <div><dt>latest_upper</dt><dd>{escape(str(upper))}</dd></div>
+                        <div><dt>外观倾向</dt><dd>{escape(str(gender_label))} · {escape(str(gender_value))} · conf {escape(gender_confidence_text)} · {escape(str(gender_quality))}</dd></div>
                         <div><dt>representative_face_id</dt><dd>{escape(str(person.get('representative_face_id') or ''))}</dd></div>
                         <div><dt>first_seen_at</dt><dd>{escape(str(person.get('first_seen_at') or ''))}</dd></div>
                         <div><dt>last_seen_at</dt><dd>{escape(str(person.get('last_seen_at') or ''))}</dd></div>
@@ -1372,6 +1389,29 @@ def get_manual_event_outfit_groups():
 def get_manual_gender_presentation_labels():
     data = _load_manual_gender_presentation_labels()
     return data | {"path": str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH)}
+
+
+@router.get("/gender-presentation-profiles")
+def get_gender_presentation_profiles():
+    return gender_presentation_service.load_profiles()
+
+
+@router.get("/gender-presentation-profiles/evaluation")
+def get_gender_presentation_profile_evaluation():
+    return gender_presentation_service.evaluate_profiles()
+
+
+@router.post("/gender-presentation-profiles/rebuild")
+def rebuild_gender_presentation_profiles(
+    include_candidates: bool = Form(True),
+    sample_count: int = Form(8),
+    limit: Optional[int] = Form(None),
+):
+    return gender_presentation_service.rebuild_profiles(
+        include_candidates=include_candidates,
+        sample_count=sample_count,
+        limit=limit,
+    )
 
 
 @router.post("/outfit-labels")
