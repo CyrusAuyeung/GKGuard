@@ -7,6 +7,7 @@ from hashlib import sha1
 from app.core.config import settings
 from app.storage import db
 from app.vision.person_analysis import bbox_area
+from app.vision.upper_color_postprocess import choose_upper_color_from_probs
 
 
 _UPPER_PROB_COLORS = tuple(
@@ -204,7 +205,8 @@ def _aggregate_upper_color_probs(observations: list[dict]) -> tuple[str, float |
         return "unknown", 0.0 if visible else None, visible, None
 
     normalized = {color: value / total_weight for color, value in totals.items()}
-    color, probability = max(normalized.items(), key=lambda item: item[1])
+    color = choose_upper_color_from_probs(normalized)
+    probability = normalized.get(color, 0.0)
     return color, round(float(probability), 4), True, {
         color_name: round(float(normalized.get(color_name, 0.0)), 6)
         for color_name in _UPPER_PROB_COLORS
@@ -366,7 +368,8 @@ def _upper_probability_profile(events: list[dict]) -> dict | None:
 
     total_weight = sum(totals.values())
     probabilities = {color: value / max(1e-6, total_weight) for color, value in totals.items()}
-    color, probability = max(probabilities.items(), key=lambda item: item[1])
+    color = choose_upper_color_from_probs(probabilities)
+    probability = probabilities.get(color, 0.0)
     return {
         "color": color,
         "confidence": round(float(probability), 4),

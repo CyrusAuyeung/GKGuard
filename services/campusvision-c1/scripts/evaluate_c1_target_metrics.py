@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+from collections import Counter
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
@@ -15,6 +16,7 @@ import sys
 sys.path.insert(0, str(ROOT))
 
 from app.core.config import settings  # noqa: E402
+from app.vision.upper_color_postprocess import choose_upper_color_from_probs  # noqa: E402
 
 
 DEFAULT_BASELINE_DB = (
@@ -454,7 +456,12 @@ def _upper_color_reports() -> dict[str, Any]:
     if not isinstance(event, dict):
         event = {}
 
-    outfit_accuracy = prob_group.get("accuracy") or group.get("accuracy")
+    calibrated_group = _calibrated_upper_group_metrics(online_candidate)
+    outfit_accuracy = (
+        calibrated_group.get("accuracy")
+        if calibrated_group
+        else prob_group.get("accuracy") or group.get("accuracy")
+    )
     return {
         "manual_eval_source": str(manual_path),
         "clip_eval_source": str(clip_path),
@@ -468,10 +475,92 @@ def _upper_color_reports() -> dict[str, Any]:
         "candidate_event_accuracy": event.get("accuracy"),
         "candidate_group_accuracy": group.get("accuracy"),
         "candidate_prob_group_accuracy": prob_group.get("accuracy"),
+        "candidate_calibrated_prob_group_accuracy": calibrated_group.get("accuracy") if calibrated_group else None,
+        "candidate_calibrated_prob_group_metrics": calibrated_group,
         "selected_outfit_accuracy": outfit_accuracy,
         "passes_outfit_accuracy_target": (
             outfit_accuracy is not None and float(outfit_accuracy) >= TARGETS["upper_color_outfit_accuracy"]
         ),
+    }
+
+
+def _calibrated_upper_group_metrics(report: dict[str, Any]) -> dict[str, Any] | None:
+    details = report.get("details")
+    if not isinstance(details, list) or not details:
+        return None
+
+    grouped: dict[tuple[str, str], list[dict[str, float]]] = {}
+    truth: dict[tuple[str, str], str] = {}
+    for detail in details:
+        if not isinstance(detail, dict):
+            continue
+        probs = detail.get("probs")
+        if not isinstance(probs, dict):
+            continue
+        key = (str(detail.get("person_id") or ""), str(detail.get("split_group") or ""))
+        if key == ("", ""):
+            continue
+        truth[key] = str(detail.get("manual_upper_color") or "unknown")
+        grouped.setdefault(key, []).append(
+            {
+                str(color): float(value or 0.0)
+                for color, value in probs.items()
+                if color not in {"unknown", "other"}
+            }
+        )
+
+    if not truth:
+        return None
+
+    correct = 0
+    confusion: Counter[tuple[str, str]] = Counter()
+    per_group = []
+    for key in sorted(truth):
+        sample_probs = grouped.get(key) or []
+        if sample_probs:
+            totals: Counter[str] = Counter()
+            for probs in sample_probs:
+                for color, probability in probs.items():
+                    totals[color] += float(probability)
+            averaged = {color: value / len(sample_probs) for color, value in totals.items()}
+            predicted = choose_upper_color_from_probs(averaged)
+            confidence = float(averaged.get(predicted, 0.0))
+        else:
+            predicted = "unknown"
+            confidence = 0.0
+            averaged = {}
+        manual = truth[key]
+        is_correct = predicted == manual
+        correct += int(is_correct)
+        if not is_correct:
+            confusion[(manual, predicted)] += 1
+        per_group.append(
+            {
+                "person_id": key[0],
+                "split_group": key[1],
+                "manual_upper_color": manual,
+                "predicted_upper_color": predicted,
+                "confidence": round(confidence, 6),
+                "correct": is_correct,
+                "sample_prob_count": len(sample_probs),
+                "probs": {
+                    color: round(float(value), 6)
+                    for color, value in sorted(averaged.items())
+                },
+            }
+        )
+
+    total = len(truth)
+    return {
+        "postprocess": "upper_color_prob_postprocess_v1",
+        "total": total,
+        "correct": correct,
+        "accuracy": round(correct / total, 4) if total else None,
+        "confusion_top": [
+            {"manual_color": manual, "predicted_color": predicted, "count": count}
+            for (manual, predicted), count in confusion.most_common()
+        ],
+        "per_group": per_group,
     }
 
 
