@@ -291,6 +291,7 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
         if not (label.get("source") == "manual_person_outfit_grouping" or label.get("manual_grouping")):
             continue
         person_id = str(label.get("person_id") or "")
+        snapshot_lookup = _sample_snapshot_lookup(label.get("sample_snapshots") or [])
         assignments_by_group: dict[str, list[dict[str, Any]]] = defaultdict(list)
         for assignment in label.get("manual_split_assignments") or []:
             if not isinstance(assignment, dict):
@@ -306,6 +307,7 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
                 {
                     "event_id": event_id,
                     "observation_id": observation_id,
+                    "sample_snapshot": _snapshot_for_sample(snapshot_lookup, event_id, observation_id),
                 }
             )
 
@@ -325,9 +327,43 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
                         "event_id": assignment.get("event_id") or "",
                         "observation_id": assignment.get("observation_id") or "",
                         "upper_color": color,
+                        "sample_snapshot": assignment.get("sample_snapshot") or {},
                     }
                 )
     return items
+
+
+def _sample_snapshot_lookup(snapshots: Any) -> dict[tuple[str, str], dict[str, Any]]:
+    lookup: dict[tuple[str, str], dict[str, Any]] = {}
+    if not isinstance(snapshots, list):
+        return lookup
+    for snapshot in snapshots:
+        if not isinstance(snapshot, dict) or not snapshot.get("snapshot_available"):
+            continue
+        event_id = str(snapshot.get("event_id") or "")
+        observation_id = str(snapshot.get("observation_id") or "")
+        keys = [
+            (event_id, observation_id),
+            (event_id, ""),
+            ("", observation_id),
+        ]
+        for key in keys:
+            if key != ("", "") and key not in lookup:
+                lookup[key] = snapshot
+    return lookup
+
+
+def _snapshot_for_sample(
+    lookup: dict[tuple[str, str], dict[str, Any]],
+    event_id: str,
+    observation_id: str,
+) -> dict[str, Any]:
+    return (
+        lookup.get((event_id, observation_id))
+        or lookup.get((event_id, ""))
+        or lookup.get(("", observation_id))
+        or {}
+    )
 
 
 def _roi_to_pil(roi_bgr: np.ndarray) -> Image.Image:
@@ -478,7 +514,48 @@ def _crop_variants(
     return variants
 
 
+def _resolve_snapshot_path(value: str | None) -> Path | None:
+    if not value:
+        return None
+    path = Path(value)
+    if not path.is_absolute():
+        path = settings.data_dir / path
+    return path
+
+
+def _snapshot_sample_image(snapshot: dict[str, Any]) -> tuple[SampleImage | None, str]:
+    if not isinstance(snapshot, dict) or not snapshot.get("snapshot_available"):
+        return None, "snapshot_missing"
+
+    body_path = _resolve_snapshot_path(snapshot.get("snapshot_body_path"))
+    if body_path and body_path.exists():
+        image = cv2.imread(str(body_path))
+        if image is not None:
+            height, width = image.shape[:2]
+            return (
+                SampleImage(
+                    image_bgr=image,
+                    body_box={"x1": 0, "y1": 0, "x2": width, "y2": height},
+                    source="manual_snapshot_body",
+                ),
+                "manual_snapshot_body",
+            )
+
+    frame_path = _resolve_snapshot_path(snapshot.get("snapshot_frame_path"))
+    body_box = snapshot.get("body_bbox")
+    if frame_path and frame_path.exists() and isinstance(body_box, dict):
+        image = cv2.imread(str(frame_path))
+        if image is not None:
+            return SampleImage(image_bgr=image, body_box=body_box, source="manual_snapshot_frame"), "manual_snapshot_frame"
+
+    return None, "snapshot_unusable"
+
+
 def _sample_image(item: dict[str, Any]) -> tuple[SampleImage | None, str]:
+    snapshot_sample, snapshot_source = _snapshot_sample_image(item.get("sample_snapshot") or {})
+    if snapshot_sample is not None:
+        return snapshot_sample, snapshot_source
+
     observation = db.get_person_observation(item.get("observation_id") or "") if item.get("observation_id") else None
     event = db.get_event(item.get("event_id") or "") if item.get("event_id") else None
     source = "manual_observation"
@@ -1107,6 +1184,7 @@ def main() -> int:
         schp_load_seconds = time.perf_counter() - schp_started_at
     all_items = _load_manual_items(args.labels)
     items = all_items[: args.limit] if args.limit else all_items
+    snapshot_item_count = sum(1 for item in items if item.get("sample_snapshot"))
     prompt_sets = _prompt_sets()
     selected_sets = {args.prompt_set: prompt_sets[args.prompt_set]} if args.prompt_set else prompt_sets
     ensemble_sets = _prompt_ensembles()
@@ -1471,6 +1549,7 @@ def main() -> int:
         "temperature": args.temperature,
         "temperature_grid": temperature_grid,
         "manual_event_count": len(items),
+        "manual_snapshot_event_count": snapshot_item_count,
         "roi_count": len(rois),
         "missing_roi_counts": dict(missing.most_common()),
         "sample_source_counts": dict(sample_sources.most_common()),

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
 from html import escape
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -41,6 +43,8 @@ _MANUAL_OUTFIT_LABEL_DIR = settings.data_dir / "evals" / "manual_outfit_labels"
 _MANUAL_OUTFIT_LABEL_PATH = _MANUAL_OUTFIT_LABEL_DIR / "outfit_labels.json"
 _MANUAL_EVENT_OUTFIT_GROUP_DIR = settings.data_dir / "evals" / "manual_event_outfit_groups"
 _MANUAL_EVENT_OUTFIT_GROUP_PATH = _MANUAL_EVENT_OUTFIT_GROUP_DIR / "event_outfit_groups.json"
+_MANUAL_SAMPLE_SNAPSHOT_DIR = settings.data_dir / "evals" / "manual_sample_snapshots"
+_MANUAL_SAMPLE_SNAPSHOT_VERSION = "manual_sample_snapshots_v1"
 
 _SESSION_REVIEW_STATUS_LABELS = {
     "unreviewed": "未审核",
@@ -265,6 +269,203 @@ def _appearance_outfit_card(group: dict) -> str:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _safe_path_component(value: object) -> str:
+    raw = str(value or "item")
+    safe = "".join(ch if ch.isalnum() or ch in "._-" else "_" for ch in raw).strip("._")
+    return safe[:96] or "item"
+
+
+def _path_for_label_json(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(settings.data_dir.resolve()).as_posix()
+    except ValueError:
+        return str(path.resolve())
+
+
+def _snapshot_url(path: Path) -> str:
+    try:
+        rel = path.resolve().relative_to(_MANUAL_SAMPLE_SNAPSHOT_DIR.resolve()).as_posix()
+    except ValueError:
+        return ""
+    return f"/api/v1/eval-sample-snapshots/{rel}"
+
+
+def _write_jpeg_snapshot(path: Path, image, *, quality: int = 92) -> bool:
+    import cv2
+
+    if image is None or getattr(image, "size", 0) <= 0:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if path.exists() and path.stat().st_size > 0:
+        return True
+    return bool(cv2.imwrite(str(path), image, [int(cv2.IMWRITE_JPEG_QUALITY), int(quality)]))
+
+
+def _crop_bbox_image(image, bbox: dict, *, padding_ratio: float = 0.04):
+    from app.vision.person_analysis import clamp_bbox
+
+    if image is None or not bbox:
+        return None
+    height, width = image.shape[:2]
+    raw_w = max(1.0, float(bbox.get("x2", 0) - bbox.get("x1", 0)))
+    raw_h = max(1.0, float(bbox.get("y2", 0) - bbox.get("y1", 0)))
+    padded = {
+        **bbox,
+        "x1": float(bbox["x1"]) - raw_w * padding_ratio,
+        "y1": float(bbox["y1"]) - raw_h * padding_ratio,
+        "x2": float(bbox["x2"]) + raw_w * padding_ratio,
+        "y2": float(bbox["y2"]) + raw_h * padding_ratio,
+    }
+    box = clamp_bbox(padded, width, height)
+    crop = image[box["y1"] : box["y2"], box["x1"] : box["x2"]]
+    return crop if getattr(crop, "size", 0) > 0 else None
+
+
+def _manual_sample_refs(
+    *,
+    sample_event_ids: list[str] | None = None,
+    sample_observation_ids: list[str] | None = None,
+    assignments: list[dict] | None = None,
+    group_field: str | None = None,
+) -> list[dict]:
+    refs: list[dict] = []
+    lookup: dict[tuple[str, str], dict] = {}
+
+    def add_ref(event_id: object = "", observation_id: object = "", group_value: object = "") -> None:
+        event_text = str(event_id or "")
+        observation_text = str(observation_id or "")
+        if not event_text and not observation_text:
+            return
+        key = (event_text, observation_text)
+        if key not in lookup:
+            item = {"event_id": event_text, "observation_id": observation_text}
+            lookup[key] = item
+            refs.append(item)
+        if group_field and group_value:
+            lookup[key][group_field] = str(group_value)
+
+    event_ids = sample_event_ids or []
+    observation_ids = sample_observation_ids or []
+    for index, event_id in enumerate(event_ids):
+        observation_id = observation_ids[index] if index < len(observation_ids) else ""
+        add_ref(event_id, observation_id)
+    if len(observation_ids) > len(event_ids):
+        for observation_id in observation_ids[len(event_ids) :]:
+            add_ref("", observation_id)
+
+    for assignment in assignments or []:
+        if not isinstance(assignment, dict):
+            continue
+        add_ref(
+            assignment.get("event_id") or "",
+            assignment.get("observation_id") or "",
+            assignment.get(group_field) if group_field else "",
+        )
+    return refs
+
+
+def _snapshot_manual_samples(label_set: str, label_id: str, refs: list[dict]) -> list[dict]:
+    import cv2
+
+    snapshots: list[dict] = []
+    label_dir = _MANUAL_SAMPLE_SNAPSHOT_DIR / _safe_path_component(label_set) / _safe_path_component(label_id)
+
+    for ref in refs:
+        if not isinstance(ref, dict):
+            continue
+        event_id = str(ref.get("event_id") or "")
+        observation_id = str(ref.get("observation_id") or "")
+        key_material = f"{label_set}|{label_id}|{event_id}|{observation_id}"
+        digest = hashlib.sha1(key_material.encode("utf-8")).hexdigest()[:14]
+        prefix = f"sample_{digest}"
+        out: dict = {
+            "snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_key": observation_id or event_id or digest,
+            "event_id": event_id,
+            "observation_id": observation_id,
+            "snapshot_errors": [],
+        }
+        for key, value in ref.items():
+            if key not in out and value:
+                out[key] = value
+
+        try:
+            event = db.get_event(event_id) if event_id else None
+            observation = db.get_person_observation(observation_id) if observation_id else None
+            if observation is None and event and event.get("representative_observation_id"):
+                observation = db.get_person_observation(str(event["representative_observation_id"]))
+                if observation and not out.get("observation_id"):
+                    out["observation_id"] = str(observation.get("observation_id") or "")
+
+            face_id = (
+                (observation or {}).get("face_record_id")
+                or (event or {}).get("representative_face_id")
+                or ""
+            )
+            face_record = db.get_face_record(str(face_id)) if face_id else None
+            if face_id:
+                out["face_id"] = str(face_id)
+
+            frame_path = (
+                (observation or {}).get("frame_path")
+                or (event or {}).get("representative_frame_path")
+                or (face_record or {}).get("frame_path")
+                or ""
+            )
+            frame_image = cv2.imread(str(frame_path)) if frame_path else None
+            if frame_image is None:
+                out["snapshot_errors"].append("frame_missing")
+            else:
+                out["source_frame_path"] = str(frame_path)
+                out["frame_shape"] = [int(frame_image.shape[1]), int(frame_image.shape[0])]
+                frame_out = label_dir / f"{prefix}_frame.jpg"
+                if _write_jpeg_snapshot(frame_out, frame_image):
+                    out["snapshot_frame_path"] = _path_for_label_json(frame_out)
+                    out["snapshot_frame_url"] = _snapshot_url(frame_out)
+                else:
+                    out["snapshot_errors"].append("frame_write_failed")
+
+                body_bbox = (observation or {}).get("person_bbox")
+                if body_bbox:
+                    out["body_bbox"] = body_bbox
+                    body_crop = _crop_bbox_image(frame_image, body_bbox)
+                    body_out = label_dir / f"{prefix}_body.jpg"
+                    if body_crop is not None and _write_jpeg_snapshot(body_out, body_crop):
+                        out["snapshot_body_path"] = _path_for_label_json(body_out)
+                        out["snapshot_body_url"] = _snapshot_url(body_out)
+                    else:
+                        out["snapshot_errors"].append("body_write_failed")
+                else:
+                    out["snapshot_errors"].append("body_bbox_missing")
+
+            if face_record and face_record.get("bbox"):
+                face_frame_path = face_record.get("frame_path") or frame_path
+                face_image = cv2.imread(str(face_frame_path)) if face_frame_path else frame_image
+                face_crop = _crop_bbox_image(face_image, face_record["bbox"], padding_ratio=0.0)
+                face_out = label_dir / f"{prefix}_face.jpg"
+                if face_crop is not None and _write_jpeg_snapshot(face_out, face_crop):
+                    out["snapshot_face_path"] = _path_for_label_json(face_out)
+                    out["snapshot_face_url"] = _snapshot_url(face_out)
+                else:
+                    out["snapshot_errors"].append("face_write_failed")
+            elif face_id:
+                out["snapshot_errors"].append("face_record_missing")
+
+            out["snapshot_available"] = bool(
+                out.get("snapshot_body_path") or out.get("snapshot_frame_path") or out.get("snapshot_face_path")
+            )
+        except Exception as exc:  # Snapshotting must never block saving eval labels.
+            out["snapshot_available"] = False
+            out.setdefault("snapshot_errors", []).append(f"{type(exc).__name__}: {exc}")
+
+        snapshots.append(out)
+    return snapshots
+
+
+def _snapshot_count(snapshots: list[dict]) -> int:
+    return sum(1 for item in snapshots if isinstance(item, dict) and item.get("snapshot_available"))
 
 
 def _load_manual_clothing_labels() -> dict:
@@ -1212,6 +1413,14 @@ async def save_manual_outfit_labels(request: Request):
                     "note": str(group_label.get("note") or "").strip(),
                 }
 
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+            assignments=split_assignments,
+            group_field="split_group",
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_outfit_labels", outfit_id, snapshot_refs)
+
         data["labels"][outfit_id] = {
             "outfit_id": outfit_id,
             "person_id": group.get("person_id"),
@@ -1234,6 +1443,9 @@ async def save_manual_outfit_labels(request: Request):
             "camera_ids": group.get("camera_ids") or [],
             "sample_event_ids": sample_event_ids,
             "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
             "grouping_version": group.get("grouping_version") or outfit_service.OUTFIT_GROUPING_VERSION,
             "distance_threshold": distance_threshold,
             "source": "manual_outfit_review",
@@ -1363,6 +1575,14 @@ async def save_manual_person_outfit_groups(request: Request):
             for item in label.get("sample_observation_ids", [])
             if isinstance(item, str) and item
         ]
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+            assignments=split_assignments,
+            group_field="split_group",
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_person_outfit_groups", person_id, snapshot_refs)
+
         label_id = _manual_person_outfit_label_id(person_id)
         data["labels"][label_id] = {
             "label_id": label_id,
@@ -1380,6 +1600,9 @@ async def save_manual_person_outfit_groups(request: Request):
             "event_count": len(person_events),
             "sample_event_ids": sample_event_ids,
             "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
             "saved_at": now,
         }
         saved += 1
@@ -1544,6 +1767,17 @@ async def save_manual_event_outfit_groups(request: Request):
                 "note": str(group_label.get("note") or "").strip(),
             }
 
+        snapshot_refs = _manual_sample_refs(assignments=assignments, group_field="manual_group")
+        sample_snapshots = _snapshot_manual_samples("manual_event_outfit_groups", person_id, snapshot_refs)
+        snapshots_by_group: dict[str, list[dict]] = defaultdict(list)
+        for snapshot in sample_snapshots:
+            if isinstance(snapshot, dict) and snapshot.get("manual_group"):
+                snapshots_by_group[str(snapshot["manual_group"])].append(snapshot)
+        for manual_group, snapshots in snapshots_by_group.items():
+            if manual_group in manual_groups:
+                manual_groups[manual_group]["sample_snapshot_count"] = _snapshot_count(snapshots)
+                manual_groups[manual_group]["sample_snapshots"] = snapshots
+
         group_counts = Counter(assignment["manual_group"] for assignment in assignments)
         label_id = _manual_event_outfit_group_label_id(person_id)
         data["labels"][label_id] = {
@@ -1560,6 +1794,9 @@ async def save_manual_event_outfit_groups(request: Request):
             "manual_group_counts": dict(group_counts.most_common()),
             "manual_groups": manual_groups,
             "manual_assignments": assignments,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
             "saved_at": now,
         }
         saved += 1
@@ -2875,6 +3112,11 @@ async def save_manual_appearance_session_labels(request: Request):
             for item in label.get("sample_observation_ids", [])
             if isinstance(item, str) and item
         ]
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_appearance_session_labels", session_id, snapshot_refs)
 
         data["labels"][session_id] = {
             "session_id": session_id,
@@ -2891,6 +3133,9 @@ async def save_manual_appearance_session_labels(request: Request):
             "event_count": int(session.get("event_count") or 0),
             "sample_event_ids": sample_event_ids,
             "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
             "source": "manual_appearance_session_review",
             "saved_at": now,
         }
@@ -3268,6 +3513,11 @@ async def save_manual_person_clothing_labels(request: Request):
             for item in label.get("sample_observation_ids", [])
             if isinstance(item, str) and item
         ]
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_person_clothing_labels", person_id, snapshot_refs)
         data["labels"][person_id] = {
             "person_id": person_id,
             "upper_visible": bool(label.get("upper_visible")),
@@ -3277,6 +3527,9 @@ async def save_manual_person_clothing_labels(request: Request):
             "note": str(label.get("note") or "").strip(),
             "sample_event_ids": sample_event_ids,
             "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
             "source": "manual_person_clothing_review",
             "saved_at": now,
         }
@@ -3722,6 +3975,19 @@ def _bbox_jpeg_response(frame_path: str, bbox: dict, *, padding_ratio: float = 0
     if not ok:
         raise HTTPException(status_code=500, detail="failed to encode crop")
     return Response(content=encoded.tobytes(), media_type="image/jpeg")
+
+
+@router.get("/eval-sample-snapshots/{snapshot_path:path}")
+def get_eval_sample_snapshot(snapshot_path: str):
+    root = _MANUAL_SAMPLE_SNAPSHOT_DIR.resolve()
+    target = (root / snapshot_path).resolve()
+    try:
+        target.relative_to(root)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="snapshot not found") from exc
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="snapshot not found")
+    return FileResponse(target, media_type="image/jpeg")
 
 
 @router.get("/media/frame/{face_id}")
