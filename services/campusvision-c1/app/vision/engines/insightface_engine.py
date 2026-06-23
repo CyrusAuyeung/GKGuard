@@ -25,6 +25,18 @@ def _iou(left: dict, right: dict) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _select_onnx_providers(available: list[str]) -> list[str]:
+    # TensorRT may be advertised by onnxruntime-gpu even when TensorRT runtime
+    # libraries are absent. Passing it to InsightFace can force a full CPU
+    # fallback, so prefer the stable CUDA path explicitly.
+    preferred = [
+        provider
+        for provider in ("CUDAExecutionProvider", "CPUExecutionProvider")
+        if provider in available
+    ]
+    return preferred or ["CPUExecutionProvider"]
+
+
 class InsightFaceEngine:
     """InsightFace/ArcFace backend for real-world face detection and embedding."""
 
@@ -42,7 +54,7 @@ class InsightFaceEngine:
         try:
             import onnxruntime as ort
 
-            providers = ort.get_available_providers()
+            providers = _select_onnx_providers(ort.get_available_providers())
         except Exception:
             providers = ["CPUExecutionProvider"]
 
