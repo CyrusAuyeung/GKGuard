@@ -129,6 +129,13 @@ class Settings:
         "data/models/schp/checkpoints/schp/exp-schp-201908261155-lip.pth",
     )
     upper_color_schp_min_mask_pixels: int = int(os.getenv("UPPER_COLOR_SCHP_MIN_MASK_PIXELS", "250"))
+    enable_upper_color_temporal_cache: bool = _bool_from_env("ENABLE_UPPER_COLOR_TEMPORAL_CACHE", True)
+    upper_color_temporal_cache_max_age_sec: float = float(
+        os.getenv("UPPER_COLOR_TEMPORAL_CACHE_MAX_AGE_SEC", "4.0")
+    )
+    upper_color_temporal_cache_iou_threshold: float = float(
+        os.getenv("UPPER_COLOR_TEMPORAL_CACHE_IOU_THRESHOLD", "0.45")
+    )
     enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")

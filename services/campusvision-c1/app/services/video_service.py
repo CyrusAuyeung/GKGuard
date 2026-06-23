@@ -103,6 +103,11 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     event_result = None
     video_frame_dir = settings.frames_dir / video_id
     video_frame_dir.mkdir(parents=True, exist_ok=True)
+    upper_color_cache = (
+        observation_service.UpperColorTemporalCache()
+        if settings.enable_upper_color_temporal_cache
+        else None
+    )
 
     try:
         for frame_index, (timestamp_sec, frame) in enumerate(
@@ -152,6 +157,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
                 frame_index=frame_index,
                 faces=face_items,
                 bodies=bodies,
+                upper_color_cache=upper_color_cache,
             )
             observed += len(observations)
 

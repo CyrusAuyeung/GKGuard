@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -11,6 +12,95 @@ from app.vision import person_analysis
 
 
 ESTIMATED_BODY_MODEL_VERSION = "face_estimated_body_v1"
+
+
+@dataclass
+class _UpperColorCacheEntry:
+    body: dict
+    timestamp_sec: float
+    prediction: person_analysis.RegionResult
+
+
+def _bbox_iou(left: dict, right: dict) -> float:
+    x1 = max(float(left.get("x1", 0)), float(right.get("x1", 0)))
+    y1 = max(float(left.get("y1", 0)), float(right.get("y1", 0)))
+    x2 = min(float(left.get("x2", 0)), float(right.get("x2", 0)))
+    y2 = min(float(left.get("y2", 0)), float(right.get("y2", 0)))
+    inter = max(0.0, x2 - x1) * max(0.0, y2 - y1)
+    left_area = person_analysis.bbox_area(left)
+    right_area = person_analysis.bbox_area(right)
+    union = left_area + right_area - inter
+    return inter / union if union > 0.0 else 0.0
+
+
+def _same_body_source(left: dict, right: dict) -> bool:
+    return bool(left.get("estimated_from_face")) == bool(right.get("estimated_from_face")) and str(
+        left.get("detector") or ""
+    ) == str(right.get("detector") or "")
+
+
+class UpperColorTemporalCache:
+    def __init__(
+        self,
+        *,
+        max_age_sec: float | None = None,
+        iou_threshold: float | None = None,
+    ) -> None:
+        self.max_age_sec = (
+            float(settings.upper_color_temporal_cache_max_age_sec)
+            if max_age_sec is None
+            else float(max_age_sec)
+        )
+        self.iou_threshold = (
+            float(settings.upper_color_temporal_cache_iou_threshold)
+            if iou_threshold is None
+            else float(iou_threshold)
+        )
+        self._entries: list[_UpperColorCacheEntry] = []
+
+    def _prune(self, timestamp_sec: float) -> None:
+        self._entries = [
+            entry
+            for entry in self._entries
+            if 0.0 <= timestamp_sec - entry.timestamp_sec <= self.max_age_sec
+        ]
+
+    def get(
+        self,
+        body: dict,
+        *,
+        timestamp_sec: float,
+        used_entry_indexes: set[int],
+    ) -> person_analysis.RegionResult | None:
+        self._prune(timestamp_sec)
+        best: tuple[float, int, _UpperColorCacheEntry] | None = None
+        for index, entry in enumerate(self._entries):
+            if index in used_entry_indexes:
+                continue
+            if not _same_body_source(body, entry.body):
+                continue
+            age = timestamp_sec - entry.timestamp_sec
+            if age < 0.0 or age > self.max_age_sec:
+                continue
+            iou = _bbox_iou(body, entry.body)
+            if iou < self.iou_threshold:
+                continue
+            if best is None or iou > best[0]:
+                best = (iou, index, entry)
+        if best is None:
+            return None
+        used_entry_indexes.add(best[1])
+        return best[2].prediction
+
+    def put(self, body: dict, *, timestamp_sec: float, prediction: person_analysis.RegionResult) -> None:
+        self._prune(timestamp_sec)
+        self._entries.append(
+            _UpperColorCacheEntry(
+                body=dict(body),
+                timestamp_sec=timestamp_sec,
+                prediction=prediction,
+            )
+        )
 
 
 def _unknown_clothing() -> dict[str, Any]:
@@ -68,6 +158,9 @@ def _body_observation_payload(
 def _batch_upper_predictions(
     frame: np.ndarray,
     bodies: list[dict],
+    *,
+    timestamp_sec: float | None = None,
+    cache: UpperColorTemporalCache | None = None,
 ) -> dict[int, person_analysis.RegionResult]:
     if not bodies or not settings.enable_clothing_detection or not settings.enable_upper_clothing_detection:
         return {}
@@ -83,16 +176,38 @@ def _batch_upper_predictions(
         seen.add(body_key)
         unique_bodies.append(body)
 
-    try:
-        predictions = person_analysis._classify_upper_colors_with_backend(frame, unique_bodies)
-    except Exception:
-        return {}
+    results: dict[int, person_analysis.RegionResult] = {}
+    uncached_bodies: list[dict] = []
+    used_cache_entries: set[int] = set()
+    if cache is not None and timestamp_sec is not None and settings.enable_upper_color_temporal_cache:
+        for body in unique_bodies:
+            prediction = cache.get(
+                body,
+                timestamp_sec=float(timestamp_sec),
+                used_entry_indexes=used_cache_entries,
+            )
+            if prediction is None:
+                uncached_bodies.append(body)
+            else:
+                results[id(body)] = prediction
+    else:
+        uncached_bodies = unique_bodies
 
-    return {
-        id(body): prediction
-        for body, prediction in zip(unique_bodies, predictions)
-        if prediction is not None
-    }
+    if not uncached_bodies:
+        return results
+
+    try:
+        predictions = person_analysis._classify_upper_colors_with_backend(frame, uncached_bodies)
+    except Exception:
+        return results
+
+    for body, prediction in zip(uncached_bodies, predictions):
+        if prediction is None:
+            continue
+        results[id(body)] = prediction
+        if cache is not None and timestamp_sec is not None and settings.enable_upper_color_temporal_cache:
+            cache.put(body, timestamp_sec=float(timestamp_sec), prediction=prediction)
+    return results
 
 
 def create_frame_observations(
@@ -107,6 +222,7 @@ def create_frame_observations(
     faces: list[dict],
     bodies: list[dict],
     live_source_id: str | None = None,
+    upper_color_cache: UpperColorTemporalCache | None = None,
 ) -> list[dict]:
     match_result = person_analysis.match_faces_to_bodies(faces, bodies)
     estimated_body_by_face_index: dict[int, dict] = {}
@@ -121,7 +237,12 @@ def create_frame_observations(
             upper_prediction_bodies.append(estimated_body)
     for body_index in match_result["unmatched_body_indices"]:
         upper_prediction_bodies.append(bodies[body_index])
-    upper_predictions = _batch_upper_predictions(frame, upper_prediction_bodies)
+    upper_predictions = _batch_upper_predictions(
+        frame,
+        upper_prediction_bodies,
+        timestamp_sec=video_timestamp_sec,
+        cache=upper_color_cache,
+    )
     observations = []
 
     for pair in match_result["pairs"]:
