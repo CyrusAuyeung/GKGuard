@@ -56,13 +56,32 @@ class InsightFaceEngine:
             return []
         return self.app.get(image_bgr)
 
+    def _face_box_and_embedding(self, face) -> tuple[dict, list[float] | None]:
+        x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
+        score = float(getattr(face, "det_score", 0.0))
+        embedding = getattr(face, "normed_embedding", None)
+        if embedding is None:
+            embedding = getattr(face, "embedding", None)
+        normalized = _normalize(np.asarray(embedding)).tolist() if embedding is not None else None
+        return {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "score": score}, normalized
+
     def detect_faces(self, image_bgr: np.ndarray) -> list[dict]:
         out = []
         for face in self._faces(image_bgr):
-            x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
-            score = float(getattr(face, "det_score", 0.0))
-            out.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "score": score})
+            box, _embedding = self._face_box_and_embedding(face)
+            out.append(box)
         return out
+
+    def detect_faces_with_embeddings(self, image_bgr: np.ndarray) -> tuple[list[dict], list[list[float]]]:
+        boxes = []
+        embeddings = []
+        for face in self._faces(image_bgr):
+            box, embedding = self._face_box_and_embedding(face)
+            if embedding is None:
+                continue
+            boxes.append(box)
+            embeddings.append(embedding)
+        return boxes, embeddings
 
     def embed_faces(self, image_bgr: np.ndarray, boxes: list[dict]) -> list[list[float]]:
         if not boxes:
@@ -70,16 +89,13 @@ class InsightFaceEngine:
 
         detected = []
         for face in self._faces(image_bgr):
-            x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
-            embedding = getattr(face, "normed_embedding", None)
-            if embedding is None:
-                embedding = getattr(face, "embedding", None)
+            box, embedding = self._face_box_and_embedding(face)
             if embedding is None:
                 continue
             detected.append(
                 {
-                    "box": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
-                    "embedding": _normalize(np.asarray(embedding)).tolist(),
+                    "box": box,
+                    "embedding": embedding,
                 }
             )
 

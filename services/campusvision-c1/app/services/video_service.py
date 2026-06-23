@@ -75,6 +75,16 @@ def _captured_at(recorded_at: str | None, offset_sec: float) -> str | None:
     return (dt + timedelta(seconds=float(offset_sec))).replace(microsecond=0).isoformat()
 
 
+def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[float]]]:
+    detect_with_embeddings = getattr(engine, "detect_faces_with_embeddings", None)
+    if callable(detect_with_embeddings):
+        return detect_with_embeddings(frame)
+
+    boxes = engine.detect_faces(frame)
+    embeddings = engine.embed_faces(frame, boxes) if boxes else []
+    return boxes, embeddings
+
+
 def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     video = db.get_video(video_id)
     if not video:
@@ -98,8 +108,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
         for frame_index, (timestamp_sec, frame) in enumerate(
             iter_video_frames(video["path"], every_seconds=float(interval))
         ):
-            boxes = engine.detect_faces(frame)
-            embeddings = engine.embed_faces(frame, boxes) if boxes else []
+            boxes, embeddings = _detect_faces_and_embeddings(engine, frame)
             usable_face_count = len(boxes) if embeddings and len(embeddings) == len(boxes) else 0
 
             try:
