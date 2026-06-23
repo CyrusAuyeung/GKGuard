@@ -22,6 +22,11 @@ from app.vision import person_analysis, upper_color_calibrator  # noqa: E402
 LABEL_PATH = settings.data_dir / "evals" / "manual_outfit_labels" / "outfit_labels.json"
 MODEL_PATH = settings.upper_color_calibrator_path
 REPORT_PATH = settings.data_dir / "evals" / "manual_outfit_labels" / "upper_color_calibrator_eval.json"
+EVAL_ONLY_POLICY_MESSAGE = (
+    "Disabled: manual outfit labels are eval-only and must not be used to train or write "
+    "an upper-color calibrator. Use evaluate_clip_upper_color.py or "
+    "evaluate_manual_clothing_labels.py to evaluate candidate upper-color methods."
+)
 
 
 def _now() -> str:
@@ -244,6 +249,7 @@ def train_and_evaluate(
     allow_face_estimated: bool,
     write_model: bool,
 ) -> dict[str, Any]:
+    raise RuntimeError(EVAL_ONLY_POLICY_MESSAGE)
     db.init_db()
     items = _load_manual_items(label_path)
     records = []
@@ -302,37 +308,18 @@ def train_and_evaluate(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train upper-color calibrator from manual outfit labels.")
+    parser = argparse.ArgumentParser(
+        description="Deprecated guard: manual outfit labels are eval-only and cannot train a deployable model."
+    )
     parser.add_argument("--labels", type=Path, default=LABEL_PATH)
     parser.add_argument("--model-out", type=Path, default=MODEL_PATH)
     parser.add_argument("--report-out", type=Path, default=REPORT_PATH)
     parser.add_argument("--k", type=int, default=settings.upper_color_calibrator_k)
     parser.add_argument("--no-face-estimated", action="store_true")
     parser.add_argument("--no-write-model", action="store_true")
-    args = parser.parse_args()
+    parser.parse_args()
 
-    report = train_and_evaluate(
-        label_path=args.labels,
-        model_path=args.model_out,
-        report_path=args.report_out,
-        k=max(1, int(args.k)),
-        allow_face_estimated=not args.no_face_estimated,
-        write_model=not args.no_write_model,
-    )
-    summary = {
-        "manual_event_count": report["manual_event_count"],
-        "trainable_event_count": report["trainable_event_count"],
-        "missing_roi_counts": report["missing_roi_counts"],
-        "current_event_accuracy": report["current_event_metrics"]["accuracy"],
-        "current_group_accuracy": report["current_group_metrics"]["accuracy"],
-        "calibrated_in_sample_event_accuracy": report["calibrated_in_sample_event_metrics"]["accuracy"],
-        "calibrated_in_sample_group_accuracy": report["calibrated_in_sample_group_metrics"]["accuracy"],
-        "leave_one_person_event_accuracy": report["leave_one_person_event_metrics"]["accuracy"],
-        "leave_one_person_group_accuracy": report["leave_one_person_group_metrics"]["accuracy"],
-        "model_path": str(args.model_out),
-        "report_path": str(args.report_out),
-    }
-    print(json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True))
+    raise SystemExit(EVAL_ONLY_POLICY_MESSAGE)
 
 
 if __name__ == "__main__":

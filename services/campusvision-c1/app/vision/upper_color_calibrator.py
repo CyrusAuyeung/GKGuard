@@ -12,6 +12,22 @@ from app.core.config import settings
 
 
 MODEL_VERSION = "upper_color_knn_calibrator_v1"
+_MANUAL_EVAL_SOURCES = {
+    "manual_eval_labels",
+    "manual_upper_color_eval_labels",
+    "manual_outfit_labels",
+    "manual_outfit_review",
+    "manual_person_outfit_grouping",
+}
+
+
+def _is_deployable_model(data: dict[str, Any]) -> bool:
+    if data.get("eval_only") is True:
+        return False
+    source = str(data.get("training_source") or data.get("source") or "")
+    if source in _MANUAL_EVAL_SOURCES or source.startswith("manual_"):
+        return False
+    return data.get("deployment_allowed") is True
 
 
 def _hist(values: np.ndarray, bins: int, value_range: tuple[int, int]) -> np.ndarray:
@@ -154,6 +170,8 @@ def load_model(path: Path | str | None = None) -> dict[str, Any] | None:
         return None
     data = json.loads(model_path.read_text(encoding="utf-8"))
     if data.get("model_version") != MODEL_VERSION:
+        return None
+    if not _is_deployable_model(data):
         return None
     vectors = np.asarray(data.get("feature_vectors") or [], dtype=np.float32)
     labels = list(data.get("labels") or [])
