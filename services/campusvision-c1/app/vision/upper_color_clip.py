@@ -508,7 +508,7 @@ def _body_crop(image_bgr: np.ndarray, body_box: dict) -> np.ndarray | None:
 
 def _square_pad_bgr(image_bgr: np.ndarray, *, value: int = 128) -> np.ndarray:
     height, width = image_bgr.shape[:2]
-    side = max(height, width)
+    side = int(max(height, width))
     out = np.full((side, side, 3), value, dtype=image_bgr.dtype)
     y1 = (side - height) // 2
     x1 = (side - width) // 2
