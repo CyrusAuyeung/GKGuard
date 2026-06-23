@@ -1,0 +1,89 @@
+from pathlib import Path
+import sys
+
+import numpy as np
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+
+from app.services import observation_service  # noqa: E402
+
+
+def _capture_observations(monkeypatch):
+    observations = []
+
+    def add_person_observation(payload):
+        observations.append(payload)
+        return payload
+
+    monkeypatch.setattr(observation_service.db, "add_person_observation", add_person_observation)
+    monkeypatch.setattr(observation_service.db, "update_face_record_observation", lambda *_args, **_kwargs: None)
+    return observations
+
+
+def test_unmatched_face_uses_estimated_body_when_torso_space_exists(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 120, 3), dtype=np.uint8)
+    face = {"face_id": "face_1", "x1": 45, "y1": 16, "x2": 75, "y2": 46, "score": 0.92}
+
+    def analyze_clothing(_frame, _body, _visibility):
+        return {
+            "upper_color": "white",
+            "upper_color_confidence": 0.8,
+            "upper_visible": True,
+            "upper_valid_pixel_ratio": 1.0,
+            "lower_color": "unknown",
+            "lower_color_confidence": None,
+            "lower_visible": False,
+            "lower_valid_pixel_ratio": None,
+        }
+
+    monkeypatch.setattr(observation_service.person_analysis, "analyze_clothing", analyze_clothing)
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[face],
+        bodies=[],
+    )
+
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation["observation_type"] == "face_and_body"
+    assert observation["body_visibility"] == "upper_body"
+    assert observation["body_model_version"] == observation_service.ESTIMATED_BODY_MODEL_VERSION
+    assert observation["person_bbox"]["estimated_from_face"] is True
+    assert observation["upper_visible"] is True
+    assert observation["upper_color"] == "white"
+
+
+def test_unmatched_close_face_remains_face_only_unknown(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((80, 120, 3), dtype=np.uint8)
+    face = {"face_id": "face_1", "x1": 45, "y1": 35, "x2": 75, "y2": 65, "score": 0.92}
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[face],
+        bodies=[],
+    )
+
+    assert len(observations) == 1
+    observation = observations[0]
+    assert observation["observation_type"] == "face_only"
+    assert observation["body_visibility"] == "face_only"
+    assert observation["person_bbox"] is None
+    assert observation["upper_visible"] is False
+    assert observation["upper_color"] == "unknown"
