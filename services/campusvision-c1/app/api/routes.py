@@ -43,6 +43,10 @@ _MANUAL_OUTFIT_LABEL_DIR = settings.data_dir / "evals" / "manual_outfit_labels"
 _MANUAL_OUTFIT_LABEL_PATH = _MANUAL_OUTFIT_LABEL_DIR / "outfit_labels.json"
 _MANUAL_EVENT_OUTFIT_GROUP_DIR = settings.data_dir / "evals" / "manual_event_outfit_groups"
 _MANUAL_EVENT_OUTFIT_GROUP_PATH = _MANUAL_EVENT_OUTFIT_GROUP_DIR / "event_outfit_groups.json"
+_MANUAL_GENDER_PRESENTATION_LABEL_DIR = settings.data_dir / "evals" / "manual_gender_presentation_labels"
+_MANUAL_GENDER_PRESENTATION_LABEL_PATH = (
+    _MANUAL_GENDER_PRESENTATION_LABEL_DIR / "person_gender_presentation_labels.json"
+)
 _MANUAL_SAMPLE_SNAPSHOT_DIR = settings.data_dir / "evals" / "manual_sample_snapshots"
 _MANUAL_SAMPLE_SNAPSHOT_VERSION = "manual_sample_snapshots_v1"
 
@@ -65,6 +69,19 @@ _OUTFIT_SPLIT_GROUP_LABELS = {
     "E": "E",
     "F": "F",
     "exclude": "排除",
+}
+
+_GENDER_PRESENTATION_OPTIONS = {
+    "masculine": "偏男性",
+    "feminine": "偏女性",
+    "neutral": "中性风",
+    "unknown": "无法判断",
+}
+
+_GENDER_EVIDENCE_QUALITY_OPTIONS = {
+    "clear": "清晰",
+    "partial": "部分可见",
+    "poor": "画质较差",
 }
 
 
@@ -603,6 +620,45 @@ def _save_manual_event_outfit_groups(data: dict) -> None:
     tmp_path.replace(_MANUAL_EVENT_OUTFIT_GROUP_PATH)
 
 
+def _load_manual_gender_presentation_labels() -> dict:
+    if not _MANUAL_GENDER_PRESENTATION_LABEL_PATH.exists():
+        return {
+            "schema_version": "manual_gender_presentation_labels_v1",
+            "source": "manual_gender_presentation_review_eval",
+            "eval_only": True,
+            "created_at": _utc_now(),
+            "updated_at": None,
+            "labels": {},
+        }
+    try:
+        data = json.loads(_MANUAL_GENDER_PRESENTATION_LABEL_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    labels = data.get("labels")
+    if not isinstance(labels, dict):
+        labels = {}
+    return {
+        "schema_version": data.get("schema_version") or "manual_gender_presentation_labels_v1",
+        "source": "manual_gender_presentation_review_eval",
+        "eval_only": True,
+        "created_at": data.get("created_at") or _utc_now(),
+        "updated_at": data.get("updated_at"),
+        "labels": labels,
+    }
+
+
+def _save_manual_gender_presentation_labels(data: dict) -> None:
+    data["schema_version"] = data.get("schema_version") or "manual_gender_presentation_labels_v1"
+    data["source"] = "manual_gender_presentation_review_eval"
+    data["eval_only"] = True
+    _MANUAL_GENDER_PRESENTATION_LABEL_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = _MANUAL_GENDER_PRESENTATION_LABEL_PATH.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(_MANUAL_GENDER_PRESENTATION_LABEL_PATH)
+
+
 def _review_status_options(selected: str | None) -> str:
     selected = selected or "unreviewed"
     return "".join(
@@ -624,6 +680,22 @@ def _manual_group_options(selected: str | None) -> str:
     return "".join(
         f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(_OUTFIT_SPLIT_GROUP_LABELS[value])}</option>'
         for value in _MANUAL_OUTFIT_GROUPS
+    )
+
+
+def _gender_presentation_options(selected: str | None) -> str:
+    selected = selected if selected in _GENDER_PRESENTATION_OPTIONS else "unknown"
+    return "".join(
+        f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(label)}</option>'
+        for value, label in _GENDER_PRESENTATION_OPTIONS.items()
+    )
+
+
+def _gender_evidence_quality_options(selected: str | None) -> str:
+    selected = selected if selected in _GENDER_EVIDENCE_QUALITY_OPTIONS else "partial"
+    return "".join(
+        f'<option value="{_h(value)}"{" selected" if value == selected else ""}>{_h(label)}</option>'
+        for value, label in _GENDER_EVIDENCE_QUALITY_OPTIONS.items()
     )
 
 
@@ -726,6 +798,9 @@ def _person_body_samples(person_id: str, sample_count: int) -> list[dict]:
                 "time_label": _event_time_label(event),
                 "body_crop_url": f"/api/v1/media/event/body/{event['event_id']}",
                 "frame_url": f"/api/v1/media/event/frame/{event['event_id']}",
+                "face_crop_url": f"/api/v1/media/face/{event['representative_face_id']}"
+                if event.get("representative_face_id")
+                else "",
                 "model_upper_color": event.get("normalized_upper_color") or event.get("upper_color"),
                 "model_upper_visible": event.get("normalized_upper_visible"),
                 "raw_upper_color": event.get("raw_upper_color"),
@@ -1291,6 +1366,12 @@ def get_manual_outfit_labels():
 def get_manual_event_outfit_groups():
     data = _load_manual_event_outfit_groups()
     return data | {"path": str(_MANUAL_EVENT_OUTFIT_GROUP_PATH)}
+
+
+@router.get("/gender-presentation-labels")
+def get_manual_gender_presentation_labels():
+    data = _load_manual_gender_presentation_labels()
+    return data | {"path": str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH)}
 
 
 @router.post("/outfit-labels")
@@ -3550,6 +3631,311 @@ async def save_manual_person_clothing_labels(request: Request):
         "updated_at": now,
         "path": str(_MANUAL_LABEL_PATH),
     }
+
+
+@router.post("/gender-presentation-labels")
+async def save_manual_gender_presentation_labels(request: Request):
+    payload = await request.json()
+    labels = payload.get("labels") if isinstance(payload, dict) else None
+    if not isinstance(labels, list):
+        raise HTTPException(status_code=400, detail="labels must be a list")
+
+    stable_person_ids = {
+        person["person_id"]
+        for person in person_service.list_persons(include_candidates=False)
+    }
+    allowed_presentations = set(_GENDER_PRESENTATION_OPTIONS)
+    allowed_quality = set(_GENDER_EVIDENCE_QUALITY_OPTIONS)
+    allowed_statuses = set(_SESSION_REVIEW_STATUS_LABELS)
+    now = _utc_now()
+    data = _load_manual_gender_presentation_labels()
+    saved = 0
+
+    for label in labels:
+        if not isinstance(label, dict):
+            continue
+        person_id = str(label.get("person_id") or "")
+        if person_id not in stable_person_ids:
+            raise HTTPException(status_code=400, detail=f"unknown stable person_id: {person_id}")
+
+        presentation = str(label.get("gender_presentation") or "unknown")
+        if presentation not in allowed_presentations:
+            raise HTTPException(status_code=400, detail=f"unsupported gender_presentation: {presentation}")
+
+        evidence_quality = str(label.get("evidence_quality") or "partial")
+        if evidence_quality not in allowed_quality:
+            raise HTTPException(status_code=400, detail=f"unsupported evidence_quality: {evidence_quality}")
+
+        review_status = str(label.get("review_status") or "unreviewed")
+        if review_status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail=f"unsupported review_status: {review_status}")
+
+        sample_event_ids = [
+            str(item)
+            for item in label.get("sample_event_ids", [])
+            if isinstance(item, str) and item
+        ]
+        sample_observation_ids = [
+            str(item)
+            for item in label.get("sample_observation_ids", [])
+            if isinstance(item, str) and item
+        ]
+        snapshot_refs = _manual_sample_refs(
+            sample_event_ids=sample_event_ids,
+            sample_observation_ids=sample_observation_ids,
+        )
+        sample_snapshots = _snapshot_manual_samples("manual_gender_presentation_labels", person_id, snapshot_refs)
+
+        data["labels"][person_id] = {
+            "person_id": person_id,
+            "gender_presentation": presentation,
+            "gender_presentation_label": _GENDER_PRESENTATION_OPTIONS[presentation],
+            "evidence_quality": evidence_quality,
+            "evidence_quality_label": _GENDER_EVIDENCE_QUALITY_OPTIONS[evidence_quality],
+            "review_status": review_status,
+            "note": str(label.get("note") or "").strip(),
+            "sample_event_ids": sample_event_ids,
+            "sample_observation_ids": sample_observation_ids,
+            "sample_snapshot_version": _MANUAL_SAMPLE_SNAPSHOT_VERSION,
+            "sample_snapshot_count": _snapshot_count(sample_snapshots),
+            "sample_snapshots": sample_snapshots,
+            "source": "manual_gender_presentation_review_eval",
+            "eval_only": True,
+            "saved_at": now,
+        }
+        saved += 1
+
+    data["updated_at"] = now
+    _save_manual_gender_presentation_labels(data)
+    return {
+        "saved": saved,
+        "updated_at": now,
+        "path": str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH),
+    }
+
+
+@router.get("/gender-presentation-labels/review", response_class=HTMLResponse)
+def manual_gender_presentation_label_review(sample_count: int = 8, unsaved_only: bool = False):
+    saved_data = _load_manual_gender_presentation_labels()
+    saved_labels = saved_data.get("labels", {})
+    persons = person_service.list_persons(include_candidates=False)
+    if unsaved_only:
+        persons = [person for person in persons if person["person_id"] not in saved_labels]
+
+    cards = []
+    total_samples = 0
+    saved_count = 0
+    for person in persons:
+        person_id = person["person_id"]
+        samples = _person_body_samples(person_id, sample_count)
+        total_samples += len(samples)
+        saved = saved_labels.get(person_id, {})
+        if saved:
+            saved_count += 1
+        presentation = saved.get("gender_presentation") or "unknown"
+        evidence_quality = saved.get("evidence_quality") or "partial"
+        review_status = saved.get("review_status") or "unreviewed"
+        note = saved.get("note") or ""
+        face_id = person.get("representative_face_id")
+        face_html = (
+            f'<img class="face" src="/api/v1/media/face/{_h(face_id)}" alt="{_h(face_id)}">'
+            if face_id
+            else '<div class="face placeholder"></div>'
+        )
+
+        sample_tiles = []
+        for sample in samples:
+            face = (
+                f'<img class="sample-face" src="{_h(sample.get("face_crop_url"))}" alt="">'
+                if sample.get("face_crop_url")
+                else ""
+            )
+            sample_tiles.append(
+                f"""
+                <article class="sample"
+                    data-event-id="{_h(sample.get("event_id"))}"
+                    data-observation-id="{_h(sample.get("observation_id"))}">
+                    <a href="{_h(sample.get("frame_url"))}" target="_blank" rel="noopener">
+                        <img class="sample-body" src="{_h(sample.get("body_crop_url"))}" alt="{_h(sample.get("event_id"))}">
+                    </a>
+                    {face}
+                    <div class="sample-meta">
+                        <strong>{_h(sample.get("camera_id"))}</strong>
+                        <span>{_h(sample.get("time_label"))}</span>
+                        <span>上装 {_h(sample.get("model_upper_color") or "unknown")}</span>
+                    </div>
+                </article>
+                """
+            )
+
+        cards.append(
+            f"""
+            <section class="person-card" data-person-id="{_h(person_id)}">
+                <header class="person-head">
+                    {face_html}
+                    <div class="person-title">
+                        <h2 title="{_h(person_id)}">{_h(person_id)}</h2>
+                        <span>{len(samples)} samples · {int(person.get("face_count") or 0)} faces · {int(person.get("event_count") or 0)} events</span>
+                    </div>
+                    <div class="person-actions">
+                        <span class="state">{_h("已保存" if person_id in saved_labels else "未保存")}</span>
+                        <button type="button" class="save-one">保存此人</button>
+                    </div>
+                </header>
+                <div class="samples">
+                    {"".join(sample_tiles) or '<p class="empty">No body samples</p>'}
+                </div>
+                <div class="label-form">
+                    <label>
+                        外观倾向
+                        <select class="gender-presentation">{_gender_presentation_options(presentation)}</select>
+                    </label>
+                    <label>
+                        证据质量
+                        <select class="evidence-quality">{_gender_evidence_quality_options(evidence_quality)}</select>
+                    </label>
+                    <label>
+                        审核状态
+                        <select class="review-status">{_review_status_options(review_status)}</select>
+                    </label>
+                    <label class="note-label">
+                        备注
+                        <input type="text" class="note" value="{_h(note)}" placeholder="可空">
+                    </label>
+                </div>
+            </section>
+            """
+        )
+
+    toggle_href = "/api/v1/gender-presentation-labels/review" if unsaved_only else (
+        "/api/v1/gender-presentation-labels/review?unsaved_only=true"
+    )
+    toggle_text = "查看全部" if unsaved_only else "只看未保存"
+    return HTMLResponse(
+        f"""
+        <!doctype html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>外观倾向人工审核</title>
+            <style>
+                * {{ box-sizing: border-box; }}
+                body {{ margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #20242a; }}
+                main {{ max-width: 1480px; margin: 0 auto; padding: 18px; }}
+                .toolbar {{ position: sticky; top: 0; z-index: 6; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; background: #f4f6f8; border-bottom: 1px solid #d8dee7; }}
+                h1 {{ margin: 0; font-size: 22px; }}
+                h2 {{ margin: 0; font-size: 14px; word-break: break-all; }}
+                .summary, .person-title span, .sample-meta span, .state {{ color: #5d6875; font-size: 12px; }}
+                .mode-link {{ color: #5d6875; font-size: 13px; text-decoration: none; border-bottom: 1px solid #aeb6c2; }}
+                .actions {{ display: flex; align-items: center; gap: 10px; }}
+                button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
+                button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
+                button:disabled {{ opacity: .55; cursor: default; }}
+                .status {{ min-width: 180px; color: #5d6875; font-size: 13px; text-align: right; }}
+                .person-card {{ margin-top: 14px; border: 1px solid #d8dee7; border-radius: 8px; background: #fff; overflow: hidden; }}
+                .person-head {{ display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid #e5eaf1; background: #fbfcfd; }}
+                .face {{ width: 64px; height: 64px; object-fit: cover; border-radius: 6px; background: #e8ecf1; }}
+                .person-actions {{ display: flex; align-items: center; gap: 8px; }}
+                .state {{ min-width: 44px; text-align: right; }}
+                .samples {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; padding: 12px; }}
+                .sample {{ position: relative; min-width: 0; border: 1px solid #e3e8ef; border-radius: 6px; overflow: hidden; background: #fbfcfd; }}
+                .sample-body {{ display: block; width: 100%; height: 200px; object-fit: cover; background: #e8ecf1; }}
+                .sample-face {{ position: absolute; top: 6px; right: 6px; width: 38px; height: 38px; object-fit: cover; border-radius: 5px; border: 1px solid #fff; background: #e8ecf1; }}
+                .sample-meta {{ display: grid; gap: 3px; padding: 7px; }}
+                .sample-meta strong, .sample-meta span {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .sample-meta strong {{ font-size: 12px; }}
+                .label-form {{ display: grid; grid-template-columns: minmax(130px, 180px) minmax(120px, 160px) minmax(130px, 170px) 1fr; gap: 10px; align-items: end; padding: 12px; border-top: 1px solid #e5eaf1; }}
+                label {{ display: grid; gap: 5px; font-size: 12px; color: #5d6875; }}
+                select, input[type="text"] {{ height: 34px; border: 1px solid #c8d0da; border-radius: 6px; background: #fff; padding: 0 8px; color: #20242a; min-width: 0; }}
+                .note-label {{ min-width: 180px; }}
+                .empty {{ margin: 0; padding: 14px; color: #5d6875; }}
+                .placeholder {{ background: repeating-linear-gradient(45deg, #e8ecf1, #e8ecf1 7px, #dde3ea 7px, #dde3ea 14px); }}
+                @media (max-width: 880px) {{
+                    main {{ padding: 10px; }}
+                    .toolbar, .person-head {{ display: grid; grid-template-columns: 1fr; align-items: start; }}
+                    .label-form {{ grid-template-columns: 1fr 1fr; }}
+                    .note-label {{ grid-column: 1 / -1; }}
+                    .status {{ text-align: left; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <main>
+                <div class="toolbar">
+                    <div>
+                        <h1>外观倾向人工审核</h1>
+                        <div class="summary">{len(persons)} stable persons · {total_samples} samples · saved {saved_count} · file: {_h(str(_MANUAL_GENDER_PRESENTATION_LABEL_PATH))}</div>
+                    </div>
+                    <div class="actions">
+                        <a class="mode-link" href="{_h(toggle_href)}">{_h(toggle_text)}</a>
+                        <button type="button" id="saveAll" class="primary">保存全部</button>
+                        <span id="status" class="status">等待审核</span>
+                    </div>
+                </div>
+                {"".join(cards) or '<p class="empty">No stable persons indexed yet.</p>'}
+            </main>
+            <script>
+                const endpoint = "/api/v1/gender-presentation-labels";
+                function collectCard(card) {{
+                    const samples = Array.from(card.querySelectorAll(".sample"));
+                    return {{
+                        person_id: card.dataset.personId,
+                        gender_presentation: card.querySelector(".gender-presentation").value,
+                        evidence_quality: card.querySelector(".evidence-quality").value,
+                        review_status: card.querySelector(".review-status").value,
+                        note: card.querySelector(".note").value,
+                        sample_event_ids: samples.map(item => item.dataset.eventId).filter(Boolean),
+                        sample_observation_ids: samples.map(item => item.dataset.observationId).filter(Boolean),
+                    }};
+                }}
+                async function saveLabels(cards) {{
+                    const status = document.getElementById("status");
+                    status.textContent = "保存中...";
+                    const labels = cards.map(collectCard);
+                    const response = await fetch(endpoint, {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ labels }}),
+                    }});
+                    const body = await response.json();
+                    if (!response.ok) {{
+                        throw new Error(body.detail || "保存失败");
+                    }}
+                    cards.forEach(card => {{
+                        const state = card.querySelector(".state");
+                        if (state) state.textContent = "已保存";
+                    }});
+                    status.textContent = `已保存 ${{body.saved}} 人`;
+                }}
+                document.getElementById("saveAll").addEventListener("click", async () => {{
+                    const button = document.getElementById("saveAll");
+                    button.disabled = true;
+                    try {{
+                        await saveLabels(Array.from(document.querySelectorAll(".person-card")));
+                    }} catch (error) {{
+                        document.getElementById("status").textContent = error.message;
+                    }} finally {{
+                        button.disabled = false;
+                    }}
+                }});
+                document.querySelectorAll(".save-one").forEach(button => {{
+                    button.addEventListener("click", async () => {{
+                        button.disabled = true;
+                        try {{
+                            await saveLabels([button.closest(".person-card")]);
+                        }} catch (error) {{
+                            document.getElementById("status").textContent = error.message;
+                        }} finally {{
+                            button.disabled = false;
+                        }}
+                    }});
+                }});
+            </script>
+        </body>
+        </html>
+        """
+    )
 
 
 @router.get("/person-clothing-labels/review", response_class=HTMLResponse)
