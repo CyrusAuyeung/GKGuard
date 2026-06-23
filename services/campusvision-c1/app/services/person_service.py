@@ -1379,8 +1379,26 @@ def _latest_clothing(event: dict | None) -> dict | None:
     }
 
 
-def list_persons() -> list[dict]:
+def identity_status(person: dict) -> str:
+    return (
+        "stable"
+        if int(person.get("face_count") or 0) >= int(settings.person_identity_stable_min_faces)
+        else "candidate"
+    )
+
+
+def _with_identity_status(person: dict) -> dict:
+    status = identity_status(person)
+    person["identity_status"] = status
+    person["is_stable_identity"] = status == "stable"
+    return person
+
+
+def list_persons(*, include_candidates: bool = False) -> list[dict]:
     persons = db.list_persons()
+    persons = [_with_identity_status(person) for person in persons]
+    if not include_candidates:
+        persons = [person for person in persons if person["is_stable_identity"]]
     for person in persons:
         persisted_events = db.list_events(person_id=person["person_id"], limit=200)
         if persisted_events:
@@ -1402,8 +1420,8 @@ def list_persons() -> list[dict]:
     return persons
 
 
-def person_gallery_items() -> list[dict]:
-    persons = list_persons()
+def person_gallery_items(*, include_candidates: bool = False) -> list[dict]:
+    persons = list_persons(include_candidates=include_candidates)
     for person in persons:
         person["events"] = person.get("events", [])[:12]
     return persons

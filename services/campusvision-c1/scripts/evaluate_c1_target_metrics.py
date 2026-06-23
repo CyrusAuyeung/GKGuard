@@ -571,6 +571,7 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
 def _print_summary(report: dict[str, Any]) -> None:
     counts = report["db_counts"]["current"]
     baseline = report["db_counts"]["baseline"]
+    fragmentation = report.get("person_fragmentation", {}).get("current", {})
     print("C1 target metrics")
     print(f"current_db={report['databases']['current']}")
     print(f"baseline_db={report['databases']['baseline']}")
@@ -581,6 +582,14 @@ def _print_summary(report: dict[str, Any]) -> None:
             f"person_faces {baseline.get('person_faces')} -> {counts.get('person_faces')}, "
             f"identified_events {baseline.get('identified_events')} -> {counts.get('identified_events')}, "
             f"upper_unknown_event_rate {baseline.get('upper_unknown_event_rate')} -> {counts.get('upper_unknown_event_rate')}"
+        )
+    if fragmentation:
+        print(
+            "person_fragmentation: "
+            f"stable_ge10={fragmentation.get('stable_persons_ge10')}, "
+            f"candidate_lt10={int(fragmentation.get('persons') or 0) - int(fragmentation.get('stable_persons_ge10') or 0)}, "
+            f"small_le3={fragmentation.get('small_persons_le3')}, "
+            f"histogram={fragmentation.get('histogram')}"
         )
     print("pass_summary:")
     for key, value in report["pass_summary"].items():

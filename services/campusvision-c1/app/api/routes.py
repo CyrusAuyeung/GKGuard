@@ -946,13 +946,13 @@ def update_person_index(
 
 
 @router.get("/persons", response_model=list[PersonOut])
-def list_persons():
-    return person_service.list_persons()
+def list_persons(include_candidates: bool = False):
+    return person_service.list_persons(include_candidates=include_candidates)
 
 
 @router.get("/persons/gallery", response_class=HTMLResponse)
-def persons_gallery():
-    persons = person_service.person_gallery_items()
+def persons_gallery(include_candidates: bool = False):
+    persons = person_service.person_gallery_items(include_candidates=include_candidates)
     cards = []
     for person in persons:
         events = person.get("events", [])
@@ -998,6 +998,7 @@ def persons_gallery():
                 <div class="person-meta">
                     <h2>{escape(person['person_id'])}</h2>
                     <dl>
+                        <div><dt>identity_status</dt><dd>{escape(str(person.get('identity_status') or ''))}</dd></div>
                         <div><dt>face_count</dt><dd>{int(person.get('face_count') or 0)}</dd></div>
                         <div><dt>event_count</dt><dd>{int(person.get('event_count') or 0)}</dd></div>
                         <div><dt>latest_upper</dt><dd>{escape(str(upper))}</dd></div>
@@ -1012,6 +1013,9 @@ def persons_gallery():
         )
 
     body = "\n".join(cards) or '<p class="empty">No persons indexed yet.</p>'
+    mode_text = "全部身份含候选" if include_candidates else "稳定身份"
+    toggle_href = "/api/v1/persons/gallery" if include_candidates else "/api/v1/persons/gallery?include_candidates=true"
+    toggle_text = "只看稳定身份" if include_candidates else "查看候选碎片"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -1025,7 +1029,8 @@ def persons_gallery():
                 main {{ max-width: 1180px; margin: 0 auto; padding: 24px; }}
                 header {{ display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin-bottom: 18px; }}
                 h1 {{ font-size: 24px; margin: 0; }}
-                .count {{ color: #69717d; }}
+                .count, .mode-link {{ color: #69717d; }}
+                .mode-link {{ font-size: 13px; text-decoration: none; border-bottom: 1px solid #aeb6c2; }}
                 .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 16px; }}
                 .person-card {{ display: grid; grid-template-columns: 128px 1fr; gap: 14px; padding: 14px; background: #fff; border: 1px solid #dde1e7; border-radius: 8px; }}
                 .hero-face {{ width: 128px; height: 128px; object-fit: cover; background: #e9edf2; border-radius: 6px; }}
@@ -1048,7 +1053,10 @@ def persons_gallery():
         </head>
         <body>
             <main>
-                <header><h1>CampusVision 人物库</h1><span class="count">{len(persons)} persons</span></header>
+                <header>
+                    <h1>CampusVision 人物库</h1>
+                    <span class="count">{escape(mode_text)} · {len(persons)} persons · <a class="mode-link" href="{toggle_href}">{escape(toggle_text)}</a></span>
+                </header>
                 <section class="grid">{body}</section>
             </main>
         </body>

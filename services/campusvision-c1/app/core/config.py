@@ -147,6 +147,7 @@ class Settings:
         "PERSON_MERGE_SCORER_MODEL_PATH",
         "data/models/person_merge/person_merge_scorer_v1.json",
     )
+    person_identity_stable_min_faces: int = int(os.getenv("PERSON_IDENTITY_STABLE_MIN_FACES", "10"))
 
     def ensure_dirs(self) -> None:
         for p in [

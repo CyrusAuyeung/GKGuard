@@ -215,6 +215,34 @@ def test_merge_scorer_guard_requires_probability():
     assert reason == "low_merge_probability"
 
 
+def test_list_persons_filters_candidate_identities_by_default(monkeypatch):
+    persons = [
+        {
+            "person_id": "stable",
+            "face_count": 10,
+            "embedding": [1.0, 0.0],
+            "representative_face_id": "face_stable",
+        },
+        {
+            "person_id": "candidate",
+            "face_count": 2,
+            "embedding": [0.0, 1.0],
+            "representative_face_id": "face_candidate",
+        },
+    ]
+    monkeypatch.setattr(person_service.settings, "person_identity_stable_min_faces", 10)
+    monkeypatch.setattr(person_service.db, "list_persons", lambda: [dict(person) for person in persons])
+    monkeypatch.setattr(person_service.db, "list_events", lambda **_kwargs: [])
+    monkeypatch.setattr(person_service, "person_events", lambda *_args, **_kwargs: [])
+
+    stable_only = person_service.list_persons()
+    all_people = person_service.list_persons(include_candidates=True)
+
+    assert [person["person_id"] for person in stable_only] == ["stable"]
+    assert stable_only[0]["identity_status"] == "stable"
+    assert [person["identity_status"] for person in all_people] == ["stable", "candidate"]
+
+
 def test_public_schemas_do_not_expose_lower_clothing_fields():
     payloads = [
         EventOut.model_validate(

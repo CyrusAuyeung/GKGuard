@@ -281,6 +281,8 @@ class AppearanceSessionOut(BaseModel):
 class PersonOut(BaseModel):
     person_id: str
     display_name: str | None = None
+    identity_status: str | None = None
+    is_stable_identity: bool | None = None
     representative_face_id: str | None = None
     representative_frame_path: str | None = None
     representative_frame_url: str | None = None
