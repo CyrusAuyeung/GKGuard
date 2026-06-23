@@ -214,6 +214,53 @@ def _event_tile(event: dict) -> str:
     """
 
 
+def _outfit_time_label(group: dict) -> str:
+    if group.get("start_time") or group.get("end_time"):
+        return f"{group.get('start_time') or ''} - {group.get('end_time') or ''}"
+    start = group.get("start_timestamp_sec")
+    end = group.get("end_timestamp_sec")
+    if start is not None or end is not None:
+        return f"{float(start or 0.0):.1f}s - {float(end or 0.0):.1f}s"
+    return ""
+
+
+def _appearance_outfit_card(group: dict) -> str:
+    events = sorted(
+        group.get("events") or [],
+        key=lambda event: (
+            event.get("start_time") or "",
+            float(event.get("start_timestamp_sec") or 0.0),
+            event.get("event_id") or "",
+        ),
+    )
+    event_tiles = "".join(_event_tile(event) for event in events)
+    camera_ids = [item for item in group.get("camera_ids") or [] if item]
+    camera_text = ", ".join(camera_ids[:6])
+    if len(camera_ids) > 6:
+        camera_text = f"{camera_text} +{len(camera_ids) - 6}"
+    color_counts = group.get("model_upper_color_counts") or {}
+    count_text = ", ".join(f"{_color_label(color)}:{count}" for color, count in color_counts.items())
+    return f"""
+        <section class="outfit-row" data-outfit-id="{_h(group.get("outfit_id"))}">
+            <div class="outfit-meta">
+                <div class="outfit-head">
+                    <strong title="{_h(group.get("outfit_id"))}">装束 {int(group.get("group_index") or 0)}</strong>
+                    <span>{int(group.get("event_count") or 0)} events</span>
+                </div>
+                <div class="outfit-color">
+                    {_color_chip(group.get("model_upper_color"), group.get("model_upper_color_confidence"))}
+                </div>
+                <div class="outfit-note">{_h(_outfit_time_label(group))}</div>
+                <div class="outfit-note" title="{_h(camera_text)}">来源 {_h(camera_text or "-")}</div>
+                <div class="outfit-note" title="{_h(count_text)}">上装分布 {_h(count_text or "-")}</div>
+            </div>
+            <div class="event-strip">
+                {event_tiles or '<p class="empty">No events</p>'}
+            </div>
+        </section>
+    """
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
@@ -768,6 +815,7 @@ def persons_gallery():
 def appearance_sessions_gallery(
     person_id: Optional[str] = None,
     changed_only: bool = False,
+    outfit_distance_threshold: float = 0.42,
     limit: int = 200,
 ):
     sessions = event_service.list_appearance_sessions(person_id=person_id)
@@ -832,7 +880,12 @@ def appearance_sessions_gallery(
                     event.get("event_id") or "",
                 ),
             )
-            event_tiles = "".join(_event_tile(event) for event in session_events)
+            outfit_groups = outfit_service.build_outfit_groups_for_events(
+                current_person_id,
+                session_events,
+                distance_threshold=max(0.1, min(float(outfit_distance_threshold), 0.9)),
+            )
+            outfit_cards = "".join(_appearance_outfit_card(group) for group in outfit_groups)
             session_rows.append(
                 f"""
                 <section class="session-row">
@@ -847,8 +900,8 @@ def appearance_sessions_gallery(
                             {_color_chip(session.get("upper_color"), session.get("upper_color_confidence"), session.get("upper_color_support"))}
                         </div>
                     </div>
-                    <div class="event-strip">
-                        {event_tiles or '<p class="empty">No events</p>'}
+                    <div class="outfit-list">
+                        {outfit_cards or '<p class="empty">No outfits</p>'}
                     </div>
                 </section>
                 """
@@ -911,6 +964,14 @@ def appearance_sessions_gallery(
                 .color-chip {{ min-width: 0; display: inline-flex; align-items: center; gap: 6px; color: #20242a; font-size: 12px; }}
                 .swatch {{ flex: 0 0 auto; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #aeb6c2; }}
                 .chip-meta {{ color: #707b87; }}
+                .outfit-list {{ min-width: 0; display: grid; gap: 10px; }}
+                .outfit-row {{ min-width: 0; display: grid; grid-template-columns: 190px 1fr; gap: 10px; padding: 10px; border: 1px solid #dfe5ed; border-radius: 8px; background: #fbfcfd; }}
+                .outfit-meta {{ min-width: 0; display: grid; align-content: start; gap: 7px; }}
+                .outfit-head {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
+                .outfit-head strong {{ font-size: 13px; }}
+                .outfit-head span {{ display: inline-flex; align-items: center; height: 22px; padding: 0 7px; border: 1px solid #d9dee5; border-radius: 6px; background: #fff; color: #56606b; font-size: 12px; }}
+                .outfit-color {{ min-width: 0; }}
+                .outfit-note {{ min-width: 0; color: #56606b; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
                 .event-strip {{ min-width: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }}
                 .event-tile {{ min-width: 0; display: grid; grid-template-columns: 82px 1fr; gap: 8px; padding: 8px; border: 1px solid #e2e7ee; border-radius: 6px; background: #fbfcfd; }}
                 .changed-event {{ border-color: #b7cbe8; background: #f7fbff; }}
@@ -931,6 +992,7 @@ def appearance_sessions_gallery(
                     main {{ padding: 12px; }}
                     .topbar {{ display: grid; align-items: start; }}
                     .session-row {{ grid-template-columns: 1fr; }}
+                    .outfit-row {{ grid-template-columns: 1fr; }}
                     .session-colors {{ grid-template-columns: 38px 1fr; }}
                 }}
             </style>

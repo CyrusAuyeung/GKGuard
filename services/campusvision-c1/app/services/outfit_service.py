@@ -295,24 +295,41 @@ def build_outfit_groups(
 
     groups: list[dict[str, Any]] = []
     for current_person_id in sorted(events_by_person):
-        items = []
-        for event in sorted(events_by_person[current_person_id], key=_event_time_key):
-            roi = _upper_roi_for_event(event)
-            feature, diagnostics = _outfit_feature(roi, event.get("upper_color"))
-            items.append(
-                {
-                    "event": event,
-                    "feature": feature,
-                    "diagnostics": diagnostics,
-                    "model_upper_color": event.get("upper_color") or "unknown",
-                }
+        groups.extend(
+            build_outfit_groups_for_events(
+                current_person_id,
+                events_by_person[current_person_id],
+                distance_threshold=distance_threshold,
             )
-
-        feature_items = [item for item in items if item.get("feature") is not None]
-        missing_items = [item for item in items if item.get("feature") is None]
-        clustered = _cluster_feature_items(feature_items, distance_threshold)
-        clustered = _attach_missing_feature_items(clustered, missing_items)
-        for index, group in enumerate(clustered, start=1):
-            groups.append(_group_summary(current_person_id, group, index))
+        )
 
     return sorted(groups, key=lambda group: (group["person_id"], group["group_index"], group["outfit_id"]))
+
+
+def build_outfit_groups_for_events(
+    person_id: str,
+    events: list[dict[str, Any]],
+    *,
+    distance_threshold: float = 0.42,
+) -> list[dict[str, Any]]:
+    items = []
+    for event in sorted(events, key=_event_time_key):
+        roi = _upper_roi_for_event(event)
+        feature, diagnostics = _outfit_feature(roi, event.get("upper_color"))
+        items.append(
+            {
+                "event": event,
+                "feature": feature,
+                "diagnostics": diagnostics,
+                "model_upper_color": event.get("upper_color") or "unknown",
+            }
+        )
+
+    feature_items = [item for item in items if item.get("feature") is not None]
+    missing_items = [item for item in items if item.get("feature") is None]
+    clustered = _cluster_feature_items(feature_items, distance_threshold)
+    clustered = _attach_missing_feature_items(clustered, missing_items)
+    return [
+        _group_summary(person_id, group, index)
+        for index, group in enumerate(clustered, start=1)
+    ]
