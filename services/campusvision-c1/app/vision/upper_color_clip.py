@@ -141,7 +141,7 @@ class _ClipSchpUpperColorPipeline:
         if not body_boxes:
             return []
 
-        variant_sets = [self._crop_variants(image_bgr, body_box) for body_box in body_boxes]
+        variant_sets = self._crop_variants_many(image_bgr, body_boxes)
         crop_specs: list[tuple[int, str, str, float, np.ndarray]] = []
         for item_index, variants in enumerate(variant_sets):
             for ensemble_name, crop_name, weight in PROFILE_REALTIME_BALANCED_PROMPT_V2:
@@ -268,32 +268,47 @@ class _ClipSchpUpperColorPipeline:
         return model
 
     def _crop_variants(self, image_bgr: np.ndarray, body_box: dict) -> dict[str, np.ndarray | float]:
-        variants: dict[str, np.ndarray | float] = {}
-        torso = _crop_box_ratio(image_bgr, body_box, y_start=0.22, y_end=0.62, x_keep=0.72)
-        if torso is not None:
-            variants["torso"] = _square_pad_bgr(torso)
+        return self._crop_variants_many(image_bgr, [body_box])[0]
 
-        body_crop = _body_crop(image_bgr, body_box)
-        if body_crop is None:
-            return variants
+    def _crop_variants_many(self, image_bgr: np.ndarray, body_boxes: list[dict]) -> list[dict[str, np.ndarray | float]]:
+        variant_sets: list[dict[str, np.ndarray | float]] = []
+        body_crops: list[np.ndarray] = []
+        crop_indexes: list[int] = []
 
-        pred = self._predict_parsing(body_crop)
-        upper_mask = _upper_mask(pred)
-        if int(upper_mask.sum()) < settings.upper_color_schp_min_mask_pixels:
-            return variants
+        for body_box in body_boxes:
+            variants: dict[str, np.ndarray | float] = {}
+            torso = _crop_box_ratio(image_bgr, body_box, y_start=0.22, y_end=0.62, x_keep=0.72)
+            if torso is not None:
+                variants["torso"] = _square_pad_bgr(torso)
 
-        kernel = np.ones((3, 3), dtype=np.uint8)
-        upper_mask = cv2.morphologyEx(upper_mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel).astype(bool)
-        bounds = _mask_bounds(upper_mask)
-        if not bounds:
-            return variants
-        x1, y1, x2, y2 = bounds
-        tight_raw = body_crop[y1:y2, x1:x2]
-        tight_mask = upper_mask[y1:y2, x1:x2]
-        if tight_raw.size:
-            variants["schp_upper_tight_masked"] = _square_pad_bgr(_masked_crop(tight_raw, tight_mask))
-            variants["_schp_upper_valid_ratio"] = float(upper_mask.sum() / max(1, upper_mask.size))
-        return variants
+            body_crop = _body_crop(image_bgr, body_box)
+            if body_crop is not None:
+                crop_indexes.append(len(variant_sets))
+                body_crops.append(body_crop)
+            variant_sets.append(variants)
+
+        if not body_crops:
+            return variant_sets
+
+        for item_index, body_crop, pred in zip(crop_indexes, body_crops, self._predict_parsing_many(body_crops)):
+            upper_mask = _upper_mask(pred)
+            if int(upper_mask.sum()) < settings.upper_color_schp_min_mask_pixels:
+                continue
+
+            kernel = np.ones((3, 3), dtype=np.uint8)
+            upper_mask = cv2.morphologyEx(upper_mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel).astype(bool)
+            bounds = _mask_bounds(upper_mask)
+            if not bounds:
+                continue
+            x1, y1, x2, y2 = bounds
+            tight_raw = body_crop[y1:y2, x1:x2]
+            tight_mask = upper_mask[y1:y2, x1:x2]
+            if tight_raw.size:
+                variants = variant_sets[item_index]
+                variants["schp_upper_tight_masked"] = _square_pad_bgr(_masked_crop(tight_raw, tight_mask))
+                variants["_schp_upper_valid_ratio"] = float(upper_mask.sum() / max(1, upper_mask.size))
+
+        return variant_sets
 
     def _predict_parsing(self, image_bgr: np.ndarray) -> np.ndarray:
         import torchvision.transforms as transforms
@@ -330,6 +345,55 @@ class _ClipSchpUpperColorPipeline:
         logits = upsample[0].permute(1, 2, 0).detach().cpu().numpy()
         logits = transform_logits(logits, center, scale, width, height, input_size=LIP_INPUT_SIZE)
         return np.argmax(logits, axis=2).astype(np.uint8)
+
+    def _predict_parsing_many(self, images_bgr: list[np.ndarray]) -> list[np.ndarray]:
+        if not images_bgr:
+            return []
+
+        import torchvision.transforms as transforms
+
+        _ensure_schp_import_path()
+        from utils.transforms import get_affine_transform, transform_logits  # noqa: WPS433
+
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.406, 0.456, 0.485], std=[0.225, 0.224, 0.229]),
+            ]
+        )
+        tensors = []
+        metadata = []
+        for image_bgr in images_bgr:
+            height, width = image_bgr.shape[:2]
+            center, scale = _box_to_center_scale(width, height, LIP_INPUT_SIZE)
+            trans = get_affine_transform(center, scale, 0, np.asarray(LIP_INPUT_SIZE))
+            warped = cv2.warpAffine(
+                image_bgr,
+                trans,
+                (int(LIP_INPUT_SIZE[1]), int(LIP_INPUT_SIZE[0])),
+                flags=cv2.INTER_LINEAR,
+                borderMode=cv2.BORDER_CONSTANT,
+                borderValue=(0, 0, 0),
+            )
+            tensors.append(transform(warped))
+            metadata.append((center, scale, width, height))
+
+        batch = self.torch.stack(tensors, dim=0).to(self.device)
+        with self.torch.no_grad():
+            output = self.schp_model(batch)
+            upsample = self.torch.nn.functional.interpolate(
+                output[0][-1],
+                size=LIP_INPUT_SIZE,
+                mode="bilinear",
+                align_corners=True,
+            )
+
+        logits_batch = upsample.permute(0, 2, 3, 1).detach().cpu().numpy()
+        predictions = []
+        for logits, (center, scale, width, height) in zip(logits_batch, metadata):
+            logits = transform_logits(logits, center, scale, width, height, input_size=LIP_INPUT_SIZE)
+            predictions.append(np.argmax(logits, axis=2).astype(np.uint8))
+        return predictions
 
 
 def _resolve_device(device: str, torch_module) -> str:
