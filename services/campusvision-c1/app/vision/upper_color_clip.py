@@ -125,20 +125,25 @@ class _ClipSchpUpperColorPipeline:
 
     def predict(self, image_bgr: np.ndarray, body_box: dict) -> UpperColorPrediction:
         variants = self._crop_variants(image_bgr, body_box)
-        weighted_probs: list[np.ndarray] = []
-        weights: list[float] = []
-        used: list[str] = []
+        crop_specs: list[tuple[str, str, float, np.ndarray]] = []
         for ensemble_name, crop_name, weight in PROFILE_REALTIME_BALANCED_PROMPT_V2:
             roi = variants.get(crop_name)
             if roi is None:
                 continue
-            probs = self._predict_probs(roi, ensemble_name)
+            crop_specs.append((ensemble_name, crop_name, float(weight), roi))
+
+        if not crop_specs:
+            raise UpperColorNoUsableCrop("no usable CLIP/SCHP upper-color crop")
+
+        image_features = self._image_features([roi for _, _, _, roi in crop_specs])
+        weighted_probs: list[np.ndarray] = []
+        weights: list[float] = []
+        used: list[str] = []
+        for image_feature, (ensemble_name, crop_name, weight, _roi) in zip(image_features, crop_specs):
+            probs = self._predict_probs_from_feature(image_feature, ensemble_name)
             weighted_probs.append(probs * float(weight))
             weights.append(float(weight))
             used.append(f"{ensemble_name}_{crop_name}")
-
-        if not weighted_probs:
-            raise UpperColorNoUsableCrop("no usable CLIP/SCHP upper-color crop")
 
         probs = np.stack(weighted_probs).sum(axis=0) / max(1e-6, sum(weights))
         total = float(probs.sum())
@@ -167,19 +172,25 @@ class _ClipSchpUpperColorPipeline:
         )
 
     def _predict_probs(self, roi_bgr: np.ndarray, ensemble_name: str) -> np.ndarray:
-        text_features = self._text_features(ensemble_name)
         image_feature = self._image_feature(roi_bgr)
+        return self._predict_probs_from_feature(image_feature, ensemble_name)
+
+    def _predict_probs_from_feature(self, image_feature, ensemble_name: str) -> np.ndarray:
+        text_features = self._text_features(ensemble_name)
         scores = image_feature @ text_features.T
         probs = self.torch.softmax(scores * self.temperature, dim=0).detach().cpu().numpy()
         return probs.astype(np.float32)
 
     def _image_feature(self, roi_bgr: np.ndarray):
-        image = _roi_to_pil(roi_bgr)
-        inputs = self.clip_processor(images=image, return_tensors="pt").to(self.device)
+        return self._image_features([roi_bgr])[0]
+
+    def _image_features(self, roi_bgrs: list[np.ndarray]):
+        images = [_roi_to_pil(roi_bgr) for roi_bgr in roi_bgrs]
+        inputs = self.clip_processor(images=images, return_tensors="pt").to(self.device)
         with self.torch.no_grad():
             features = self.clip_model.get_image_features(**inputs)
             features = features / features.norm(dim=-1, keepdim=True)
-        return features[0]
+        return features
 
     def _text_features(self, ensemble_name: str):
         cached = self._ensemble_features.get(ensemble_name)
