@@ -24,7 +24,9 @@ from app.vision.body_detector import get_body_detector  # noqa: E402
 
 
 SCHP_ROOT = ROOT / "data" / "models" / "schp" / "Self-Correction-Human-Parsing"
-SCHP_CHECKPOINT = ROOT / "data" / "models" / "schp" / "checkpoints" / "exp-schp-201908261155-lip.pth"
+SCHP_CHECKPOINT = ROOT / "data" / "models" / "schp" / "checkpoints" / "schp" / "exp-schp-201908261155-lip.pth"
+if not SCHP_CHECKPOINT.exists():
+    SCHP_CHECKPOINT = ROOT / "data" / "models" / "schp" / "checkpoints" / "exp-schp-201908261155-lip.pth"
 
 LIP_INPUT_SIZE = [473, 473]
 UPPER_LABELS = {5, 7}

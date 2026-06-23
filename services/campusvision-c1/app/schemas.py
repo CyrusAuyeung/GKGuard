@@ -76,7 +76,7 @@ class LiveMonitorStart(BaseModel):
     cleanup_interval_segments: int = Field(360, ge=1)
     merge_threshold: float | None = Field(0.80, ge=0.0, le=1.0)
     person_match_threshold: float = Field(0.82, ge=0.0, le=1.0)
-    min_faces: int = Field(2, ge=1)
+    min_faces: int = Field(4, ge=1)
     min_face_area: float = Field(1800.0, ge=1.0)
     min_detection_score: float = Field(0.75, ge=0.0, le=1.0)
 

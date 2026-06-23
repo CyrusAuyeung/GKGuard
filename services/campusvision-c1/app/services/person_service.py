@@ -627,7 +627,7 @@ def update_person_index(
     merge_threshold: float | None = 0.80,
     person_match_threshold: float = 0.82,
     ambiguous_person_match_threshold: float | None = 0.78,
-    min_faces: int = 2,
+    min_faces: int = 4,
     min_face_area: float = 2500.0,
     min_detection_score: float = 0.85,
     camera_id_prefix: str | None = None,
@@ -1237,8 +1237,11 @@ def _persisted_event_for_person(event: dict, person_id: str) -> dict:
             if event.get("start_timestamp_sec") is not None and event.get("end_timestamp_sec") is not None
             else None
         ),
+        "observation_count": int(event.get("observation_count") or 0),
         "face_count": int(event.get("face_count") or 0),
+        "representative_observation_id": event.get("representative_observation_id"),
         "representative_face_id": event.get("representative_face_id") or "",
+        "representative_frame_path": event.get("representative_frame_path"),
         "representative_face_crop_url": event.get("representative_face_crop_url") or "",
         "representative_frame_url": event.get("representative_frame_url") or "",
         "representative_body_crop_url": event.get("representative_body_crop_url"),
@@ -1246,6 +1249,11 @@ def _persisted_event_for_person(event: dict, person_id: str) -> dict:
         "upper_color": event.get("upper_color"),
         "upper_color_confidence": event.get("upper_color_confidence"),
         "upper_visible": event.get("upper_visible"),
+        "identity_confidence": event.get("identity_confidence"),
+        "event_status": event.get("event_status"),
+        "aggregation_version": event.get("aggregation_version"),
+        "created_at": event.get("created_at"),
+        "updated_at": event.get("updated_at"),
     }
     for key in (
         "raw_upper_color",

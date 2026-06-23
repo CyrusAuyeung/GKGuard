@@ -624,7 +624,7 @@ def update_person_index(
     merge_threshold: Optional[float] = Form(0.80),
     person_match_threshold: float = Form(0.82),
     ambiguous_person_match_threshold: Optional[float] = Form(0.78),
-    min_faces: int = Form(2),
+    min_faces: int = Form(4),
     min_face_area: float = Form(2500.0),
     min_detection_score: float = Form(0.85),
     camera_id_prefix: Optional[str] = Form(None),

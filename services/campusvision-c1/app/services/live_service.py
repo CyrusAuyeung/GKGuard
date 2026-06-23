@@ -473,7 +473,7 @@ def start_live_monitor(
     cleanup_interval_segments: int = 360,
     merge_threshold: float | None = 0.80,
     person_match_threshold: float = 0.82,
-    min_faces: int = 2,
+    min_faces: int = 4,
     min_face_area: float = 1800.0,
     min_detection_score: float = 0.75,
 ) -> dict[str, Any]:
