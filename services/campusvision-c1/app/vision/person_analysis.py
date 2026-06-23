@@ -424,6 +424,93 @@ def _classify_upper_color_with_backend(image_bgr: np.ndarray, body_box: dict) ->
     return _apply_upper_neutral_guard(image_bgr, body_box, clip_result)
 
 
+def _upper_prob_colors() -> list[str]:
+    return [
+        color
+        for color in settings.clothing_color_labels
+        if color not in {"unknown", "other"}
+    ]
+
+
+def _normalized_upper_probs(probabilities: dict[str, float] | None, fallback_color: str | None) -> dict[str, float]:
+    colors = _upper_prob_colors()
+    out: dict[str, float] = {}
+    if probabilities:
+        for color in colors:
+            try:
+                out[color] = max(0.0, float(probabilities.get(color) or 0.0))
+            except (TypeError, ValueError):
+                out[color] = 0.0
+    total = sum(out.values())
+    if total <= 0.0:
+        out = {color: 0.0 for color in colors}
+        if fallback_color in out:
+            out[str(fallback_color)] = 1.0
+        else:
+            out["gray"] = 1.0
+        return out
+    return {color: value / total for color, value in out.items()}
+
+
+def _blend_upper_rule_result(
+    clip_result: RegionResult,
+    rule_result: RegionResult,
+    *,
+    rule_weight: float,
+) -> RegionResult:
+    colors = _upper_prob_colors()
+    rule_color = rule_result.color if rule_result.color in colors else None
+    if not rule_color:
+        return clip_result
+
+    clipped_weight = max(0.0, min(0.90, float(rule_weight)))
+    clip_probs = _normalized_upper_probs(clip_result.probabilities, clip_result.color)
+    blended = {}
+    for color in colors:
+        rule_probability = 1.0 if color == rule_color else 0.0
+        blended[color] = (1.0 - clipped_weight) * clip_probs.get(color, 0.0) + clipped_weight * rule_probability
+    total = sum(blended.values())
+    if total > 0.0:
+        blended = {color: value / total for color, value in blended.items()}
+
+    color = max(blended.items(), key=lambda item: item[1])[0]
+    max_probability = float(blended[color])
+    clip_confidence = float(clip_result.confidence or 0.0)
+    rule_confidence = float(rule_result.confidence or 0.0)
+    confidence = max(
+        clip_confidence,
+        min(max_probability, rule_confidence * clipped_weight + clip_confidence * (1.0 - clipped_weight)),
+    )
+    return RegionResult(
+        color,
+        round(float(confidence), 4),
+        color != "unknown",
+        clip_result.valid_pixel_ratio if clip_result.valid_pixel_ratio is not None else rule_result.valid_pixel_ratio,
+        {color_name: round(float(blended.get(color_name, 0.0)), 6) for color_name in colors},
+    )
+
+
+def _upper_rule_blend_weight(rule_result: RegionResult, clip_result: RegionResult) -> float:
+    rule_color = rule_result.color or "unknown"
+    rule_confidence = float(rule_result.confidence or 0.0)
+    clip_color = clip_result.color or "unknown"
+    clip_confidence = float(clip_result.confidence or 0.0)
+
+    if rule_color in {"black", "white", "gray"}:
+        if clip_color == "blue" and rule_confidence >= 0.55:
+            return 0.68
+        if clip_color == "unknown" and rule_confidence >= 0.50:
+            return 0.62
+        if clip_confidence < 0.18 and rule_confidence >= 0.58:
+            return 0.58
+    if rule_color == "striped":
+        if clip_color in {"blue", "unknown"} and rule_confidence >= 0.32 and clip_confidence < 0.18:
+            return 0.58
+        if rule_confidence >= 0.50 and clip_confidence < 0.20:
+            return 0.62
+    return 0.0
+
+
 def _apply_upper_neutral_guard(image_bgr: np.ndarray, body_box: dict, clip_result: RegionResult) -> RegionResult:
     upper_roi = _roi_from_ratio(
         image_bgr,
@@ -442,14 +529,17 @@ def _apply_upper_neutral_guard(image_bgr: np.ndarray, body_box: dict, clip_resul
         return clip_result
 
     neutral_color = rule_result.color in {"black", "white", "gray"}
-    high_confidence_neutral = neutral_color and rule_confidence >= 0.62
-    strong_blue_cast_evidence = clip_color == "blue" and neutral_color and rule_confidence >= 0.72
+    high_confidence_neutral = neutral_color and rule_confidence >= 0.58
+    strong_blue_cast_evidence = clip_color == "blue" and neutral_color and rule_confidence >= 0.55
     low_confidence_clip = clip_confidence < 0.22
 
     if high_confidence_neutral and (low_confidence_clip or strong_blue_cast_evidence):
-        return rule_result
+        return _blend_upper_rule_result(clip_result, rule_result, rule_weight=0.78)
     if rule_result.color == "striped" and rule_confidence >= 0.50 and clip_confidence < 0.20:
-        return rule_result
+        return _blend_upper_rule_result(clip_result, rule_result, rule_weight=0.74)
+    blend_weight = _upper_rule_blend_weight(rule_result, clip_result)
+    if blend_weight > 0.0:
+        return _blend_upper_rule_result(clip_result, rule_result, rule_weight=blend_weight)
     if not clip_result.visible and rule_confidence >= 0.45:
         return rule_result
     return clip_result

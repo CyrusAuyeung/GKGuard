@@ -104,6 +104,7 @@ def test_clip_low_confidence_blue_cast_uses_neutral_guard(monkeypatch):
 
     assert clothing["upper_visible"] is True
     assert clothing["upper_color"] == "white"
+    assert clothing["upper_color_probs"]["white"] > clothing["upper_color_probs"]["blue"]
 
 
 def test_clip_high_confidence_color_bypasses_neutral_guard(monkeypatch):
