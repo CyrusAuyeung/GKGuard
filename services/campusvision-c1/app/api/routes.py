@@ -39,6 +39,8 @@ _MANUAL_SESSION_LABEL_DIR = settings.data_dir / "evals" / "manual_appearance_ses
 _MANUAL_SESSION_LABEL_PATH = _MANUAL_SESSION_LABEL_DIR / "appearance_session_labels.json"
 _MANUAL_OUTFIT_LABEL_DIR = settings.data_dir / "evals" / "manual_outfit_labels"
 _MANUAL_OUTFIT_LABEL_PATH = _MANUAL_OUTFIT_LABEL_DIR / "outfit_labels.json"
+_MANUAL_EVENT_OUTFIT_GROUP_DIR = settings.data_dir / "evals" / "manual_event_outfit_groups"
+_MANUAL_EVENT_OUTFIT_GROUP_PATH = _MANUAL_EVENT_OUTFIT_GROUP_DIR / "event_outfit_groups.json"
 
 _SESSION_REVIEW_STATUS_LABELS = {
     "unreviewed": "未审核",
@@ -361,6 +363,45 @@ def _save_manual_outfit_labels(data: dict) -> None:
     tmp_path.replace(_MANUAL_OUTFIT_LABEL_PATH)
 
 
+def _load_manual_event_outfit_groups() -> dict:
+    if not _MANUAL_EVENT_OUTFIT_GROUP_PATH.exists():
+        return {
+            "schema_version": "manual_event_outfit_groups_v1",
+            "source": "manual_event_outfit_grouping_eval",
+            "eval_only": True,
+            "created_at": _utc_now(),
+            "updated_at": None,
+            "labels": {},
+        }
+    try:
+        data = json.loads(_MANUAL_EVENT_OUTFIT_GROUP_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    labels = data.get("labels")
+    if not isinstance(labels, dict):
+        labels = {}
+    return {
+        "schema_version": data.get("schema_version") or "manual_event_outfit_groups_v1",
+        "source": data.get("source") or "manual_event_outfit_grouping_eval",
+        "eval_only": True,
+        "created_at": data.get("created_at") or _utc_now(),
+        "updated_at": data.get("updated_at"),
+        "labels": labels,
+    }
+
+
+def _save_manual_event_outfit_groups(data: dict) -> None:
+    data["schema_version"] = data.get("schema_version") or "manual_event_outfit_groups_v1"
+    data["source"] = "manual_event_outfit_grouping_eval"
+    data["eval_only"] = True
+    _MANUAL_EVENT_OUTFIT_GROUP_DIR.mkdir(parents=True, exist_ok=True)
+    tmp_path = _MANUAL_EVENT_OUTFIT_GROUP_PATH.with_suffix(".tmp")
+    tmp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
+    tmp_path.replace(_MANUAL_EVENT_OUTFIT_GROUP_PATH)
+
+
 def _review_status_options(selected: str | None) -> str:
     selected = selected or "unreviewed"
     return "".join(
@@ -387,6 +428,10 @@ def _manual_group_options(selected: str | None) -> str:
 
 def _manual_person_outfit_label_id(person_id: str) -> str:
     return f"manual_person_outfits_{person_id}"
+
+
+def _manual_event_outfit_group_label_id(person_id: str) -> str:
+    return f"manual_event_outfit_groups_{person_id}"
 
 
 def _manual_split_groups(assignments: list[dict[str, str]]) -> dict[str, dict]:
@@ -1033,6 +1078,12 @@ def get_manual_outfit_labels():
     return data | {"path": str(_MANUAL_OUTFIT_LABEL_PATH)}
 
 
+@router.get("/event-outfit-groups")
+def get_manual_event_outfit_groups():
+    data = _load_manual_event_outfit_groups()
+    return data | {"path": str(_MANUAL_EVENT_OUTFIT_GROUP_PATH)}
+
+
 @router.post("/outfit-labels")
 async def save_manual_outfit_labels(request: Request):
     payload = await request.json()
@@ -1339,6 +1390,187 @@ async def save_manual_person_outfit_groups(request: Request):
         "saved": saved,
         "updated_at": now,
         "path": str(_MANUAL_OUTFIT_LABEL_PATH),
+    }
+
+
+@router.post("/event-outfit-groups")
+async def save_manual_event_outfit_groups(request: Request):
+    payload = await request.json()
+    labels = payload.get("labels") if isinstance(payload, dict) else None
+    if not isinstance(labels, list):
+        raise HTTPException(status_code=400, detail="labels must be a list")
+
+    allowed_colors = set(settings.clothing_color_labels)
+    allowed_statuses = set(_SESSION_REVIEW_STATUS_LABELS)
+    person_ids = {person["person_id"] for person in db.list_persons()}
+    now = _utc_now()
+    data = _load_manual_event_outfit_groups()
+    saved = 0
+
+    for label in labels:
+        if not isinstance(label, dict):
+            continue
+        person_id = str(label.get("person_id") or "")
+        if person_id not in person_ids:
+            raise HTTPException(status_code=400, detail=f"unknown person_id: {person_id}")
+
+        review_status = str(label.get("review_status") or "unreviewed")
+        if review_status not in allowed_statuses:
+            raise HTTPException(status_code=400, detail=f"unsupported review_status for person_id: {person_id}")
+
+        person_events = db.list_events(person_id=person_id, identified=True, limit=10000)
+        event_lookup = {
+            str(event.get("event_id") or ""): event
+            for event in person_events
+            if event.get("event_id")
+        }
+
+        assignments = []
+        for assignment in label.get("assignments", []):
+            if not isinstance(assignment, dict):
+                continue
+            event_id = str(assignment.get("event_id") or "")
+            if event_id not in event_lookup:
+                continue
+            event = event_lookup[event_id]
+            manual_group = str(assignment.get("manual_group") or "unassigned")
+            if manual_group not in _MANUAL_OUTFIT_GROUPS:
+                manual_group = "unassigned"
+            assignments.append(
+                {
+                    "event_id": event_id,
+                    "observation_id": str(event.get("representative_observation_id") or ""),
+                    "appearance_session_id": str(event.get("appearance_session_id") or ""),
+                    "camera_id": str(event.get("camera_id") or ""),
+                    "time_label": _event_time_label(event),
+                    "manual_group": manual_group,
+                    "model_upper_color": str(
+                        event.get("normalized_upper_color")
+                        or event.get("upper_color")
+                        or "unknown"
+                    ),
+                    "model_upper_color_confidence": event.get("normalized_upper_color_confidence")
+                    or event.get("upper_color_confidence"),
+                }
+            )
+
+        assignments.sort(
+            key=lambda item: (
+                event_lookup[item["event_id"]].get("start_time") or "",
+                float(event_lookup[item["event_id"]].get("start_timestamp_sec") or 0.0),
+                item["event_id"],
+            )
+        )
+
+        raw_group_labels = label.get("group_labels") or label.get("manual_group_labels") or {}
+        if isinstance(raw_group_labels, dict):
+            group_label_items = []
+            for group_key, group_label in raw_group_labels.items():
+                if isinstance(group_label, dict):
+                    item = dict(group_label)
+                    item["manual_group"] = group_key
+                    group_label_items.append(item)
+        elif isinstance(raw_group_labels, list):
+            group_label_items = [
+                group_label
+                for group_label in raw_group_labels
+                if isinstance(group_label, dict)
+            ]
+        else:
+            group_label_items = []
+
+        group_label_lookup = {}
+        for group_label in group_label_items:
+            manual_group = str(group_label.get("manual_group") or "")
+            if manual_group not in _OUTFIT_SPLIT_GROUPS or manual_group == "exclude":
+                continue
+            upper_color = str(group_label.get("upper_color") or "unknown")
+            if upper_color not in allowed_colors:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"unsupported group upper_color for person_id: {person_id}, group: {manual_group}",
+                )
+            group_label_lookup[manual_group] = {
+                "manual_group": manual_group,
+                "upper_visible": bool(group_label.get("upper_visible", upper_color != "unknown")),
+                "upper_color": upper_color,
+                "note": str(group_label.get("note") or "").strip(),
+            }
+
+        assignments_by_group: dict[str, list[dict]] = defaultdict(list)
+        for assignment in assignments:
+            manual_group = assignment["manual_group"]
+            if manual_group in _OUTFIT_SPLIT_GROUPS and manual_group != "exclude":
+                assignments_by_group[manual_group].append(assignment)
+
+        manual_groups = {}
+        for manual_group in _OUTFIT_SPLIT_GROUPS:
+            if manual_group == "exclude":
+                continue
+            group_assignments = assignments_by_group.get(manual_group, [])
+            if not group_assignments and manual_group not in group_label_lookup:
+                continue
+            group_label = group_label_lookup.get(manual_group, {})
+            color_counts = Counter(
+                assignment.get("model_upper_color") or "unknown"
+                for assignment in group_assignments
+            )
+            manual_groups[manual_group] = {
+                "manual_group": manual_group,
+                "event_count": len(group_assignments),
+                "event_ids": [assignment["event_id"] for assignment in group_assignments],
+                "observation_ids": [
+                    assignment["observation_id"]
+                    for assignment in group_assignments
+                    if assignment.get("observation_id")
+                ],
+                "appearance_session_ids": sorted(
+                    {
+                        assignment["appearance_session_id"]
+                        for assignment in group_assignments
+                        if assignment.get("appearance_session_id")
+                    }
+                ),
+                "camera_ids": sorted(
+                    {
+                        assignment["camera_id"]
+                        for assignment in group_assignments
+                        if assignment.get("camera_id")
+                    }
+                ),
+                "model_upper_color_counts": dict(color_counts.most_common()),
+                "upper_visible": bool(group_label.get("upper_visible", True)),
+                "upper_color": str(group_label.get("upper_color") or "unknown"),
+                "note": str(group_label.get("note") or "").strip(),
+            }
+
+        group_counts = Counter(assignment["manual_group"] for assignment in assignments)
+        label_id = _manual_event_outfit_group_label_id(person_id)
+        data["labels"][label_id] = {
+            "label_id": label_id,
+            "person_id": person_id,
+            "source": "manual_event_outfit_grouping_eval",
+            "eval_only": True,
+            "manual_grouping": True,
+            "identity_valid": bool(label.get("identity_valid", True)),
+            "review_status": review_status,
+            "note": str(label.get("note") or "").strip(),
+            "event_count": len(person_events),
+            "assigned_event_count": len(assignments),
+            "manual_group_counts": dict(group_counts.most_common()),
+            "manual_groups": manual_groups,
+            "manual_assignments": assignments,
+            "saved_at": now,
+        }
+        saved += 1
+
+    data["updated_at"] = now
+    _save_manual_event_outfit_groups(data)
+    return {
+        "saved": saved,
+        "updated_at": now,
+        "path": str(_MANUAL_EVENT_OUTFIT_GROUP_PATH),
+        "eval_only": True,
     }
 
 
@@ -1688,6 +1920,408 @@ def _manual_person_outfit_group_review(
                         button.disabled = true;
                         try {{
                             await saveLabels([button.closest(".person-group-card")]);
+                        }} catch (error) {{
+                            document.getElementById("status").textContent = error.message;
+                        }} finally {{
+                            button.disabled = false;
+                        }}
+                    }});
+                }});
+            </script>
+        </body>
+        </html>
+        """
+    )
+
+
+@router.get("/event-outfit-groups/review", response_class=HTMLResponse)
+def manual_event_outfit_group_review(
+    person_id: Optional[str] = None,
+    unsaved_only: bool = False,
+    status: Optional[str] = None,
+    limit: int = 1000,
+    event_limit: int = 10000,
+):
+    saved_data = _load_manual_event_outfit_groups()
+    saved_labels = saved_data.get("labels", {})
+    persons = [
+        person
+        for person in db.list_persons()
+        if not person_id or person["person_id"] == person_id
+    ][: max(1, min(int(limit), 3000))]
+
+    if unsaved_only:
+        persons = [
+            person
+            for person in persons
+            if _manual_event_outfit_group_label_id(person["person_id"]) not in saved_labels
+        ]
+    if status:
+        persons = [
+            person
+            for person in persons
+            if (
+                saved_labels.get(_manual_event_outfit_group_label_id(person["person_id"]), {}).get("review_status")
+                or "unreviewed"
+            )
+            == status
+        ]
+
+    saved_count = 0
+    total_event_count = 0
+    person_cards = []
+    max_events = max(1, min(int(event_limit), 10000))
+
+    for person in persons:
+        current_person_id = person["person_id"]
+        label_id = _manual_event_outfit_group_label_id(current_person_id)
+        saved = saved_labels.get(label_id, {})
+        if saved:
+            saved_count += 1
+
+        review_status = saved.get("review_status") or "unreviewed"
+        identity_valid = saved.get("identity_valid", True)
+        note = saved.get("note") or ""
+        saved_assignments = saved.get("manual_assignments") or []
+        if not isinstance(saved_assignments, list):
+            saved_assignments = []
+        saved_by_event = {}
+        for assignment in saved_assignments:
+            if not isinstance(assignment, dict):
+                continue
+            event_id = str(assignment.get("event_id") or "")
+            manual_group = str(assignment.get("manual_group") or "unassigned")
+            if event_id and manual_group in _MANUAL_OUTFIT_GROUPS:
+                saved_by_event[event_id] = manual_group
+
+        saved_group_labels = saved.get("manual_groups") or {}
+        if not isinstance(saved_group_labels, dict):
+            saved_group_labels = {}
+
+        face_id = person.get("representative_face_id")
+        face_html = (
+            f'<img class="person-face" src="/api/v1/media/face/{_h(face_id)}" alt="{_h(face_id)}">'
+            if face_id
+            else '<div class="person-face placeholder"></div>'
+        )
+
+        events = sorted(
+            db.list_events(person_id=current_person_id, identified=True, limit=max_events),
+            key=lambda event: (
+                event.get("start_time") or "",
+                float(event.get("start_timestamp_sec") or 0.0),
+                event.get("event_id") or "",
+            ),
+        )
+        total_event_count += len(events)
+        event_tiles = []
+        for event in events:
+            event_id = str(event.get("event_id") or "")
+            observation_id = str(event.get("representative_observation_id") or "")
+            group_value = saved_by_event.get(event_id, "unassigned")
+            if group_value not in _MANUAL_OUTFIT_GROUPS:
+                group_value = "unassigned"
+            image_url = (
+                event.get("representative_body_crop_url")
+                or f"/api/v1/media/event/body/{_h(event_id)}"
+            )
+            frame_url = (
+                event.get("representative_frame_url")
+                or f"/api/v1/media/event/frame/{_h(event_id)}"
+            )
+            event_face_id = event.get("representative_face_id")
+            face_url = (
+                event.get("representative_face_crop_url")
+                or (f"/api/v1/media/face/{_h(event_face_id)}" if event_face_id else "")
+            )
+            session_id = str(event.get("appearance_session_id") or "")
+            upper_color = (
+                event.get("normalized_upper_color")
+                or event.get("upper_color")
+                or "unknown"
+            )
+            upper_confidence = (
+                event.get("normalized_upper_color_confidence")
+                or event.get("upper_color_confidence")
+            )
+            face_thumb = (
+                f'<img class="event-face" src="{_h(face_url)}" alt="">'
+                if face_url
+                else ""
+            )
+            event_tiles.append(
+                f"""
+                <article class="event-card"
+                    data-event-id="{_h(event_id)}"
+                    data-observation-id="{_h(observation_id)}"
+                    data-group="{_h(group_value)}">
+                    <a class="event-image-link" href="{_h(frame_url)}" target="_blank" rel="noopener">
+                        <img class="event-body" src="{_h(image_url)}" alt="{_h(event_id)}">
+                    </a>
+                    {face_thumb}
+                    <div class="event-meta">
+                        <strong title="{_h(event_id)}">event:{_h(_short_id(event_id))}</strong>
+                        <span title="{_h(event.get("camera_id"))}">{_h(event.get("camera_id"))}</span>
+                        <span>{_h(_event_time_label(event))}</span>
+                        <span title="{_h(session_id)}">session:{_h(_short_id(session_id) or "-")}</span>
+                        {_color_chip(upper_color, upper_confidence)}
+                    </div>
+                    <label class="group-control">
+                        <span>装束组</span>
+                        <select class="manual-group">{_manual_group_options(group_value)}</select>
+                    </label>
+                </article>
+                """
+            )
+
+        group_label_rows = []
+        for group_key in _OUTFIT_SPLIT_GROUPS:
+            if group_key == "exclude":
+                continue
+            saved_group_label = saved_group_labels.get(group_key) or {}
+            if not isinstance(saved_group_label, dict):
+                saved_group_label = {}
+            group_upper_color = saved_group_label.get("upper_color") or "unknown"
+            group_upper_visible = saved_group_label.get("upper_visible", group_upper_color != "unknown")
+            group_note = saved_group_label.get("note") or ""
+            group_label_rows.append(
+                f"""
+                <div class="group-label-row" data-manual-group="{_h(group_key)}">
+                    <div class="group-label-head">
+                        <strong>装束 {_h(group_key)}</strong>
+                        <span class="group-count">0 events</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" class="group-upper-visible"{_visibility_checked(group_upper_visible)}>
+                        上装可见
+                    </label>
+                    <label>
+                        上装颜色
+                        <select class="group-upper-color">{_color_options(group_upper_color)}</select>
+                    </label>
+                    <label>
+                        备注
+                        <input type="text" class="group-note" value="{_h(group_note)}" placeholder="可空">
+                    </label>
+                </div>
+                """
+            )
+
+        person_cards.append(
+            f"""
+            <section class="person-event-card"
+                data-person-id="{_h(current_person_id)}"
+                data-label-id="{_h(label_id)}">
+                <header class="person-header">
+                    {face_html}
+                    <div class="person-title">
+                        <h2 title="{_h(current_person_id)}">{_h(current_person_id)}</h2>
+                        <div class="person-stats">
+                            <span>{int(person.get("face_count") or 0)} faces</span>
+                            <span>{len(events)} events</span>
+                            <span class="card-group-summary">0 groups</span>
+                        </div>
+                    </div>
+                    <div class="save-box">
+                        <span class="state">{_h("已保存" if saved else "未保存")}</span>
+                        <button type="button" class="save-one">保存此人</button>
+                    </div>
+                </header>
+                <div class="events-grid">
+                    {"".join(event_tiles) or '<p class="empty">No events</p>'}
+                </div>
+                <div class="group-label-panel">
+                    <div class="group-label-grid">
+                        {"".join(group_label_rows)}
+                    </div>
+                </div>
+                <div class="label-form">
+                    <label class="toggle">
+                        <input type="checkbox" class="identity-valid"{_visibility_checked(identity_valid)}>
+                        人物正确
+                    </label>
+                    <label>
+                        审核状态
+                        <select class="review-status">{_review_status_options(review_status)}</select>
+                    </label>
+                    <label class="note-label">
+                        备注
+                        <input type="text" class="note" value="{_h(note)}" placeholder="可空">
+                    </label>
+                </div>
+            </section>
+            """
+        )
+
+    body = "\n".join(person_cards) or '<p class="empty">No persons</p>'
+    return HTMLResponse(
+        f"""
+        <!doctype html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>人物内事件装束分组评估</title>
+            <style>
+                * {{ box-sizing: border-box; }}
+                body {{ margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; color: #20242a; }}
+                main {{ max-width: 1560px; margin: 0 auto; padding: 18px; }}
+                .toolbar {{ position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; background: #f4f6f8; border-bottom: 1px solid #d8dee7; }}
+                h1 {{ margin: 0; font-size: 22px; }}
+                h2 {{ margin: 0; font-size: 15px; word-break: break-all; }}
+                .summary, .person-stats, .state {{ color: #5d6875; font-size: 12px; }}
+                .actions, .save-box, .person-stats {{ display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }}
+                button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
+                button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
+                button:disabled {{ opacity: .55; cursor: default; }}
+                .status {{ min-width: 180px; color: #5d6875; font-size: 13px; text-align: right; }}
+                .person-event-card {{ margin-top: 14px; border: 1px solid #d8dee7; border-radius: 8px; background: #fff; overflow: hidden; }}
+                .person-header {{ display: grid; grid-template-columns: 58px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-bottom: 1px solid #e5eaf1; background: #fbfcfd; }}
+                .person-face {{ width: 58px; height: 58px; object-fit: cover; border-radius: 6px; background: #e8ecf1; }}
+                .events-grid {{ display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 8px; padding: 10px; }}
+                .event-card {{ position: relative; min-width: 0; border: 1px solid #e1e7ef; border-left-width: 4px; border-radius: 6px; overflow: hidden; background: #fbfcfd; }}
+                .event-card[data-group="A"] {{ border-left-color: #1f77b4; }}
+                .event-card[data-group="B"] {{ border-left-color: #2f855a; }}
+                .event-card[data-group="C"] {{ border-left-color: #c2410c; }}
+                .event-card[data-group="D"] {{ border-left-color: #7c3aed; }}
+                .event-card[data-group="E"] {{ border-left-color: #a16207; }}
+                .event-card[data-group="F"] {{ border-left-color: #be185d; }}
+                .event-card[data-group="exclude"] {{ border-left-color: #6b7280; opacity: .72; }}
+                .event-card[data-group="unassigned"] {{ border-left-color: #d6dde6; }}
+                .event-image-link {{ display: block; }}
+                .event-body {{ display: block; width: 100%; height: 178px; object-fit: cover; background: #e8ecf1; }}
+                .event-face {{ position: absolute; top: 6px; right: 6px; width: 34px; height: 34px; object-fit: cover; border-radius: 5px; border: 1px solid #fff; background: #e8ecf1; }}
+                .event-meta {{ display: grid; gap: 4px; padding: 7px; }}
+                .event-meta strong, .event-meta span {{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
+                .event-meta strong {{ font-size: 12px; }}
+                .event-meta span {{ color: #5d6875; font-size: 12px; }}
+                .color-chip {{ min-width: 0; display: inline-flex; align-items: center; gap: 6px; color: #20242a; font-size: 12px; }}
+                .swatch {{ flex: 0 0 auto; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #aeb6c2; }}
+                .chip-meta {{ color: #707b87; }}
+                .group-control {{ display: grid; gap: 4px; padding: 0 7px 7px; }}
+                .group-control span {{ color: #5d6875; font-size: 12px; }}
+                .group-control select {{ width: 100%; height: 30px; font-size: 12px; }}
+                .group-label-panel {{ padding: 10px; border-top: 1px solid #eadbc7; background: #fffaf3; }}
+                .group-label-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 8px; }}
+                .group-label-row {{ display: grid; gap: 7px; padding: 8px; border: 1px solid #eadbc7; border-radius: 6px; background: #fff; opacity: .45; }}
+                .group-label-row.active {{ opacity: 1; border-color: #c98a2c; }}
+                .group-label-row select {{ width: 100%; }}
+                .group-label-head {{ display: flex; justify-content: space-between; align-items: center; gap: 8px; }}
+                .group-label-head strong {{ font-size: 13px; }}
+                .group-count {{ color: #7a4e12; font-size: 12px; }}
+                .label-form {{ display: grid; grid-template-columns: 92px minmax(120px, 160px) 1fr; gap: 9px; align-items: end; padding: 10px; border-top: 1px solid #e7ecf2; }}
+                label {{ display: grid; gap: 5px; font-size: 12px; color: #5d6875; }}
+                .toggle {{ display: flex; align-items: center; gap: 6px; height: 34px; color: #20242a; }}
+                select, input[type="text"] {{ height: 34px; border: 1px solid #c8d0da; border-radius: 6px; background: #fff; padding: 0 8px; color: #20242a; min-width: 0; }}
+                .note-label {{ min-width: 180px; }}
+                .empty {{ margin: 0; padding: 14px; color: #5d6875; }}
+                .placeholder {{ background: repeating-linear-gradient(45deg, #e8ecf1, #e8ecf1 7px, #dde3ea 7px, #dde3ea 14px); }}
+                @media (max-width: 940px) {{
+                    main {{ padding: 10px; }}
+                    .toolbar, .person-header {{ grid-template-columns: 1fr; display: grid; align-items: start; }}
+                    .label-form {{ grid-template-columns: 1fr 1fr; }}
+                    .note-label {{ grid-column: 1 / -1; }}
+                    .status {{ text-align: left; }}
+                }}
+            </style>
+        </head>
+        <body>
+            <main>
+                <div class="toolbar">
+                    <div>
+                        <h1>人物内事件装束分组评估</h1>
+                        <div class="summary">{len(persons)} persons · {total_event_count} events · saved {saved_count} · eval-only · file: {_h(str(_MANUAL_EVENT_OUTFIT_GROUP_PATH))}</div>
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="saveAll" class="primary">保存全部</button>
+                        <span id="status" class="status">等待审核</span>
+                    </div>
+                </div>
+                {body}
+            </main>
+            <script>
+                const endpoint = "/api/v1/event-outfit-groups";
+                function collectCard(card) {{
+                    const events = Array.from(card.querySelectorAll(".event-card"));
+                    const groupLabels = Array.from(card.querySelectorAll(".group-label-row")).map(row => ({{
+                        manual_group: row.dataset.manualGroup,
+                        upper_visible: row.querySelector(".group-upper-visible").checked,
+                        upper_color: row.querySelector(".group-upper-color").value,
+                        note: row.querySelector(".group-note").value,
+                        event_count: Number(row.dataset.eventCount || "0"),
+                    }})).filter(item => item.event_count > 0);
+                    return {{
+                        person_id: card.dataset.personId,
+                        identity_valid: card.querySelector(".identity-valid").checked,
+                        review_status: card.querySelector(".review-status").value,
+                        note: card.querySelector(".note").value,
+                        assignments: events.map(item => ({{
+                            event_id: item.dataset.eventId || "",
+                            observation_id: item.dataset.observationId || "",
+                            manual_group: item.querySelector(".manual-group").value || "unassigned",
+                        }})).filter(item => item.event_id),
+                        group_labels: groupLabels,
+                    }};
+                }}
+                function syncCard(card) {{
+                    const counts = {{}};
+                    card.querySelectorAll(".event-card").forEach(eventCard => {{
+                        const manualGroup = eventCard.querySelector(".manual-group").value || "unassigned";
+                        eventCard.dataset.group = manualGroup;
+                        counts[manualGroup] = (counts[manualGroup] || 0) + 1;
+                    }});
+                    let activeGroupCount = 0;
+                    card.querySelectorAll(".group-label-row").forEach(row => {{
+                        const count = counts[row.dataset.manualGroup] || 0;
+                        row.dataset.eventCount = String(count);
+                        row.classList.toggle("active", count > 0);
+                        const countLabel = row.querySelector(".group-count");
+                        if (countLabel) countLabel.textContent = `${{count}} events`;
+                        if (count > 0) activeGroupCount += 1;
+                    }});
+                    const summary = card.querySelector(".card-group-summary");
+                    if (summary) summary.textContent = `${{activeGroupCount}} groups`;
+                }}
+                async function saveLabels(cards) {{
+                    const status = document.getElementById("status");
+                    status.textContent = "保存中...";
+                    const response = await fetch(endpoint, {{
+                        method: "POST",
+                        headers: {{ "Content-Type": "application/json" }},
+                        body: JSON.stringify({{ labels: cards.map(collectCard) }}),
+                    }});
+                    const body = await response.json();
+                    if (!response.ok) {{
+                        throw new Error(body.detail || "保存失败");
+                    }}
+                    cards.forEach(card => {{
+                        const state = card.querySelector(".state");
+                        if (state) state.textContent = "已保存";
+                    }});
+                    status.textContent = `已保存 ${{body.saved}} 人`;
+                }}
+                document.querySelectorAll(".person-event-card").forEach(card => {{
+                    syncCard(card);
+                    card.querySelectorAll(".manual-group").forEach(select => {{
+                        select.addEventListener("change", () => syncCard(card));
+                    }});
+                }});
+                document.getElementById("saveAll").addEventListener("click", async () => {{
+                    const button = document.getElementById("saveAll");
+                    button.disabled = true;
+                    try {{
+                        await saveLabels(Array.from(document.querySelectorAll(".person-event-card")));
+                    }} catch (error) {{
+                        document.getElementById("status").textContent = error.message;
+                    }} finally {{
+                        button.disabled = false;
+                    }}
+                }});
+                document.querySelectorAll(".save-one").forEach(button => {{
+                    button.addEventListener("click", async () => {{
+                        button.disabled = true;
+                        try {{
+                            await saveLabels([button.closest(".person-event-card")]);
                         }} catch (error) {{
                             document.getElementById("status").textContent = error.message;
                         }} finally {{
