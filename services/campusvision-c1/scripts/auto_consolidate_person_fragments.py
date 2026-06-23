@@ -46,11 +46,13 @@ def _compact(result: dict[str, Any]) -> dict[str, Any]:
         **{key: result.get(key) for key in (
             "dry_run",
             "source_display_prefix",
+            "include_all_small_sources",
             "max_source_faces",
             "min_target_faces",
             "min_centroid_similarity",
             "min_max_pair_similarity",
             "min_nearest_margin",
+            "use_clothing_conflict_guard",
             "source_candidates",
             "target_candidates",
             "merge_count",
@@ -67,22 +69,34 @@ def main() -> int:
         description="Automatically absorb small candidate person fragments into stable identities.",
     )
     parser.add_argument("--source-display-prefix", default="candidate_")
+    parser.add_argument(
+        "--all-small-sources",
+        action="store_true",
+        help="Treat any small indexed person as a possible fragment source instead of only prefixed candidates.",
+    )
     parser.add_argument("--max-source-faces", type=int, default=3)
     parser.add_argument("--min-target-faces", type=int, default=5)
     parser.add_argument("--min-centroid-similarity", type=float, default=0.64)
     parser.add_argument("--min-max-pair-similarity", type=float, default=0.55)
     parser.add_argument("--min-nearest-margin", type=float, default=0.35)
+    parser.add_argument(
+        "--use-clothing-conflict-guard",
+        action="store_true",
+        help="Block merges when strong clothing colors disagree. Disabled by default because clothing can change.",
+    )
     parser.add_argument("--apply", action="store_true", help="Write merges to the C1 database.")
     args = parser.parse_args()
 
     db.init_db()
     result = person_service.auto_consolidate_person_fragments(
         source_display_prefix=args.source_display_prefix,
+        include_all_small_sources=args.all_small_sources,
         max_source_faces=args.max_source_faces,
         min_target_faces=args.min_target_faces,
         min_centroid_similarity=args.min_centroid_similarity,
         min_max_pair_similarity=args.min_max_pair_similarity,
         min_nearest_margin=args.min_nearest_margin,
+        use_clothing_conflict_guard=args.use_clothing_conflict_guard,
         dry_run=not args.apply,
     )
     print(json.dumps(_compact(result), ensure_ascii=False, indent=2))

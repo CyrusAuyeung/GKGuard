@@ -945,10 +945,11 @@ def _passes_auto_fragment_merge_guards(
     min_centroid_similarity: float,
     min_max_pair_similarity: float,
     min_nearest_margin: float,
+    use_clothing_conflict_guard: bool = False,
 ) -> tuple[bool, str]:
     if metrics["same_frame_conflict"]:
         return False, "same_frame_conflict"
-    if metrics["strong_clothing_conflict"]:
+    if use_clothing_conflict_guard and metrics["strong_clothing_conflict"]:
         return False, "strong_clothing_conflict"
     if float(metrics["centroid_similarity"]) < min_centroid_similarity:
         return False, "low_centroid_similarity"
@@ -1030,24 +1031,34 @@ def merge_person_into(
 def auto_consolidate_person_fragments(
     *,
     source_display_prefix: str = "candidate_",
+    include_all_small_sources: bool = False,
     max_source_faces: int = 3,
     min_target_faces: int = 5,
     min_centroid_similarity: float = 0.64,
     min_max_pair_similarity: float = 0.55,
     min_nearest_margin: float = 0.35,
+    use_clothing_conflict_guard: bool = False,
     dry_run: bool = True,
 ) -> dict:
     persons = db.list_persons()
-    sources = [
-        person
-        for person in persons
-        if str(person.get("display_name") or "").startswith(source_display_prefix)
-        and int(person.get("face_count") or 0) <= max_source_faces
-    ]
+    if include_all_small_sources:
+        sources = [
+            person
+            for person in persons
+            if int(person.get("face_count") or 0) <= max_source_faces
+        ]
+    else:
+        sources = [
+            person
+            for person in persons
+            if str(person.get("display_name") or "").startswith(source_display_prefix)
+            and int(person.get("face_count") or 0) <= max_source_faces
+        ]
+    source_ids = {person["person_id"] for person in sources}
     targets = [
         person
         for person in persons
-        if not str(person.get("display_name") or "").startswith(source_display_prefix)
+        if person["person_id"] not in source_ids
         and int(person.get("face_count") or 0) >= min_target_faces
     ]
 
@@ -1067,6 +1078,7 @@ def auto_consolidate_person_fragments(
             min_centroid_similarity=min_centroid_similarity,
             min_max_pair_similarity=min_max_pair_similarity,
             min_nearest_margin=min_nearest_margin,
+            use_clothing_conflict_guard=use_clothing_conflict_guard,
         )
         decision = metrics | {"action": "merge" if passed else "skip", "reason": reason}
         decisions.append(decision)
@@ -1085,11 +1097,13 @@ def auto_consolidate_person_fragments(
     return {
         "dry_run": dry_run,
         "source_display_prefix": source_display_prefix,
+        "include_all_small_sources": include_all_small_sources,
         "max_source_faces": max_source_faces,
         "min_target_faces": min_target_faces,
         "min_centroid_similarity": min_centroid_similarity,
         "min_max_pair_similarity": min_max_pair_similarity,
         "min_nearest_margin": min_nearest_margin,
+        "use_clothing_conflict_guard": use_clothing_conflict_guard,
         "source_candidates": len(sources),
         "target_candidates": len(targets),
         "merge_count": len(merged),

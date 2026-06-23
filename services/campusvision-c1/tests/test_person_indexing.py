@@ -88,9 +88,28 @@ def test_auto_fragment_merge_guards_keep_low_threshold_safe():
     assert passed is True
     assert reason == "passed"
 
+    clothing_conflict = dict(base)
+    clothing_conflict["strong_clothing_conflict"] = True
+    passed, reason = person_service._passes_auto_fragment_merge_guards(
+        clothing_conflict,
+        min_centroid_similarity=0.64,
+        min_max_pair_similarity=0.55,
+        min_nearest_margin=0.35,
+    )
+    assert passed is True
+    assert reason == "passed"
+    passed, reason = person_service._passes_auto_fragment_merge_guards(
+        clothing_conflict,
+        min_centroid_similarity=0.64,
+        min_max_pair_similarity=0.55,
+        min_nearest_margin=0.35,
+        use_clothing_conflict_guard=True,
+    )
+    assert passed is False
+    assert reason == "strong_clothing_conflict"
+
     for key, value, expected_reason in [
         ("same_frame_conflict", True, "same_frame_conflict"),
-        ("strong_clothing_conflict", True, "strong_clothing_conflict"),
         ("centroid_similarity", 0.63, "low_centroid_similarity"),
         ("max_pair_similarity", 0.54, "low_max_pair_similarity"),
         ("nearest_margin", 0.34, "low_nearest_margin"),
@@ -105,6 +124,54 @@ def test_auto_fragment_merge_guards_keep_low_threshold_safe():
         )
         assert passed is False
         assert reason == expected_reason
+
+
+def test_auto_consolidate_can_scan_all_small_persons(monkeypatch):
+    persons = [
+        {"person_id": "small_blank", "display_name": None, "face_count": 2, "embedding": [1.0, 0.0]},
+        {"person_id": "candidate_small", "display_name": "candidate_x", "face_count": 3, "embedding": [1.0, 0.0]},
+        {"person_id": "stable_blank", "display_name": None, "face_count": 8, "embedding": [1.0, 0.0]},
+    ]
+    metrics = {
+        "source_person_id": "small_blank",
+        "target_person_id": "stable_blank",
+        "centroid_similarity": 0.8,
+        "max_pair_similarity": 0.7,
+        "top5_pair_similarity": 0.68,
+        "nearest_margin": 0.4,
+        "same_frame_conflict": False,
+        "strong_clothing_conflict": True,
+    }
+
+    monkeypatch.setattr(person_service.db, "list_persons", lambda: persons)
+    monkeypatch.setattr(
+        person_service,
+        "_best_fragment_target",
+        lambda source, targets: (targets[0], metrics | {"source_person_id": source["person_id"]}),
+    )
+    monkeypatch.setattr(
+        person_service,
+        "merge_person_into",
+        lambda **kwargs: {
+            "source_person_id": kwargs["source_person_id"],
+            "target_person_id": kwargs["target_person_id"],
+            "moved_faces": 2,
+            "video_ids": [],
+            "metrics": metrics,
+        },
+    )
+
+    result = person_service.auto_consolidate_person_fragments(
+        include_all_small_sources=True,
+        max_source_faces=3,
+        min_target_faces=5,
+        dry_run=True,
+    )
+
+    assert result["source_candidates"] == 2
+    assert result["target_candidates"] == 1
+    assert result["merge_count"] == 2
+    assert result["skip_count"] == 0
 
 
 def test_public_schemas_do_not_expose_lower_clothing_fields():
