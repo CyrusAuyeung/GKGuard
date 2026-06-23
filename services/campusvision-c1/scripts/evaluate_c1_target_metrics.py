@@ -337,6 +337,36 @@ def _upper_color_reports() -> dict[str, Any]:
     }
 
 
+def _long_running_memory_report() -> dict[str, Any]:
+    path = settings.data_dir / "evals" / "runtime" / "c1_runtime_memory.json"
+    data = _read_json(path)
+    if not data:
+        return {
+            "source": str(path),
+            "status": "not_measured",
+            "note": "Run scripts/monitor_c1_runtime.py for a continuous C1 process memory sample.",
+            "passes_memory_stability": False,
+        }
+    return {
+        "source": str(path),
+        "status": "measured",
+        "generated_at": data.get("generated_at"),
+        "duration_sec": data.get("duration_sec"),
+        "sample_count": data.get("sample_count"),
+        "rss_initial_mb": data.get("rss_initial_mb"),
+        "rss_final_mb": data.get("rss_final_mb"),
+        "rss_max_mb": data.get("rss_max_mb"),
+        "rss_growth_mb": data.get("rss_growth_mb"),
+        "rss_slope_mb_per_hour": data.get("rss_slope_mb_per_hour"),
+        "gpu_memory_initial_mb": data.get("gpu_memory_initial_mb"),
+        "gpu_memory_final_mb": data.get("gpu_memory_final_mb"),
+        "gpu_memory_max_mb": data.get("gpu_memory_max_mb"),
+        "health_error_count": data.get("health_error_count"),
+        "thresholds": data.get("thresholds"),
+        "passes_memory_stability": bool(data.get("passes_memory_stability")),
+    }
+
+
 def _compare_counts(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
     keys = sorted(set(baseline) | set(current))
     return {
@@ -358,6 +388,7 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
     outfit_grouping = _outfit_grouping_report()
     upper_color = _upper_color_reports()
     api_processing = _api_processing_metrics(current_db)
+    memory = _long_running_memory_report()
 
     return {
         "schema_version": "c1_target_metrics_v1",
@@ -384,10 +415,7 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
         "outfit_grouping": outfit_grouping,
         "upper_color": upper_color,
         "api_processing": api_processing,
-        "long_running_memory": {
-            "status": "not_measured",
-            "note": "Requires a continuous monitor run; this report only captures static DB/API metrics.",
-        },
+        "long_running_memory": memory,
         "pass_summary": {
             "person_aggregation_pairwise_precision": person_merge["passes_precision_target"],
             "person_aggregation_pairwise_f1": person_merge["passes_f1_target"],
@@ -395,7 +423,7 @@ def evaluate(current_db: Path, baseline_db: Path) -> dict[str, Any]:
             "outfit_grouping_purity": outfit_grouping["passes_purity_target"],
             "upper_color_outfit_accuracy": upper_color["passes_outfit_accuracy_target"],
             "api_processing_realtime_mean": api_processing["passes_realtime_mean"],
-            "long_running_memory": False,
+            "long_running_memory": memory["passes_memory_stability"],
         },
     }
 
