@@ -255,6 +255,22 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = C1_SEARCH_TIMEOUT
   }
 }
 
+async function c1HttpErrorFromResponse(response, fallbackMessage) {
+  if (response.status < 400 || response.status >= 500) {
+    return new C1HttpError(fallbackMessage, response.status, "C1_UNAVAILABLE");
+  }
+  const detail = await response.json().catch(() => ({}));
+  const detailBody = detail?.detail || detail || {};
+  let message = detailBody?.message || detailBody?.detail || detailBody?.error || fallbackMessage;
+  if (typeof message === "object") {
+    message = fallbackMessage;
+  }
+  const code = detailBody?.code || (response.status === 413
+    ? "C1_PAYLOAD_TOO_LARGE"
+    : "C1_VALIDATION_ERROR");
+  return new C1HttpError(String(message), response.status, String(code));
+}
+
 function sourceLabel() {
   if (activeSource !== "c1") return "本地模拟";
   return activeResultMode === "attributes" ? "CampusVision C1 · 特征检索" : "CampusVision C1";
@@ -986,11 +1002,7 @@ async function fetchQueryFaces(signal) {
     signal,
   }, C1_QUERY_FACE_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    const detailBody = detail?.detail || detail || {};
-    const message = detailBody?.message || detailBody?.detail || detailBody || `C1 人脸检测返回 ${response.status}`;
-    const code = detailBody?.code || (response.status >= 400 && response.status < 500 ? "C1_VALIDATION_ERROR" : "C1_UNAVAILABLE");
-    throw new C1HttpError(String(message), response.status, code);
+    throw await c1HttpErrorFromResponse(response, `C1 人脸检测返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1198,8 +1210,7 @@ async function fetchC1Search(signal) {
     signal,
   }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail?.detail?.message || `C1 接口返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `C1 接口返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1256,8 +1267,7 @@ async function fetchC1AttributeSearch(signal) {
     signal,
   }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail?.detail?.message || `C1 特征检索返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `C1 特征检索返回 ${response.status}`);
   }
   return response.json();
 }

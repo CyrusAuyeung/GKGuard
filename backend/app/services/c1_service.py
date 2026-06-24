@@ -49,6 +49,8 @@ def _c1_status_error(response: httpx.Response) -> C1ServiceError:
         code = "C1_VALIDATION_ERROR"
     if status_code == 413:
         code = "C1_PAYLOAD_TOO_LARGE"
+    if not (400 <= status_code < 500):
+        return C1ServiceError(message, status_code, code)
     try:
         payload = response.json()
     except ValueError:

@@ -451,6 +451,36 @@ def test_c1_request_preserves_non_retryable_status_detail(monkeypatch) -> None:
         raise AssertionError("Expected C1ServiceError")
 
 
+def test_c1_request_sanitizes_server_error_detail(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        request = httpx.Request(method, f"{base_url}{path}")
+        response = httpx.Response(
+            500,
+            json={"detail": {"code": "TRACEBACK", "message": "internal stack detail"}},
+            request=request,
+        )
+        raise httpx.HTTPStatusError("Internal server error", request=request, response=response)
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+
+    try:
+        c1_service._request("POST", "/api/v1/search/query-faces")
+    except c1_service.C1ServiceError as exc:
+        assert exc.status_code == 500
+        assert exc.code == "C1_UNAVAILABLE"
+        assert str(exc) == "C1 returned HTTP 500"
+    else:
+        raise AssertionError("Expected C1ServiceError")
+
+
 def test_c1_fetch_media_uses_in_memory_cache(monkeypatch) -> None:
     from app.services import c1_service
 

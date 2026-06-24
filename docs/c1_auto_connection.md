@@ -127,7 +127,7 @@ remotePort = 8000
 
 安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.2.2-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
-连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。每次显式状态确认或桌面端 SSH 隧道重新确认都会刷新连接代次并清理旧媒体缓存，避免本地隧道重连后复用上一 CampusVision C1 实例的关键帧或人脸裁剪图。
+连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。每次显式状态确认或桌面端 SSH 隧道重新确认都会刷新连接代次并清理旧媒体缓存，避免本地隧道重连后复用上一 CampusVision C1 实例的关键帧或人脸裁剪图。CampusVision C1 4xx 输入或校验错误不表示 SSH 隧道失效，不触发自动重连；CampusVision C1 5xx 服务端错误会以脱敏后的服务不可用状态返回。
 
 这个方案满足“打开应用后输入服务器密码”，同时避免把服务器密码写进配置或仓库。
 
@@ -314,7 +314,7 @@ Startup behavior:
 
 Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.2.2-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
-The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions. Each explicit status confirmation or desktop SSH-tunnel reconfirmation refreshes the connection generation and clears old media cache entries, preventing keyframes or face crops from the previous CampusVision C1 instance from being reused after the local tunnel reconnects.
+The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions. Each explicit status confirmation or desktop SSH-tunnel reconfirmation refreshes the connection generation and clears old media cache entries, preventing keyframes or face crops from the previous CampusVision C1 instance from being reused after the local tunnel reconnects. CampusVision C1 4xx input or validation errors do not indicate an SSH-tunnel failure and do not trigger automatic reconnection; CampusVision C1 5xx service errors are returned as sanitized service-unavailable states.
 
 This gives an “enter server password after opening the app” flow without writing the server password to config files or the repository.
 

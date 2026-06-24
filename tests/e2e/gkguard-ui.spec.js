@@ -1384,4 +1384,116 @@ test.describe("GKGuard C2 demo UI", () => {
     await expectNoHorizontalOverflow(page);
     expect(problems.filter((problem) => !problem.includes("status of 400"))).toEqual([]);
   });
+
+  test("person image search validation error does not trigger desktop C1 reconnect", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+
+    await page.addInitScript(() => {
+      window.__connectC1Calls = 0;
+      window.gkguardDesktop = {
+        getAppInfo: async () => ({ version: "0.2.2" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        downloadUpdate: async () => ({ embedded: true }),
+        installUpdate: async () => ({}),
+        onUpdateEvent: () => () => {},
+        onSshConnectProgress: () => () => {},
+        submitSshPassword: () => {},
+        cancelSshPassword: () => {},
+        connectC1: async () => {
+          window.__connectC1Calls += 1;
+          return { connected: true, prompted: true };
+        },
+      };
+    });
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      await route.fulfill({
+        status: 413,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: {
+            code: "C1_PAYLOAD_TOO_LARGE",
+            message: "Query image payload too large.",
+          },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=search-validation-error");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-too-large.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("上传图片过大");
+    const connectCalls = await page.evaluate(() => window.__connectC1Calls || 0);
+    expect(connectCalls).toBe(0);
+    await expectNoHorizontalOverflow(page);
+    expect(problems.filter((problem) => !problem.includes("status of 413"))).toEqual([]);
+  });
+
+  test("attribute search validation error does not trigger desktop C1 reconnect", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+
+    await page.addInitScript(() => {
+      window.__connectC1Calls = 0;
+      window.gkguardDesktop = {
+        getAppInfo: async () => ({ version: "0.2.2" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        downloadUpdate: async () => ({ embedded: true }),
+        installUpdate: async () => ({}),
+        onUpdateEvent: () => () => {},
+        onSshConnectProgress: () => () => {},
+        submitSshPassword: () => {},
+        cancelSshPassword: () => {},
+        connectC1: async () => {
+          window.__connectC1Calls += 1;
+          return { connected: true, prompted: true };
+        },
+      };
+    });
+
+    await page.route("**/c1/query/person-attributes", async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: {
+            code: "C1_VALIDATION_ERROR",
+            message: "No event matched the requested attributes.",
+          },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=attribute-validation-error");
+    await expectHealthyPage(page, problems);
+    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.locator("#upperColorFilter").selectOption("blue");
+    await page.locator("#startAttributeSearchBtn").click();
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("未找到符合人物特征条件");
+    const connectCalls = await page.evaluate(() => window.__connectC1Calls || 0);
+    expect(connectCalls).toBe(0);
+    await expectNoHorizontalOverflow(page);
+    expect(problems.filter((problem) => !problem.includes("status of 400"))).toEqual([]);
+  });
 });
