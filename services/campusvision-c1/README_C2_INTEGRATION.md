@@ -32,7 +32,7 @@ POST /api/v1/query/face-image
 Content-Type: multipart/form-data
 ```
 
-常用请求字段：
+请求字段分为 multipart 文件字段和 Query 参数；查询图片使用 multipart，控制项使用 Query：
 
 | 字段 | 类型 | 默认值 | 说明 |
 |---|---:|---:|---|
@@ -51,11 +51,8 @@ Content-Type: multipart/form-data
 示例：
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/query/face-image \
-  -F "files=@/path/to/id_photo.jpg" \
-  -F "top_k=5" \
-  -F "include_candidates=true" \
-  -F "event_limit_per_person=10"
+curl -X POST "http://127.0.0.1:8000/api/v1/query/face-image?top_k=5&include_candidates=true&event_limit_per_person=10" \
+  -F "files=@/path/to/id_photo.jpg"
 ```
 
 返回结构摘要：
@@ -192,10 +189,8 @@ curl -sS -X POST http://127.0.0.1:8000/api/v1/query/person-attributes \
 ```
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8000/api/v1/query/face-image \
-  -F "files=@/path/to/query.jpg" \
-  -F "top_k=5" \
-  -F "include_candidates=true"
+curl -sS -X POST "http://127.0.0.1:8000/api/v1/query/face-image?top_k=5&include_candidates=true" \
+  -F "files=@/path/to/query.jpg"
 ```
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
@@ -231,7 +226,7 @@ POST /api/v1/query/face-image
 Content-Type: multipart/form-data
 ```
 
-Common request fields:
+Request fields are split into multipart file fields and Query parameters; query images use multipart, while controls use Query parameters:
 
 | Field | Type | Default | Description |
 |---|---:|---:|---|
@@ -250,11 +245,8 @@ Common request fields:
 Example:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/v1/query/face-image \
-  -F "files=@/path/to/id_photo.jpg" \
-  -F "top_k=5" \
-  -F "include_candidates=true" \
-  -F "event_limit_per_person=10"
+curl -X POST "http://127.0.0.1:8000/api/v1/query/face-image?top_k=5&include_candidates=true&event_limit_per_person=10" \
+  -F "files=@/path/to/id_photo.jpg"
 ```
 
 Response summary:
@@ -391,10 +383,8 @@ curl -sS -X POST http://127.0.0.1:8000/api/v1/query/person-attributes \
 ```
 
 ```bash
-curl -sS -X POST http://127.0.0.1:8000/api/v1/query/face-image \
-  -F "files=@/path/to/query.jpg" \
-  -F "top_k=5" \
-  -F "include_candidates=true"
+curl -sS -X POST "http://127.0.0.1:8000/api/v1/query/face-image?top_k=5&include_candidates=true" \
+  -F "files=@/path/to/query.jpg"
 ```
 
 <p align="right"><a href="#english">Back to English top</a></p>

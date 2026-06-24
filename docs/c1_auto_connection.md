@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -125,7 +125,7 @@ remotePort = 8000
 5. 如果连接失败，窗口会提示失败原因并允许重新输入密码；如果成功，桌面端直接探测 `http://127.0.0.1:18000/openapi.json` 和 `/health`。
 6. CampusVision C1 端点可达后，桌面端会刷新 GKGuard C2 后端 `/c1/status`，让后端确认当前连接并清理上一连接代次的媒体缓存，然后进入可检索状态。
 
-安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.2.1-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
+安装版进入演示页前会清理 Electron renderer cache，并加载带 `asset=v0.2.2-ui` 参数的 `/demo` 页面。这样安装更新后，桌面端不会继续复用旧的 HTML/CSS/JS 造成布局或功能看起来没有变化。
 
 连接窗口和 `GET /c1/status` 仍用于实时确认 CampusVision C1 可达性；普通检索和媒体代理请求会复用短期健康状态探测结果，以减少连续操作时重复读取 `/openapi.json` 和 `/health`。每次显式状态确认或桌面端 SSH 隧道重新确认都会刷新连接代次并清理旧媒体缓存，避免本地隧道重连后复用上一 CampusVision C1 实例的关键帧或人脸裁剪图。
 
@@ -312,7 +312,7 @@ Startup behavior:
 5. Once the tunnel is up, the desktop app probes `http://127.0.0.1:18000/openapi.json` and `/health` directly.
 6. After the CampusVision C1 endpoint is reachable, the desktop app refreshes the GKGuard C2 backend `/c1/status`, so the backend confirms the current connection, clears media cache entries from the previous connection generation, and then enters the searchable state.
 
-Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.2.1-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
+Before entering the demo page, the packaged app clears the Electron renderer cache and loads `/demo` with `asset=v0.2.2-ui`. This prevents installed updates from reusing stale HTML/CSS/JS and making the UI appear unchanged after an upgrade.
 
 The connection window and `GET /c1/status` still confirm CampusVision C1 reachability in real time. Normal search and media-proxy requests reuse short-lived healthy status probes to reduce repeated `/openapi.json` and `/health` reads during consecutive actions. Each explicit status confirmation or desktop SSH-tunnel reconfirmation refreshes the connection generation and clears old media cache entries, preventing keyframes or face crops from the previous CampusVision C1 instance from being reused after the local tunnel reconnects.
 

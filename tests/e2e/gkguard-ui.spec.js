@@ -425,6 +425,175 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(problems).toEqual([]);
   });
 
+  test("duplicate mapped route points keep only the selected marker active", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    const records = [
+      {
+        id: 1,
+        title: "记录1",
+        time: "10:00:00",
+        fullTime: "2026-06-17 10:00:00",
+        location: "一号入口",
+        camera: "C1-E2E-01",
+        cameraId: "C1-E2E-01",
+        similarity: 0.91,
+        note: "重复映射测试",
+        sceneClass: "scene-1",
+        progress: 28,
+        frameUrl: "/static/icons/app-mark.png",
+        faceUrl: "/static/icons/app-mark.png",
+        thumbnailUrl: "/static/icons/app-mark.png",
+        faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+        eventId: "same-person-a",
+      },
+      {
+        id: 2,
+        title: "记录2",
+        time: "10:02:00",
+        fullTime: "2026-06-17 10:02:00",
+        location: "二号入口",
+        camera: "C1-E2E-02",
+        cameraId: "C1-E2E-02",
+        similarity: 0.86,
+        note: "重复映射测试",
+        sceneClass: "scene-2",
+        progress: 52,
+        frameUrl: "/static/icons/app-mark.png",
+        faceUrl: "/static/icons/app-mark.png",
+        thumbnailUrl: "/static/icons/app-mark.png",
+        faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+        eventId: "same-person-b",
+      },
+    ];
+    const routePoints = [
+      { id: 1, time: "10:00:00", location: "一号入口", x: 30, y: 60, kind: "start", recordIndex: 0, eventId: "same-person-a" },
+      { id: 2, time: "10:00:20", location: "一号入口补点", x: 42, y: 48, recordIndex: 0, eventId: "same-person-a-extra" },
+      { id: 3, time: "10:02:00", location: "二号入口", x: 62, y: 36, kind: "end", recordIndex: 1, eventId: "same-person-b" },
+    ];
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-duplicate-route-points",
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+          selectedQueryFace: { index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } },
+          records,
+          routePoints,
+          person: { personId: "P-E2E", confidence: "high", representativeFaceUrl: "/static/icons/app-mark.png" },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=duplicate-route-points");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveCount(1);
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveAttribute("data-route-index", "0");
+
+    await page.locator("#campusRouteMap [data-route-index='1']").click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录1");
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveCount(1);
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveAttribute("data-route-index", "1");
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveCount(1);
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveAttribute("data-route-index", "1");
+    expect(problems).toEqual([]);
+  });
+
+  test("records without a matching route point do not highlight the final marker", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    const records = Array.from({ length: 5 }, (_, index) => ({
+      id: index + 1,
+      title: `记录${index + 1}`,
+      time: `10:2${index}:00`,
+      fullTime: `2026-06-17 10:2${index}:00`,
+      location: `记录区域${index + 1}`,
+      camera: "C1-E2E-02",
+      cameraId: "C1-E2E-02",
+      similarity: 0.88 - index * 0.03,
+      note: "缺少路线点映射测试",
+      sceneClass: `scene-${(index % 5) + 1}`,
+      progress: 24 + index * 10,
+      frameUrl: "/static/icons/app-mark.png",
+      faceUrl: "/static/icons/app-mark.png",
+      thumbnailUrl: "/static/icons/app-mark.png",
+      faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+    }));
+    const routePoints = Array.from({ length: 3 }, (_, index) => ({
+      id: index + 1,
+      time: `10:2${index}:30`,
+      location: `路线点${index + 1}`,
+      x: 28 + index * 14,
+      y: 66 - index * 8,
+      kind: index === 0 ? "start" : index === 2 ? "end" : "",
+    }));
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-record-without-route-point",
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+          selectedQueryFace: { index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } },
+          records,
+          routePoints,
+          person: { personId: "P-E2E", confidence: "high", representativeFaceUrl: "/static/icons/app-mark.png" },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=record-without-route-point");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await page.locator("#routeRecordList .record-card").nth(4).click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录5");
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveCount(0);
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveCount(0);
+    expect(problems).toEqual([]);
+  });
+
   test("CampusVision C1 attribute search renders event results", async ({ page }) => {
     const problems = collectBrowserProblems(page);
     let requestPayload = null;
@@ -1152,5 +1321,67 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(searchCalls).toBe(0);
     await expectNoHorizontalOverflow(page);
     expect(problems.filter((problem) => !problem.includes("status of 503"))).toEqual([]);
+  });
+
+  test("bad query image response does not trigger desktop C1 reconnect", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let searchCalls = 0;
+
+    await page.addInitScript(() => {
+      window.__connectC1Calls = 0;
+      window.gkguardDesktop = {
+        getAppInfo: async () => ({ version: "0.2.2" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        downloadUpdate: async () => ({ embedded: true }),
+        installUpdate: async () => ({}),
+        onUpdateEvent: () => () => {},
+        onSshConnectProgress: () => () => {},
+        submitSshPassword: () => {},
+        cancelSshPassword: () => {},
+        connectC1: async () => {
+          window.__connectC1Calls += 1;
+          return { connected: true, prompted: true };
+        },
+      };
+    });
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          detail: {
+            code: "C1_VALIDATION_ERROR",
+            message: "Uploaded query image could not be decoded.",
+          },
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      searchCalls += 1;
+      await route.abort();
+    });
+
+    await page.goto("/demo?desktop=1&e2e=query-face-bad-image");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query-bad.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("上传图片无法解码");
+    await page.getByRole("button", { name: /重新检测人脸|开始检索/ }).click();
+    await expect(page.locator("#searchView")).toHaveClass(/is-active/);
+    await expect(page.locator("#resultView")).not.toHaveClass(/is-active/);
+    await expect(page.locator("#toast")).toContainText("未执行检索");
+    const connectCalls = await page.evaluate(() => window.__connectC1Calls || 0);
+    expect(connectCalls).toBe(0);
+    expect(searchCalls).toBe(0);
+    await expectNoHorizontalOverflow(page);
+    expect(problems.filter((problem) => !problem.includes("status of 400"))).toEqual([]);
   });
 });

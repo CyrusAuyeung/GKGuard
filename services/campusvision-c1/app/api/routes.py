@@ -5073,19 +5073,19 @@ def search_by_clothes(
 @router.post("/query/face-image")
 async def query_face_image(
     files: list[UploadFile] = File(...),
-    query_face_indices: Optional[str] = Form(None),
-    query_face_index: Optional[int] = Form(None),
-    top_k: int = Form(5),
-    min_score: Optional[float] = Form(None),
-    max_gap_sec: float = Form(3.0),
-    include_candidates: bool = Form(False),
-    event_limit_per_person: int = Form(20),
-    match_limit_per_person: int = Form(10),
-    include_events: bool = Form(True),
-    include_matches: bool = Form(True),
-    camera_id: Optional[str] = Form(None),
-    start_time: Optional[str] = Form(None),
-    end_time: Optional[str] = Form(None),
+    query_face_indices: Optional[str] = Query(None),
+    query_face_index: Optional[int] = Query(None),
+    top_k: int = Query(5),
+    min_score: Optional[float] = Query(None),
+    max_gap_sec: float = Query(3.0),
+    include_candidates: bool = Query(False),
+    event_limit_per_person: int = Query(20),
+    match_limit_per_person: int = Query(10),
+    include_events: bool = Query(True),
+    include_matches: bool = Query(True),
+    camera_id: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
 ):
     import uuid
 
