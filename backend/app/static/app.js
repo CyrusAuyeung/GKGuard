@@ -115,6 +115,7 @@ const buildings = [
 ];
 
 let selectedRecordIndex = 0;
+let selectedRouteIndex = 0;
 let uploadedImageUrl = "";
 let matchedPersonImageUrl = "";
 let uploadedFile = null;
@@ -1085,6 +1086,7 @@ function resetSearchInput() {
   matchedPersonImageUrl = "";
   clearQueryFaces();
   selectedRecordIndex = 0;
+  selectedRouteIndex = 0;
   if (elements.faceFile) elements.faceFile.value = "";
   if (elements.uploadHint) elements.uploadHint.textContent = "支持 JPG / PNG，建议上传清晰正脸照片";
   resetToMockData();
@@ -1143,14 +1145,17 @@ async function applyC1Result(result) {
     eventId: record.eventId,
   }));
   routePoints.splice(0, routePoints.length, ...incomingRoute.map((point, index) => {
-    const recordIndex = routePointRecordIndex(point, index);
-    return {
+    const recordIndex = routePointStableRecordIndex(point);
+    const normalizedPoint = {
       ...point,
       id: index + 1,
-      recordIndex,
-      eventId: point.eventId || point.event_id || records[recordIndex]?.eventId,
       kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
     };
+    if (recordIndex !== null) {
+      normalizedPoint.recordIndex = recordIndex;
+      normalizedPoint.eventId = point.eventId || point.event_id || records[recordIndex]?.eventId;
+    }
+    return normalizedPoint;
   }));
 
   if (result.person?.representativeFaceUrl) {
@@ -1352,7 +1357,8 @@ function renderRecordLists() {
 
   document.querySelectorAll(".record-card").forEach((button) => {
     button.addEventListener("click", () => {
-      selectedRecordIndex = Number(button.dataset.index || 0);
+      selectedRecordIndex = clampRecordIndex(button.dataset.index || 0);
+      selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
       syncRecordActiveStates();
       renderSelectedRecord();
       renderRouteMap();
@@ -1593,43 +1599,73 @@ function renderRouteCurrentSummary() {
   if (elements.routeCurrentSimilarity) elements.routeCurrentSimilarity.textContent = formatPercent(record.similarity);
 }
 
-function routePointRecordIndex(point, fallbackIndex = 0) {
+function clampRecordIndex(value) {
   if (!records.length) return 0;
+  const numericIndex = Number(value);
+  return Math.max(0, Math.min(Number.isFinite(numericIndex) ? Math.trunc(numericIndex) : 0, records.length - 1));
+}
+
+function clampRouteIndex(value) {
+  if (!routePoints.length) return 0;
+  const numericIndex = Number(value);
+  return Math.max(0, Math.min(Number.isFinite(numericIndex) ? Math.trunc(numericIndex) : 0, routePoints.length - 1));
+}
+
+function routePointStableRecordIndex(point) {
+  if (!records.length || !point) return null;
   const rawIndex = point?.recordIndex ?? point?.record_index;
   const numericIndex = Number(rawIndex);
   if (Number.isFinite(numericIndex)) {
-    return Math.max(0, Math.min(Math.trunc(numericIndex), records.length - 1));
+    const recordIndex = Math.trunc(numericIndex);
+    return recordIndex >= 0 && recordIndex < records.length ? recordIndex : null;
   }
   const eventId = point?.eventId || point?.event_id;
   if (eventId) {
     const matchedIndex = records.findIndex((record) => record.eventId === eventId);
     if (matchedIndex >= 0) return matchedIndex;
   }
-  const fallback = Number(fallbackIndex);
-  return Math.max(0, Math.min(Number.isFinite(fallback) ? Math.trunc(fallback) : 0, records.length - 1));
+  return null;
+}
+
+function routePointRecordIndex(point, fallbackIndex = 0) {
+  const stableIndex = routePointStableRecordIndex(point);
+  return stableIndex === null ? clampRecordIndex(fallbackIndex) : stableIndex;
+}
+
+function routePointIndexForRecord(recordIndex) {
+  const normalizedIndex = clampRecordIndex(recordIndex);
+  const mappedRouteIndex = routePoints.findIndex((point) => routePointStableRecordIndex(point) === normalizedIndex);
+  return mappedRouteIndex >= 0 ? mappedRouteIndex : clampRouteIndex(normalizedIndex);
 }
 
 function alignSelectedRecordWithRoutePoints(preferredIndex = selectedRecordIndex) {
   if (!records.length) {
     selectedRecordIndex = 0;
+    selectedRouteIndex = 0;
     return;
   }
-  const numericIndex = Number(preferredIndex);
-  selectedRecordIndex = Math.max(0, Math.min(Number.isFinite(numericIndex) ? Math.trunc(numericIndex) : 0, records.length - 1));
-  if (!routePoints.length) return;
-  const currentHasRoutePoint = routePoints.some((point, index) => routePointRecordIndex(point, index) === selectedRecordIndex);
+  selectedRecordIndex = clampRecordIndex(preferredIndex);
+  selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
+  if (!routePoints.length) {
+    selectedRouteIndex = 0;
+    return;
+  }
+  const currentHasRoutePoint = routePoints.some((point) => routePointStableRecordIndex(point) === selectedRecordIndex);
   if (!currentHasRoutePoint) {
+    selectedRouteIndex = 0;
     selectedRecordIndex = routePointRecordIndex(routePoints[0], 0);
   }
 }
 
 function isRoutePointActive(point, index) {
-  return routePointRecordIndex(point, index) === selectedRecordIndex;
+  const stableIndex = routePointStableRecordIndex(point);
+  return stableIndex === null ? index === selectedRouteIndex : stableIndex === selectedRecordIndex;
 }
 
 function selectRouteRecord(index, shouldAnnounce = true) {
   if (!records.length) return;
-  const routeIndex = Math.max(0, Math.min(Number(index) || 0, Math.max(0, routePoints.length - 1)));
+  const routeIndex = clampRouteIndex(index);
+  selectedRouteIndex = routeIndex;
   selectedRecordIndex = routePointRecordIndex(routePoints[routeIndex], routeIndex);
   renderRecordLists();
   renderSelectedRecord();
