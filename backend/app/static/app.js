@@ -1609,6 +1609,20 @@ function routePointRecordIndex(point, fallbackIndex = 0) {
   return Math.max(0, Math.min(Number.isFinite(fallback) ? Math.trunc(fallback) : 0, records.length - 1));
 }
 
+function alignSelectedRecordWithRoutePoints(preferredIndex = selectedRecordIndex) {
+  if (!records.length) {
+    selectedRecordIndex = 0;
+    return;
+  }
+  const numericIndex = Number(preferredIndex);
+  selectedRecordIndex = Math.max(0, Math.min(Number.isFinite(numericIndex) ? Math.trunc(numericIndex) : 0, records.length - 1));
+  if (!routePoints.length) return;
+  const currentHasRoutePoint = routePoints.some((point, index) => routePointRecordIndex(point, index) === selectedRecordIndex);
+  if (!currentHasRoutePoint) {
+    selectedRecordIndex = routePointRecordIndex(routePoints[0], 0);
+  }
+}
+
 function isRoutePointActive(point, index) {
   return routePointRecordIndex(point, index) === selectedRecordIndex;
 }
@@ -1826,7 +1840,7 @@ async function startSearch() {
       }
       if (shouldShowResults) {
         syncResultHeading();
-        selectedRecordIndex = 0;
+        alignSelectedRecordWithRoutePoints(0);
         renderRecordLists();
         renderSelectedRecord();
         renderRouteMap();
@@ -1913,7 +1927,7 @@ async function startAttributeSearch() {
       searchInProgress = false;
       if (shouldShowResults) {
         syncResultHeading();
-        selectedRecordIndex = 0;
+        alignSelectedRecordWithRoutePoints(0);
         renderRecordLists();
         renderSelectedRecord();
         renderRouteMap();

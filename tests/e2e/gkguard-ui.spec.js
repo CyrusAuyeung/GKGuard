@@ -459,6 +459,64 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(problems).toEqual([]);
   });
 
+  test("attribute route defaults to a plotted record when top score is not routed", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    const records = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      title: `记录${index + 1}`,
+      time: `09:${String(index).padStart(2, "0")}:00`,
+      fullTime: `2026-06-18 09:${String(index).padStart(2, "0")}:00`,
+      location: `摄像头区域${index + 1}`,
+      camera: "C1-ATTR-01 图书馆摄像机",
+      cameraId: "C1-ATTR-01",
+      similarity: 0.95 - index * 0.04,
+      note: "上衣颜色：blue",
+      sceneClass: `scene-${(index % 5) + 1}`,
+      progress: 18 + index * 6,
+      frameUrl: "/static/icons/app-mark.png",
+      faceUrl: "/static/icons/app-mark.png",
+      thumbnailUrl: "/static/icons/app-mark.png",
+      faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+      eventId: `event-${index + 1}`,
+      attributes: { upperColor: "blue", glassesStatus: "unknown" },
+    }));
+
+    await page.route("**/c1/query/person-attributes", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          mode: "person-attributes",
+          searchId: "e2e-attribute-route-gap",
+          warning: null,
+          person: { confidence: "attribute", representativeFaceUrl: "/static/icons/app-mark.png" },
+          records,
+          routePoints: [
+            { id: 1, time: "09:09:00", location: "摄像头区域10", x: 22, y: 68, kind: "start", recordIndex: 9, eventId: "event-10" },
+            { id: 2, time: "09:08:00", location: "摄像头区域9", x: 36, y: 52, recordIndex: 8, eventId: "event-9" },
+            { id: 3, time: "09:07:00", location: "摄像头区域8", x: 48, y: 44, kind: "end", recordIndex: 7, eventId: "event-8" },
+          ],
+          raw: {},
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=attribute-route-gap");
+    await expectHealthyPage(page, problems);
+    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.locator("#upperColorFilter").selectOption("blue");
+    await page.locator("#startAttributeSearchBtn").click();
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await expect(page.locator("#recordTitle")).toHaveText("记录10");
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录10");
+    await expect(page.locator("#routeTimelineRows .timeline-row").first()).toHaveClass(/is-active/);
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
   test("record switching keeps the current keyframe until the next keyframe is ready", async ({ page }) => {
     const problems = collectBrowserProblems(page);
     let releaseSecondFrame;
