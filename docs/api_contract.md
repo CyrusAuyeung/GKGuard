@@ -174,8 +174,8 @@ JSON 请求体：
 ```json
 {
   "upper_colors": ["black"],
-  "glasses_status": "glasses",
-  "gender_presentation": "neutral",
+  "glasses_status": ["glasses"],
+  "gender_presentation": ["neutral"],
   "camera_ids": ["cam02"],
   "time_range": {
     "start": "2025-05-24T00:00:00",
@@ -183,20 +183,20 @@ JSON 请求体：
   },
   "min_score": 0.45,
   "limit": 10,
-  "person_scope": "stable_only"
+  "person_scope": "stable"
 }
 ```
 
 字段说明：
 
 - `upper_colors`：上装颜色列表，可为空。常见值包括 `black`、`white`、`gray`、`red`、`orange`、`yellow`、`green`、`blue`、`purple`、`brown`、`pink`、`striped`、`other`、`unknown`。
-- `glasses_status`：`glasses`、`no_glasses` 或 `unknown`。
-- `gender_presentation`：`masculine`、`feminine`、`neutral` 或 `unknown`，表示外观呈现标签，不等同于身份信息。
+- `glasses_status`：眼镜状态列表，可为空；常见值为 `glasses`、`no_glasses` 或 `unknown`。
+- `gender_presentation`：外观倾向列表，可为空；常见值为 `masculine`、`feminine`、`neutral` 或 `unknown`，表示外观呈现标签，不等同于身份信息。
 - `camera_ids`：摄像头 ID 列表，可为空。
 - `time_range`：事件时间范围，可为空。
 - `min_score`：最小匹配分数，默认 `0.45`。
 - `limit`：返回条数，默认 `10`。
-- `person_scope`：人物库范围，当前前端使用 `stable_only`。
+- `person_scope`：人物库范围；可选 `stable`、`identified`、`all` 或 `unidentified`，当前前端默认使用 `all`。
 
 GKGuard C2 返回归一化结果：
 
@@ -571,8 +571,8 @@ JSON request body:
 ```json
 {
   "upper_colors": ["black"],
-  "glasses_status": "glasses",
-  "gender_presentation": "neutral",
+  "glasses_status": ["glasses"],
+  "gender_presentation": ["neutral"],
   "camera_ids": ["cam02"],
   "time_range": {
     "start": "2025-05-24T00:00:00",
@@ -580,20 +580,20 @@ JSON request body:
   },
   "min_score": 0.45,
   "limit": 10,
-  "person_scope": "stable_only"
+  "person_scope": "stable"
 }
 ```
 
 Field notes:
 
 - `upper_colors`: upper-body color list, optional. Common values include `black`, `white`, `gray`, `red`, `orange`, `yellow`, `green`, `blue`, `purple`, `brown`, `pink`, `striped`, `other`, and `unknown`.
-- `glasses_status`: `glasses`, `no_glasses`, or `unknown`.
-- `gender_presentation`: `masculine`, `feminine`, `neutral`, or `unknown`; this is an appearance-presentation label, not identity information.
+- `glasses_status`: optional glasses-status list. Common values are `glasses`, `no_glasses`, or `unknown`.
+- `gender_presentation`: optional appearance-presentation list. Common values are `masculine`, `feminine`, `neutral`, or `unknown`; this is an appearance-presentation label, not identity information.
 - `camera_ids`: optional camera ID list.
 - `time_range`: optional event time range.
 - `min_score`: minimum match score, default `0.45`.
 - `limit`: result limit, default `10`.
-- `person_scope`: person-index scope; the current frontend uses `stable_only`.
+- `person_scope`: person-index scope; allowed values are `stable`, `identified`, `all`, or `unidentified`, and the current frontend defaults to `all`.
 
 GKGuard C2 returns a normalized result:
 
