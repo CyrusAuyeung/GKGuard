@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.2.0` 推荐流程：
+安装版 `v0.2.1` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.0.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.1.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -32,7 +32,7 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 
 ## 人物特征检索流程
 
-`v0.2.0` 新增的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口：
+当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、路线点到结果记录的稳定映射、重复索引、受影响人物索引与 appearance session 重建和 API 规范示例。
 
 1. 在搜索页切换到 `人物特征检索`。
 2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
@@ -209,7 +209,7 @@ X-GKGuard-Audit-Token: <configured-token>
 
 ## 维护备注
 
-- 当前前端使用 CampusVision C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线。
+- 当前前端使用 CampusVision C1 归一化后的 `records` 和 `routePoints` 生成结果卡片、关键帧、地图点和路线；人物特征检索路线点按时间排序时，应通过 `recordIndex` / `eventId` 点击回对应结果记录。
 - B组嵌入式控制后续可替换 `/car-tasks/mock-dispatch` 背后的适配器，字段名保持稳定。
 - 不要把 UE 测试应用打包进 GKGuard；它应作为 ROS2/UE Bridge 回路的外部验证目标。
 - 保留旧版 `/search/image` 模拟接口用于非 CampusVision C1 演示；真实人脸检索路径是 `/c1/search/person-by-image`。
@@ -228,9 +228,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.2.0`:
+Recommended packaged-app flow for `v0.2.1`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.0.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.1.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -316,7 +316,7 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 
 ## Person-Attribute Search Flow
 
-The CampusVision C1 person-attribute search added in `v0.2.0` does not require a query image and is suitable for demonstrating event lookup by conditions:
+The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrects route ordering, stable route-to-record mapping, duplicate indexing, affected person-index and appearance-session rebuilds, and API specification examples.
 
 1. Switch to `人物特征检索` on the search screen.
 2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.
@@ -424,7 +424,7 @@ Expected result: when the server sets `GKGUARD_AUDIT_TOKEN` and the request incl
 
 ## Maintenance Notes
 
-- The current frontend consumes CampusVision C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines.
+- The current frontend consumes CampusVision C1-normalized `records` and `routePoints` for result cards, keyframes, map points, and route lines. When person-attribute route points are time-sorted, `recordIndex` / `eventId` should click back to the matching result record.
 - Group B embedded control can later replace the adapter behind `/car-tasks/mock-dispatch` while keeping field names stable.
 - Do not package the UE test app into GKGuard; keep it as an external validation target for the ROS2/UE Bridge loop.
 - Keep the legacy `/search/image` mock endpoint for non-CampusVision C1 demos. The real face-search path is `/c1/search/person-by-image`.

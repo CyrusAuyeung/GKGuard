@@ -101,6 +101,14 @@ def test_query_image_variants_rejects_excessive_pixels(tmp_path, monkeypatch):
         search_service._query_image_variants(str(image_path))
 
 
+def test_query_image_variants_rejects_undecodable_upload(tmp_path):
+    image_path = tmp_path / "not-an-image.jpg"
+    image_path.write_bytes(b"not a decodable image")
+
+    with pytest.raises(search_service.QueryImageDecodeError, match="could not be decoded"):
+        search_service._query_image_variants(str(image_path))
+
+
 def test_query_image_variants_skips_oversized_padded_variants(tmp_path, monkeypatch):
     image_path = tmp_path / "padding-limit.png"
     monkeypatch.setattr(search_service, "MAX_QUERY_IMAGE_PIXELS", 400)

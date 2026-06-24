@@ -670,6 +670,20 @@ def add_face_record(record: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def list_person_ids_for_video_faces(video_id: str) -> set[str]:
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT pf.person_id
+            FROM person_faces pf
+            JOIN face_records fr ON fr.face_id = pf.face_id
+            WHERE fr.video_id = ?
+            """,
+            (video_id,),
+        ).fetchall()
+    return {row["person_id"] for row in rows if row["person_id"]}
+
+
 def delete_face_records_for_video(video_id: str) -> None:
     with get_conn() as conn:
         conn.execute(

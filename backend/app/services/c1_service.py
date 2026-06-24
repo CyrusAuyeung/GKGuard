@@ -696,6 +696,37 @@ def _route_point_from_item(item: dict[str, Any], index: int, total: int) -> dict
     return point
 
 
+def _route_sort_key(item: dict[str, Any], fallback_index: int) -> tuple[int, Any, int]:
+    raw_time = item.get("captured_at") or item.get("start_time") or item.get("time")
+    if isinstance(raw_time, str) and raw_time:
+        normalized = raw_time.replace("Z", "+00:00")
+        try:
+            return (0, datetime.fromisoformat(normalized).timestamp(), fallback_index)
+        except ValueError:
+            if "T" in raw_time:
+                date, _, time_part = raw_time.partition("T")
+                return (1, f"{date} {time_part}", fallback_index)
+            return (2, raw_time, fallback_index)
+
+    timestamp = _first_number(item.get("start_timestamp_sec"), item.get("video_timestamp_sec"))
+    if timestamp is not None:
+        return (3, timestamp, fallback_index)
+
+    return (4, "", fallback_index)
+
+
+def _chronological_route_source(items: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    return [item for _, item in _chronological_route_entries(items, limit)]
+
+
+def _chronological_route_entries(items: list[dict[str, Any]], limit: int) -> list[tuple[int, dict[str, Any]]]:
+    indexed_items = list(enumerate(items))
+    return [
+        pair
+        for pair in sorted(indexed_items, key=lambda pair: _route_sort_key(pair[1], pair[0]))
+    ][:limit]
+
+
 def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
     persons = raw.get("persons") or []
     person = persons[0] if persons else {}
@@ -803,10 +834,14 @@ def _summarize_attribute_query(raw: dict[str, Any]) -> dict[str, Any]:
     if records:
         representative_url = records[0].get("faceUrl") or records[0].get("thumbnailUrl") or records[0].get("frameUrl")
     total_points = max(1, min(8, len(results)))
-    route_points = [
-        _route_point_from_item(item, index + 1, total_points)
-        for index, item in enumerate(results[:total_points])
-    ]
+    route_entries = _chronological_route_entries(results, total_points)
+    route_points = []
+    for route_index, (record_index, item) in enumerate(route_entries):
+        route_point = _route_point_from_item(item, route_index + 1, total_points)
+        route_point["recordIndex"] = record_index
+        if item.get("event_id"):
+            route_point["eventId"] = item["event_id"]
+        route_points.append(route_point)
     return {
         "source": "c1",
         "mode": "person-attributes",

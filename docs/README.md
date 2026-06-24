@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.2.0` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.2.1` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -22,7 +22,7 @@
 
 ## 发布与版本
 
-- [releases/v0.2.0.md](releases/v0.2.0.md)：当前最新版本说明，记录 CampusVision C1 事件与人物特征查询接口、GKGuard C2 事件检索代理、人物特征检索 UI、事件关键帧/人体图/人脸图媒体代理、结果页属性摘要、CampusVision C1 路由保护补齐、CampusVision C1 服务稳定性修复，以及 Windows/macOS/Linux 桌面发布资产。
+- [releases/v0.2.1.md](releases/v0.2.1.md)：当前最新版本说明，记录 CampusVision C1 事件与人物特征查询接口、GKGuard C2 事件检索代理、人物特征检索 UI、事件关键帧/人体图/人脸图媒体代理、结果页属性摘要、路线点到结果记录的稳定映射、CampusVision C1 路由保护补齐、CampusVision C1 服务稳定性修复，以及 Windows/macOS/Linux 桌面发布资产。
 - [releases/v0.1.36.md](releases/v0.1.36.md)：受信 SSH 主机密钥自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
 - [releases/v0.1.35.md](releases/v0.1.35.md)：GKGuard C2 / CampusVision C1 安全加固、SSH 主机密钥校验、查询图资源限制和 Release workflow 权限收紧。
 - [releases/v0.1.34.md](releases/v0.1.34.md)：Windows/macOS/Linux 桌面端发布、平台化后端可执行文件和更新资产选择。
@@ -47,7 +47,7 @@
 - [SUPPORT.md](../SUPPORT.md)：问题反馈入口、Issue 模板使用方式和支持边界。
 - [SECURITY.md](../SECURITY.md)：敏感数据、真实媒体、凭据和 CampusVision C1 连接安全要求。
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1)：半自动添加 PR/Issue 到 GKGuard Roadmap 并填写 Project 字段。
-- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、PR 正文 reaction、Issue 评论、审查线程/状态合并门槛、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态；没有任何审查信号时应继续等待或轮询，不能把“未发现评论”当作可合并状态；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
+- 当前协作配置以 `main` 保护、短期分支 Pull Request、`type(scope): summary` 标题规范、`Verify` 必需检查、PR 正文 reaction、Issue 评论、审查线程/状态合并门槛、squash merge、合并后删除分支、标签归类和 [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project 跟踪为准；👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态；没有任何审查信号时应继续等待或轮询，不能把“未发现评论”当作可合并状态；只有在没有 PR 正文审查信号且需要主动启动审查时，才可评论 `@codex review`，PR 正文已有 👀 时不得再次手动触发 review；Project item 应补齐 `Status`、`Area`、`Type`、`Priority`、`Blocked`、`Start date`、`End date`、`Timeline order` 和必要的 `Target version`。
 - Milestone 暂不强制使用；CODEOWNERS 暂不启用。
 
 ## 配置示例
@@ -70,7 +70,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.2.0`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.2.1`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -85,7 +85,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.2.0.md](releases/v0.2.0.md): latest release notes covering CampusVision C1 event and person-attribute query endpoints, GKGuard C2 event-query proxies, the person-attribute search UI, event keyframe/body/face media proxies, result-page attribute summaries, completed CampusVision C1 route protection, CampusVision C1 service-stability fixes, and Windows/macOS/Linux desktop release assets.
+- [releases/v0.2.1.md](releases/v0.2.1.md): latest release notes covering CampusVision C1 event and person-attribute query endpoints, GKGuard C2 event-query proxies, the person-attribute search UI, event keyframe/body/face media proxies, result-page attribute summaries, stable route-to-record mapping, completed CampusVision C1 route protection, CampusVision C1 service-stability fixes, and Windows/macOS/Linux desktop release assets.
 - [releases/v0.1.36.md](releases/v0.1.36.md): automatic trusted SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.
 - [releases/v0.1.35.md](releases/v0.1.35.md): GKGuard C2 / CampusVision C1 security hardening, SSH host-key verification, query-image resource limits, and tightened Release workflow permissions.
 - [releases/v0.1.34.md](releases/v0.1.34.md): Windows/macOS/Linux desktop releases, platform-specific backend executables, and update asset selection.
@@ -110,7 +110,7 @@ Use this page to locate maintenance material quickly. The current-state document
 - [SUPPORT.md](../SUPPORT.md): support paths, issue template usage, and support boundaries.
 - [SECURITY.md](../SECURITY.md): sensitive data, real media, credentials, and CampusVision C1 connection security requirements.
 - [scripts/Update-RoadmapItem.ps1](../scripts/Update-RoadmapItem.ps1): semi-automatically add PRs/Issues to GKGuard Roadmap and fill Project fields.
-- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, PR-body reactions, issue comments, review-thread/state merge gates, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present, keep waiting or polling instead of treating "no comments found" as mergeable. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
+- The current collaboration setup is `main` protection, short-lived branch Pull Requests, `type(scope): summary` title format, required `Verify` checks, PR-body reactions, issue comments, review-thread/state merge gates, squash merge, merged-branch deletion, label triage, and tracking in the [GKGuard Roadmap](https://github.com/users/CyrusAuyeung/projects/2) Project. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present, keep waiting or polling instead of treating "no comments found" as mergeable. Only comment `@codex review` when there is no PR-body review signal and a review needs to be started actively; if the PR body already has 👀, do not manually retrigger review. Project items should include `Status`, `Area`, `Type`, `Priority`, `Blocked`, `Start date`, `End date`, `Timeline order`, and required `Target version`.
 - Milestones are not mandatory yet. CODEOWNERS is not enabled yet.
 
 ## Configuration Examples

@@ -179,7 +179,7 @@ http://127.0.0.1:8000/docs
 
 `POST /api/v1/query/face-image`
 
-上传一张或多张目标人物照片，返回相似人物候选，并在候选人物下带出事件、逐帧匹配和轨迹。该接口面向 GKGuard C2 展示层，返回结构比 `/api/v1/search/person-by-image` 更稳定，便于直接生成候选人物、事件列表和结果详情。上传数量和单文件大小沿用查询图上传限制，超过限制时返回 413。
+上传一张或多张目标人物照片，返回相似人物候选，并在候选人物下带出事件、逐帧匹配和轨迹。该接口面向 GKGuard C2 展示层，返回结构比 `/api/v1/search/person-by-image` 更稳定，便于直接生成候选人物、事件列表和结果详情。上传数量、单文件大小和解码尺寸沿用查询图限制；不可解码查询图返回 400，超过限制时返回 413。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -503,7 +503,7 @@ Response includes:
 
 `POST /api/v1/query/face-image`
 
-Uploads one or more target-person photos, returns similar candidate people, and includes events, frame-level matches, and trajectory under each candidate. This endpoint is intended for the GKGuard C2 presentation layer and provides a more stable response shape than `/api/v1/search/person-by-image` for rendering candidates, event lists, and result details directly. It reuses the query-image upload-count and single-file-size limits and returns 413 when a request exceeds them.
+Uploads one or more target-person photos, returns similar candidate people, and includes events, frame-level matches, and trajectory under each candidate. This endpoint is intended for the GKGuard C2 presentation layer and provides a more stable response shape than `/api/v1/search/person-by-image` for rendering candidates, event lists, and result details directly. It reuses the query-image upload-count, single-file-size, and decoded-dimension limits; undecodable query images return 400, and over-limit requests return 413.
 
 | Field | Type | Required | Description |
 |---|---|---:|---|

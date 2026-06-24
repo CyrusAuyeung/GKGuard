@@ -346,6 +346,85 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(problems).toEqual([]);
   });
 
+  test("unmapped extra route points do not all highlight the last record", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    const records = Array.from({ length: 5 }, (_, index) => ({
+      id: index + 1,
+      title: `记录${index + 1}`,
+      time: `10:1${index}:00`,
+      fullTime: `2026-06-17 10:1${index}:00`,
+      location: `路线区域${index + 1}`,
+      camera: "C1-E2E-01 南门摄像机",
+      cameraId: "C1-E2E-01",
+      similarity: 0.9 - index * 0.04,
+      note: "E2E 无映射路线点",
+      sceneClass: `scene-${(index % 5) + 1}`,
+      progress: 20 + index * 10,
+      frameUrl: "/static/icons/app-mark.png",
+      faceUrl: "/static/icons/app-mark.png",
+      thumbnailUrl: "/static/icons/app-mark.png",
+      faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+    }));
+    const routePoints = Array.from({ length: 8 }, (_, index) => ({
+      id: index + 1,
+      time: `10:1${index}:30`,
+      location: `路线点${index + 1}`,
+      x: 18 + index * 9,
+      y: 74 - index * 5,
+      kind: index === 0 ? "start" : index === 7 ? "end" : "",
+    }));
+
+    await page.route("**/c1/query-faces", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          engine: "e2e-face",
+          faceCount: 1,
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+        }),
+      });
+    });
+
+    await page.route("**/c1/search/person-by-image?**", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          searchId: "e2e-unmapped-route",
+          queryFaces: [{ index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } }],
+          selectedQueryFace: { index: 0, score: 0.96, bbox: { x1: 0.08, y1: 0.1, x2: 0.48, y2: 0.64, width: 0.4, height: 0.54 } },
+          records,
+          routePoints,
+          person: { personId: "P-E2E", confidence: "high", representativeFaceUrl: "/static/icons/app-mark.png" },
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=unmapped-route-points");
+    await expectHealthyPage(page, problems);
+    await page.locator("#faceFile").setInputFiles({
+      name: "query.png",
+      mimeType: "image/png",
+      buffer: PNG_BUFFER,
+    });
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await page.locator("#routeRecordList .record-card").nth(4).click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录5");
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveCount(1);
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveAttribute("data-route-index", "4");
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveCount(1);
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveAttribute("data-route-index", "4");
+    await page.locator("#campusRouteMap [data-route-index='6']").click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录5");
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveCount(1);
+    await expect(page.locator("#campusRouteMap .map-point.is-active")).toHaveAttribute("data-route-index", "6");
+    expect(problems).toEqual([]);
+  });
+
   test("CampusVision C1 attribute search renders event results", async ({ page }) => {
     const problems = collectBrowserProblems(page);
     let requestPayload = null;
@@ -380,6 +459,31 @@ test.describe("GKGuard C2 demo UI", () => {
               faceUrl: "/static/icons/app-mark.png",
               thumbnailUrl: "/static/icons/app-mark.png",
               faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+              eventId: "later-high-score",
+              attributes: {
+                upperColor: "blue",
+                glassesStatus: "glasses",
+                genderPresentation: "masculine",
+                bodyVisibility: "upper",
+              },
+            },
+            {
+              id: 2,
+              title: "记录2",
+              time: "08:15:00",
+              fullTime: "2026-06-18 08:15:00",
+              location: "教学楼入口",
+              camera: "C1-ATTR-02 教学楼摄像机",
+              cameraId: "C1-ATTR-02",
+              similarity: 0.48,
+              note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
+              sceneClass: "scene-2",
+              progress: 22,
+              frameUrl: "/static/icons/app-mark.png",
+              faceUrl: "/static/icons/app-mark.png",
+              thumbnailUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 0.18, y1: 0.18, width: 0.32, height: 0.4 },
+              eventId: "earlier-low-score",
               attributes: {
                 upperColor: "blue",
                 glassesStatus: "glasses",
@@ -389,7 +493,8 @@ test.describe("GKGuard C2 demo UI", () => {
             },
           ],
           routePoints: [
-            { id: 1, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "start" },
+            { id: 1, time: "08:15:00", location: "教学楼入口", x: 36, y: 58, kind: "start", recordIndex: 1, eventId: "earlier-low-score" },
+            { id: 2, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "end", recordIndex: 0, eventId: "later-high-score" },
           ],
           raw: {},
         }),
@@ -424,6 +529,69 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#recordInfo")).toContainText("上衣颜色");
     await expect(page.locator("#recordInfo")).toContainText("佩戴眼镜");
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await page.locator("#routeTimelineRows .timeline-row").first().click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录2");
+    await expect(page.locator("#routeCurrentLocation")).toContainText("教学楼入口");
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("attribute route defaults to a plotted record when top score is not routed", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    const records = Array.from({ length: 10 }, (_, index) => ({
+      id: index + 1,
+      title: `记录${index + 1}`,
+      time: `09:${String(index).padStart(2, "0")}:00`,
+      fullTime: `2026-06-18 09:${String(index).padStart(2, "0")}:00`,
+      location: `摄像头区域${index + 1}`,
+      camera: "C1-ATTR-01 图书馆摄像机",
+      cameraId: "C1-ATTR-01",
+      similarity: 0.95 - index * 0.04,
+      note: "上衣颜色：blue",
+      sceneClass: `scene-${(index % 5) + 1}`,
+      progress: 18 + index * 6,
+      frameUrl: "/static/icons/app-mark.png",
+      faceUrl: "/static/icons/app-mark.png",
+      thumbnailUrl: "/static/icons/app-mark.png",
+      faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+      eventId: `event-${index + 1}`,
+      attributes: { upperColor: "blue", glassesStatus: "unknown" },
+    }));
+
+    await page.route("**/c1/query/person-attributes", async (route) => {
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          mode: "person-attributes",
+          searchId: "e2e-attribute-route-gap",
+          warning: null,
+          person: { confidence: "attribute", representativeFaceUrl: "/static/icons/app-mark.png" },
+          records,
+          routePoints: [
+            { id: 1, time: "09:09:00", location: "摄像头区域10", x: 22, y: 68, kind: "start", recordIndex: 9, eventId: "event-10" },
+            { id: 2, time: "09:08:00", location: "摄像头区域9", x: 36, y: 52, recordIndex: 8, eventId: "event-9" },
+            { id: 3, time: "09:07:00", location: "摄像头区域8", x: 48, y: 44, kind: "end", recordIndex: 7, eventId: "event-8" },
+          ],
+          raw: {},
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=attribute-route-gap");
+    await expectHealthyPage(page, problems);
+    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.locator("#upperColorFilter").selectOption("blue");
+    await page.locator("#startAttributeSearchBtn").click();
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    await expect(page.locator("#recordTitle")).toHaveText("记录10");
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录10");
+    await expect(page.locator("#routeTimelineRows .timeline-row").first()).toHaveClass(/is-active/);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

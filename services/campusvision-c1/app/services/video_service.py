@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -9,7 +10,7 @@ from typing import BinaryIO
 import cv2
 
 from app.core.config import settings
-from app.services import event_service, observation_service
+from app.services import event_service, observation_service, person_service
 from app.services.upload_limits import copy_upload_with_limit
 from app.storage import db
 from app.vision.body_detector import get_body_detector
@@ -84,6 +85,18 @@ def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[f
     return boxes, embeddings
 
 
+def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
+    affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))
+    affected_person_ids.update(db.delete_events_for_video(video_id))
+    affected_person_ids.update(db.delete_person_observations_for_video(video_id))
+    db.delete_face_records_for_video(video_id)
+    if affected_person_ids:
+        person_service.refresh_persons_from_remaining_faces(affected_person_ids)
+        event_service.rebuild_appearance_sessions_for_persons(affected_person_ids)
+    if frame_dir.exists():
+        shutil.rmtree(frame_dir)
+
+
 def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     video = db.get_video(video_id)
     if not video:
@@ -104,7 +117,6 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     detected_bodies = 0
     event_result = None
     video_frame_dir = settings.frames_dir / video_id
-    video_frame_dir.mkdir(parents=True, exist_ok=True)
     upper_color_cache = (
         observation_service.UpperColorTemporalCache()
         if settings.enable_upper_color_temporal_cache
@@ -112,6 +124,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     )
 
     try:
+        _clear_previous_video_index(video_id, video_frame_dir)
+        video_frame_dir.mkdir(parents=True, exist_ok=True)
         for frame_index, (timestamp_sec, frame) in enumerate(
             iter_video_frames(video["path"], every_seconds=float(interval))
         ):

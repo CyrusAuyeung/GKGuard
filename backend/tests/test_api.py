@@ -51,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.2.0-ui" in response.text
-    assert "/static/app.js?v=v0.2.0-ui" in response.text
+    assert "/static/styles.css?v=v0.2.1-ui" in response.text
+    assert "/static/app.js?v=v0.2.1-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -262,7 +262,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.2.0-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.2.1-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -1279,6 +1279,77 @@ def test_c1_person_search_maps_adapter_response(monkeypatch) -> None:
     assert body["records"][0]["frameUrl"] == "/c1/media/frame/face-1"
     assert body["records"][0]["faceUrl"] == "/c1/media/face/face-1"
     assert body["records"][0]["faceBox"]["width"] == 48
+
+
+def test_c1_attribute_route_points_are_chronological() -> None:
+    result = c1_service._summarize_attribute_query(
+        {
+            "query_id": "attribute-query-1",
+            "summary": {"total_matches": 2},
+            "results": [
+                {
+                    "event_id": "later-high-score",
+                    "start_time": "2026-06-24T12:30:00",
+                    "camera_id": "cam02",
+                    "score": 0.92,
+                },
+                {
+                    "event_id": "earlier-low-score",
+                    "start_time": "2026-06-24T08:15:00",
+                    "camera_id": "cam01",
+                    "score": 0.48,
+                },
+            ],
+        }
+    )
+
+    assert result["records"][0]["eventId"] == "later-high-score"
+    assert result["records"][1]["eventId"] == "earlier-low-score"
+    assert [point["time"] for point in result["routePoints"]] == ["08:15:00", "12:30:00"]
+    assert [point["recordIndex"] for point in result["routePoints"]] == [1, 0]
+    assert [point["eventId"] for point in result["routePoints"]] == [
+        "earlier-low-score",
+        "later-high-score",
+    ]
+    assert result["routePoints"][0]["kind"] == "start"
+    assert result["routePoints"][1]["kind"] == "end"
+
+
+def test_c1_attribute_route_points_sort_before_limit() -> None:
+    results = []
+    for index in range(10):
+        # Keep score order opposite to time order so route limiting must sort before slicing.
+        results.append(
+            {
+                "event_id": f"score-rank-{index}",
+                "start_time": f"2026-06-24T{20 - index:02d}:00:00",
+                "camera_id": f"cam{index}",
+                "score": round(1 - index * 0.03, 3),
+            }
+        )
+
+    result = c1_service._summarize_attribute_query(
+        {
+            "query_id": "attribute-query-2",
+            "summary": {"total_matches": 10},
+            "results": results,
+        }
+    )
+
+    assert result["records"][0]["eventId"] == "score-rank-0"
+    assert [point["eventId"] for point in result["routePoints"]] == [
+        "score-rank-9",
+        "score-rank-8",
+        "score-rank-7",
+        "score-rank-6",
+        "score-rank-5",
+        "score-rank-4",
+        "score-rank-3",
+        "score-rank-2",
+    ]
+    assert [point["recordIndex"] for point in result["routePoints"]] == [9, 8, 7, 6, 5, 4, 3, 2]
+    assert result["routePoints"][0]["kind"] == "start"
+    assert result["routePoints"][-1]["kind"] == "end"
 
 
 def test_c1_query_faces_proxy_maps_query_metadata(monkeypatch) -> None:
