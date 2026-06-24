@@ -682,21 +682,53 @@ def _outfit_grouping_report() -> dict[str, Any]:
     purity = data.get("purity") if isinstance(data.get("purity"), dict) else {}
     f1 = pairwise.get("f1")
     purity_accuracy = purity.get("purity_accuracy")
+    events = int(data.get("events") or 0)
+    pair_count = int(pairwise.get("pair_count") or 0)
+    purity_total = int(purity.get("purity_total") or 0)
+    status = str(data.get("status") or "")
+    if not status:
+        if not data:
+            status = "not_available"
+        elif events <= 0 or pair_count <= 0 or purity_total <= 0:
+            status = "not_replayable"
+        else:
+            status = "evaluated"
+    metric_available = bool(events > 0 and pair_count > 0 and purity_total > 0)
+    target_metric_eligible = bool(data.get("target_metric_eligible", metric_available)) and metric_available
+    status_reason = data.get("status_reason")
+    if status == "not_replayable" and not status_reason:
+        status_reason = "Manual event outfit labels did not match the current DB; rerun remap evaluation first."
+    elif status == "not_available" and not status_reason:
+        status_reason = "Event outfit grouping evaluation report is missing or unreadable."
     return {
         "source": str(path),
+        "status": status,
+        "status_reason": status_reason,
+        "metric_available": metric_available,
+        "target_metric_eligible": target_metric_eligible,
         "grouping_version": data.get("grouping_version"),
         "persons": data.get("persons"),
-        "events": data.get("events"),
+        "events": events,
+        "manual_assignment_count": data.get("manual_assignment_count"),
+        "evaluated_assignment_count": data.get("evaluated_assignment_count"),
+        "evaluated_assignment_rate": data.get("evaluated_assignment_rate"),
         "manual_group_count": data.get("manual_group_count"),
         "predicted_group_count": data.get("predicted_group_count"),
+        "remap": data.get("remap") if isinstance(data.get("remap"), dict) else None,
         "pairwise_precision": pairwise.get("precision"),
         "pairwise_recall": pairwise.get("recall"),
         "pairwise_f1": f1,
         "macro_f1": pairwise.get("macro_f1"),
         "purity": purity_accuracy,
-        "passes_f1_target": f1 is not None and float(f1) >= TARGETS["outfit_grouping_pairwise_f1"],
+        "passes_f1_target": (
+            target_metric_eligible
+            and f1 is not None
+            and float(f1) >= TARGETS["outfit_grouping_pairwise_f1"]
+        ),
         "passes_purity_target": (
-            purity_accuracy is not None and float(purity_accuracy) >= TARGETS["outfit_grouping_purity"]
+            target_metric_eligible
+            and purity_accuracy is not None
+            and float(purity_accuracy) >= TARGETS["outfit_grouping_purity"]
         ),
     }
 

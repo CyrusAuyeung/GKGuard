@@ -21,3 +21,8 @@ playwright-report/
 test-results/
 local-test-data/
 初期材料/
+.vscode/
+*.crt
+*.key
+services/campusvision-c1/*.log
+services/campusvision-c1/logs/

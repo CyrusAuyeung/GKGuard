@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from hashlib import sha1
+from typing import Any
 import uuid
 import numpy as np
 
@@ -1511,6 +1512,325 @@ def _person_matches(
         matches, max_gap_sec=max_gap_sec
     )
     return matches, trajectory, appearance_events
+
+
+def _record_in_query_scope(
+    record: dict,
+    *,
+    camera_id: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> bool:
+    if camera_id and record.get("camera_id") != camera_id:
+        return False
+    captured_at = record.get("captured_at")
+    if start_time and (not captured_at or str(captured_at) < start_time):
+        return False
+    if end_time and (not captured_at or str(captured_at) > end_time):
+        return False
+    return True
+
+
+def _scoped_person_records(
+    person_id: str,
+    *,
+    camera_id: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> list[dict]:
+    records = db.list_face_records_for_person(person_id)
+    if not any((camera_id, start_time, end_time)):
+        return records
+    return [
+        record
+        for record in records
+        if _record_in_query_scope(
+            record,
+            camera_id=camera_id,
+            start_time=start_time,
+            end_time=end_time,
+        )
+    ]
+
+
+def _score_person_records(person: dict, records: list[dict], query_embeddings: list[list[float]]) -> dict[str, Any]:
+    face_scores = sorted(
+        (
+            max(cosine_similarity(query, record["embedding"]) for query in query_embeddings)
+            for record in records
+        ),
+        reverse=True,
+    )
+    centroid_score = max(cosine_similarity(query, person["embedding"]) for query in query_embeddings)
+    best_face_score = face_scores[0] if face_scores else centroid_score
+    top3_face_score = (
+        sum(face_scores[:3]) / min(3, len(face_scores))
+        if face_scores
+        else centroid_score
+    )
+    score = max(
+        centroid_score,
+        0.50 * best_face_score + 0.35 * top3_face_score + 0.15 * centroid_score,
+    )
+    return {
+        "score": round(float(score), 6),
+        "centroid_score": round(float(centroid_score), 6),
+        "best_face_score": round(float(best_face_score), 6),
+        "top3_face_score": round(float(top3_face_score), 6),
+        "scored_face_count": len(records),
+    }
+
+
+def _person_query_matches(
+    records: list[dict],
+    query_embeddings: list[list[float]],
+    *,
+    max_gap_sec: float,
+    match_limit: int,
+) -> tuple[list[dict], list[dict], list[dict]]:
+    cameras = search_service.camera_lookup()
+    matches = [
+        search_service.build_match(
+            record,
+            max(cosine_similarity(query, record["embedding"]) for query in query_embeddings),
+            cameras,
+        )
+        for record in records
+    ]
+    matches.sort(key=lambda match: match["score"], reverse=True)
+    limited_matches = matches[: max(0, int(match_limit))]
+    trajectory = search_service.trajectory_from_matches(limited_matches)
+    appearance_events = search_service.appearance_events_from_matches(matches, max_gap_sec=max_gap_sec)
+    return limited_matches, trajectory, appearance_events
+
+
+def _candidate_events(
+    person_id: str,
+    *,
+    camera_id: str | None,
+    start_time: str | None,
+    end_time: str | None,
+    event_limit: int,
+) -> list[dict]:
+    events = db.list_events(
+        person_id=person_id,
+        camera_id=camera_id,
+        start_time=start_time,
+        end_time=end_time,
+        limit=max(1, int(event_limit)),
+    )
+    event_profiles = glasses_status_service.load_profiles().get("event_profiles") or {}
+    out = []
+    for event in events:
+        _attach_glasses_status_to_event(event, event_profiles.get(event.get("event_id")))
+        out.append(_persisted_event_for_person(event, person_id))
+    return out
+
+
+def _query_candidate_attributes(person: dict, events: list[dict]) -> dict:
+    latest_event = events[-1] if events else None
+    gender_profile = gender_presentation_service.load_profiles().get("profiles", {}).get(person["person_id"])
+    glasses_profile = glasses_status_service.load_profiles().get("profiles", {}).get(person["person_id"])
+    return {
+        "latest_upper_color": (latest_event or {}).get("normalized_upper_color")
+        or (latest_event or {}).get("upper_color"),
+        "latest_upper_color_confidence": (latest_event or {}).get("normalized_upper_color_confidence")
+        or (latest_event or {}).get("upper_color_confidence"),
+        "gender_presentation": (gender_profile or {}).get("gender_presentation"),
+        "gender_presentation_label": (gender_profile or {}).get("gender_presentation_label"),
+        "gender_presentation_confidence": (gender_profile or {}).get("confidence"),
+        "glasses_status": (glasses_profile or {}).get("glasses_status"),
+        "glasses_status_label": (glasses_profile or {}).get("glasses_status_label"),
+        "glasses_status_confidence": (glasses_profile or {}).get("confidence"),
+    }
+
+
+def query_face_image_candidates(
+    query_paths: list[str],
+    *,
+    query_face_indices: list[int | None] | None = None,
+    top_k: int = 5,
+    min_score: float | None = None,
+    max_gap_sec: float = 3.0,
+    include_candidates: bool = False,
+    event_limit_per_person: int = 20,
+    match_limit_per_person: int = 10,
+    include_events: bool = True,
+    include_matches: bool = True,
+    camera_id: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict:
+    search_id = uuid.uuid4().hex
+    min_score = default_similarity_threshold() if min_score is None else float(min_score)
+    face_selection = search_service.select_query_face_embeddings(
+        query_paths,
+        query_face_indices=query_face_indices,
+    )
+    query_embeddings = face_selection["embeddings"]
+    warnings = list(face_selection.get("warnings") or [])
+
+    if not query_embeddings:
+        warning = "No face/target embedding extracted from query images."
+        warnings.append(warning)
+        result = {
+            "search_id": search_id,
+            "engine": get_face_engine().name,
+            "query_faces": face_selection["query_faces"],
+            "selected_query_faces": face_selection["selected_query_faces"],
+            "reference_consistency": face_selection["reference_consistency"],
+            "candidates": [],
+            "ambiguous": False,
+            "warning": warning,
+            "warnings": warnings,
+            "diagnostics": face_selection["diagnostics"],
+        }
+        db.add_search(
+            {
+                "search_id": search_id,
+                "query_paths": query_paths,
+                "params": {
+                    "mode": "face_image_candidates",
+                    "top_k": top_k,
+                    "min_score": min_score,
+                    "max_gap_sec": max_gap_sec,
+                    "query_face_indices": query_face_indices,
+                    "include_candidates": include_candidates,
+                    "event_limit_per_person": event_limit_per_person,
+                    "match_limit_per_person": match_limit_per_person,
+                    "include_events": include_events,
+                    "include_matches": include_matches,
+                    "camera_id": camera_id,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                },
+                "result": result,
+            }
+        )
+        return result
+
+    scored = []
+    for raw_person in db.list_persons():
+        person = _with_identity_status(dict(raw_person))
+        if not include_candidates and not person["is_stable_identity"]:
+            continue
+        records = _scoped_person_records(
+            person["person_id"],
+            camera_id=camera_id,
+            start_time=start_time,
+            end_time=end_time,
+        )
+        if not records:
+            continue
+        scores = _score_person_records(person, records, query_embeddings)
+        if scores["score"] < min_score:
+            continue
+        scored.append((person, records, scores))
+
+    scored.sort(key=lambda item: item[2]["score"], reverse=True)
+    candidates = []
+    for person, records, scores in scored[: max(1, int(top_k))]:
+        matches, trajectory, appearance_events = _person_query_matches(
+            records,
+            query_embeddings,
+            max_gap_sec=max_gap_sec,
+            match_limit=match_limit_per_person,
+        )
+        events = (
+            _candidate_events(
+                person["person_id"],
+                camera_id=camera_id,
+                start_time=start_time,
+                end_time=end_time,
+                event_limit=event_limit_per_person,
+            )
+            if include_events
+            else []
+        )
+        person.pop("embedding", None)
+        if person.get("representative_face_id"):
+            person["representative_face_crop_url"] = f"/api/v1/media/face/{person['representative_face_id']}"
+        candidate = {
+            "person_id": person["person_id"],
+            "identity_status": person.get("identity_status"),
+            "is_stable_identity": person.get("is_stable_identity"),
+            "score": scores["score"],
+            "confidence": "candidate",
+            "score_breakdown": {
+                "centroid_score": scores["centroid_score"],
+                "best_face_score": scores["best_face_score"],
+                "top3_face_score": scores["top3_face_score"],
+                "scored_face_count": scores["scored_face_count"],
+            },
+            "representative_face_id": person.get("representative_face_id"),
+            "representative_face_crop_url": person.get("representative_face_crop_url"),
+            "face_count": int(person.get("face_count") or 0),
+            "event_count": int(person.get("event_count") or 0),
+            "attributes": _query_candidate_attributes(person, events),
+            "events": events,
+            "matches": matches if include_matches else [],
+            "trajectory": trajectory if include_matches else [],
+            "appearance_events": appearance_events[: max(0, int(event_limit_per_person))] if include_events else [],
+        }
+        candidates.append(candidate)
+
+    warning = None
+    ambiguous = False
+    if candidates:
+        best_score = candidates[0]["score"]
+        second_score = candidates[1]["score"] if len(candidates) > 1 else None
+        margin = best_score - second_score if second_score is not None else None
+        confidence = (
+            "high"
+            if best_score >= confident_similarity_threshold() and (margin is None or margin >= 0.08)
+            else "low"
+        )
+        ambiguous = second_score is not None and margin is not None and margin < 0.08
+        candidates[0]["confidence"] = confidence
+        for candidate in candidates[1:]:
+            candidate["confidence"] = "candidate"
+        if confidence == "low":
+            warning = "Low-confidence person match. Candidates are close or below the recommended threshold."
+            warnings.append(warning)
+    else:
+        warning = "No person matched the requested minimum score."
+        warnings.append(warning)
+
+    result = {
+        "search_id": search_id,
+        "engine": get_face_engine().name,
+        "query_faces": face_selection["query_faces"],
+        "selected_query_faces": face_selection["selected_query_faces"],
+        "reference_consistency": face_selection["reference_consistency"],
+        "candidates": candidates,
+        "ambiguous": ambiguous,
+        "warning": warning,
+        "warnings": warnings,
+        "diagnostics": face_selection["diagnostics"],
+    }
+    db.add_search(
+        {
+            "search_id": search_id,
+            "query_paths": query_paths,
+            "params": {
+                "mode": "face_image_candidates",
+                "top_k": top_k,
+                "min_score": min_score,
+                "max_gap_sec": max_gap_sec,
+                "query_face_indices": query_face_indices,
+                "include_candidates": include_candidates,
+                "event_limit_per_person": event_limit_per_person,
+                "match_limit_per_person": match_limit_per_person,
+                "include_events": include_events,
+                "include_matches": include_matches,
+                "camera_id": camera_id,
+                "start_time": start_time,
+                "end_time": end_time,
+            },
+            "result": result,
+        }
+    )
+    return result
 
 
 def search_persons_by_images(

@@ -142,6 +142,34 @@ class SearchResult(BaseModel):
     appearance_events: list[dict] = Field(default_factory=list)
 
 
+class PersonAttributeTimeRange(BaseModel):
+    start_time: str | None = None
+    end_time: str | None = None
+
+
+class PersonAttributeQueryRequest(BaseModel):
+    time_range: PersonAttributeTimeRange | None = None
+    camera_ids: list[str] = Field(default_factory=list)
+    gender_presentation: list[str] = Field(default_factory=list)
+    glasses_status: list[str] = Field(default_factory=list)
+    upper_colors: list[str] = Field(default_factory=list)
+    person_scope: str = Field("stable", examples=["stable"])
+    include_candidates: bool = False
+    include_near_misses: bool = True
+    min_score: float | None = Field(None, ge=0.0, le=1.0)
+    limit: int = Field(50, ge=1, le=200)
+    offset: int = Field(0, ge=0)
+    candidate_pool_size: int = Field(5000, ge=1, le=5000)
+
+
+class PersonAttributeQueryResult(BaseModel):
+    query_id: str
+    created_at: str
+    query: dict
+    summary: dict
+    results: list[dict]
+
+
 class PersonIndexResult(BaseModel):
     persons: int
     linked_faces: int

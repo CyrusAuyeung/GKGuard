@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
@@ -23,6 +24,8 @@ from app.schemas import (
     LiveSourceCreate,
     LiveSourceOut,
     LiveSourceStatus,
+    PersonAttributeQueryRequest,
+    PersonAttributeQueryResult,
     PersonEventOut,
     PersonIndexResult,
     PersonObservationOut,
@@ -36,6 +39,7 @@ from app.services import (
     glasses_status_service,
     live_service,
     outfit_service,
+    person_attribute_query_service,
     person_service,
     search_service,
     video_service,
@@ -145,6 +149,36 @@ _COLOR_LABELS = {
 
 def _h(value: object) -> str:
     return escape(str(value or ""), quote=True)
+
+
+def _parse_query_face_indices(raw: str | None, fallback_index: int | None = None) -> list[int | None] | None:
+    if raw is None or not str(raw).strip():
+        return [int(fallback_index)] if fallback_index is not None else None
+
+    text = str(raw).strip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = [item.strip() for item in text.split(",")]
+
+    if isinstance(parsed, int):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        raise HTTPException(status_code=400, detail="query_face_indices must be a JSON array, integer, or comma list")
+
+    out: list[int | None] = []
+    for item in parsed:
+        if item is None or item == "":
+            out.append(None)
+            continue
+        try:
+            value = int(item)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="query_face_indices values must be integers or null") from exc
+        if value < 0:
+            raise HTTPException(status_code=400, detail="query_face_indices values must be non-negative")
+        out.append(value)
+    return out
 
 
 def _color_label(color: str | None) -> str:
@@ -309,6 +343,43 @@ def _appearance_outfit_card(group: dict) -> str:
 
 def _utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _url_with_query(path: str, **params: object) -> str:
+    query: dict[str, str] = {}
+    for key, value in params.items():
+        if value is None:
+            continue
+        if isinstance(value, bool):
+            query[key] = str(value).lower()
+        else:
+            query[key] = str(value)
+    encoded = urlencode(query)
+    return f"{path}?{encoded}" if encoded else path
+
+
+def _person_scope_tabs(path: str, include_candidates: bool, **params: object) -> str:
+    all_href = _url_with_query(path, include_candidates=True, **params)
+    stable_href = _url_with_query(path, include_candidates=False, **params)
+    all_class = "scope-tab active" if include_candidates else "scope-tab"
+    stable_class = "scope-tab active" if not include_candidates else "scope-tab"
+    return f"""
+        <nav class="scope-tabs" aria-label="人物范围">
+            <a class="{all_class}" href="{_h(all_href)}">全部人物</a>
+            <a class="{stable_class}" href="{_h(stable_href)}">只看稳定人物</a>
+        </nav>
+    """
+
+
+def _scoped_persons(person_id: Optional[str], include_candidates: bool) -> list[dict]:
+    persons = [
+        dict(person) | {"identity_status": person_service.identity_status(person)}
+        for person in db.list_persons()
+        if not person_id or person["person_id"] == person_id
+    ]
+    if not include_candidates:
+        persons = [person for person in persons if person.get("identity_status") == "stable"]
+    return persons
 
 
 def _safe_path_component(value: object) -> str:
@@ -1300,10 +1371,23 @@ def appearance_sessions_gallery(
     changed_only: bool = False,
     outfit_distance_threshold: float = 0.42,
     limit: int = 200,
+    include_candidates: bool = True,
 ):
+    scoped_persons = _scoped_persons(person_id, include_candidates)
+    scoped_person_ids = {person["person_id"] for person in scoped_persons}
     sessions = event_service.list_appearance_sessions(person_id=person_id)
+    sessions = [
+        session
+        for session in sessions
+        if session.get("person_id") in scoped_person_ids
+    ]
     sessions = sessions[: max(1, min(int(limit), 1000))]
     events = db.list_events(person_id=person_id, identified=True, limit=5000)
+    events = [
+        event
+        for event in events
+        if event.get("person_id") in scoped_person_ids
+    ]
     events_by_session: dict[str, list[dict]] = defaultdict(list)
     for event in events:
         session_id = event.get("appearance_session_id")
@@ -1320,11 +1404,7 @@ def appearance_sessions_gallery(
             )
         ]
 
-    persons = {
-        person["person_id"]: person
-        for person in db.list_persons()
-        if not person_id or person["person_id"] == person_id
-    }
+    persons = {person["person_id"]: person for person in scoped_persons}
     sessions_by_person: dict[str, list[dict]] = defaultdict(list)
     for session in sessions:
         sessions_by_person[session["person_id"]].append(session)
@@ -1398,6 +1478,7 @@ def appearance_sessions_gallery(
                     <div>
                         <h2 title="{_h(current_person_id)}">{_h(current_person_id)}</h2>
                         <div class="person-stats">
+                            <span>{_h(person.get("identity_status") or "")}</span>
                             <span>{int(person.get("face_count") or 0)} faces</span>
                             <span>{len(sessions_by_person[current_person_id])} sessions</span>
                         </div>
@@ -1411,6 +1492,15 @@ def appearance_sessions_gallery(
         )
 
     body = "\n".join(person_blocks) or '<p class="empty">No appearance sessions</p>'
+    scope_tabs = _person_scope_tabs(
+        "/api/v1/appearance-sessions/gallery",
+        include_candidates,
+        person_id=person_id,
+        changed_only=changed_only,
+        outfit_distance_threshold=float(outfit_distance_threshold),
+        limit=limit,
+    )
+    scope_label = "全部人物" if include_candidates else "只看稳定人物"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -1431,6 +1521,9 @@ def appearance_sessions_gallery(
                     display: inline-flex; align-items: center; height: 24px; padding: 0 8px;
                     border: 1px solid #d9dee5; border-radius: 6px; background: #fff;
                 }}
+                .scope-tabs {{ display: inline-flex; align-items: center; height: 34px; padding: 3px; border: 1px solid #cdd4df; border-radius: 7px; background: #fff; }}
+                .scope-tab {{ display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 5px; color: #56606b; text-decoration: none; font-size: 13px; }}
+                .scope-tab.active {{ background: #20242a; color: #fff; }}
                 .person-block {{ margin-bottom: 18px; border: 1px solid #d9dee5; border-radius: 8px; background: #fff; overflow: hidden; }}
                 .person-header {{ display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-bottom: 1px solid #e5e9ef; background: #fbfcfd; }}
                 .person-face {{ width: 54px; height: 54px; object-fit: cover; border-radius: 6px; background: #e8ecf1; }}
@@ -1485,9 +1578,11 @@ def appearance_sessions_gallery(
                 <div class="topbar">
                     <h1>Appearance Sessions</h1>
                     <div class="summary">
+                        <span>{_h(scope_label)}</span>
                         <span>{len(sessions)} sessions</span>
                         <span>{assigned_event_count} assigned events</span>
                         <span>{changed_event_count} normalized changes</span>
+                        {scope_tabs}
                     </div>
                 </div>
                 {body}
@@ -2112,14 +2207,11 @@ def _manual_person_outfit_group_review(
     unsaved_only: bool,
     status: Optional[str],
     limit: int,
+    include_candidates: bool,
 ) -> HTMLResponse:
     saved_data = _load_manual_outfit_labels()
     saved_labels = saved_data.get("labels", {})
-    persons = [
-        person
-        for person in db.list_persons()
-        if not person_id or person["person_id"] == person_id
-    ][: max(1, min(int(limit), 3000))]
+    persons = _scoped_persons(person_id, include_candidates)[: max(1, min(int(limit), 3000))]
 
     if unsaved_only:
         persons = [
@@ -2296,6 +2388,17 @@ def _manual_person_outfit_group_review(
         )
 
     body = "\n".join(person_cards) or '<p class="empty">No persons</p>'
+    scope_tabs = _person_scope_tabs(
+        "/api/v1/outfit-labels/review",
+        include_candidates,
+        mode="manual",
+        person_id=person_id,
+        sample_count=sample_count,
+        unsaved_only=unsaved_only,
+        status=status,
+        limit=limit,
+    )
+    scope_label = "全部人物" if include_candidates else "只看稳定人物"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -2313,6 +2416,9 @@ def _manual_person_outfit_group_review(
                 h2 {{ margin: 0; font-size: 15px; word-break: break-all; }}
                 .summary, .person-stats, .state {{ color: #5d6875; font-size: 12px; }}
                 .actions, .save-box {{ display: flex; align-items: center; gap: 10px; }}
+                .scope-tabs {{ display: inline-flex; align-items: center; height: 34px; padding: 3px; border: 1px solid #cdd4df; border-radius: 7px; background: #fff; }}
+                .scope-tab {{ display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 5px; color: #5d6875; text-decoration: none; font-size: 13px; }}
+                .scope-tab.active {{ background: #20242a; color: #fff; }}
                 button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
                 button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
                 button:disabled {{ opacity: .55; cursor: default; }}
@@ -2362,9 +2468,10 @@ def _manual_person_outfit_group_review(
                 <div class="toolbar">
                     <div>
                         <h1>人工装束分组审核</h1>
-                        <div class="summary">{len(persons)} persons · {sample_total} samples · saved {saved_count} · file: {_h(str(_MANUAL_OUTFIT_LABEL_PATH))}</div>
+                        <div class="summary">{_h(scope_label)} · {len(persons)} persons · {sample_total} samples · saved {saved_count} · file: {_h(str(_MANUAL_OUTFIT_LABEL_PATH))}</div>
                     </div>
                     <div class="actions">
+                        {scope_tabs}
                         <button type="button" id="saveAll" class="primary">保存全部</button>
                         <span id="status" class="status">等待审核</span>
                     </div>
@@ -2473,14 +2580,11 @@ def manual_event_outfit_group_review(
     status: Optional[str] = None,
     limit: int = 1000,
     event_limit: int = 10000,
+    include_candidates: bool = True,
 ):
     saved_data = _load_manual_event_outfit_groups()
     saved_labels = saved_data.get("labels", {})
-    persons = [
-        person
-        for person in db.list_persons()
-        if not person_id or person["person_id"] == person_id
-    ][: max(1, min(int(limit), 3000))]
+    persons = _scoped_persons(person_id, include_candidates)[: max(1, min(int(limit), 3000))]
 
     if unsaved_only:
         persons = [
@@ -2686,6 +2790,16 @@ def manual_event_outfit_group_review(
         )
 
     body = "\n".join(person_cards) or '<p class="empty">No persons</p>'
+    scope_tabs = _person_scope_tabs(
+        "/api/v1/event-outfit-groups/review",
+        include_candidates,
+        person_id=person_id,
+        unsaved_only=unsaved_only,
+        status=status,
+        limit=limit,
+        event_limit=event_limit,
+    )
+    scope_label = "全部人物" if include_candidates else "只看稳定人物"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -2703,6 +2817,9 @@ def manual_event_outfit_group_review(
                 h2 {{ margin: 0; font-size: 15px; word-break: break-all; }}
                 .summary, .person-stats, .state {{ color: #5d6875; font-size: 12px; }}
                 .actions, .save-box, .person-stats {{ display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }}
+                .scope-tabs {{ display: inline-flex; align-items: center; height: 34px; padding: 3px; border: 1px solid #cdd4df; border-radius: 7px; background: #fff; }}
+                .scope-tab {{ display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 5px; color: #5d6875; text-decoration: none; font-size: 13px; }}
+                .scope-tab.active {{ background: #20242a; color: #fff; }}
                 button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
                 button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
                 button:disabled {{ opacity: .55; cursor: default; }}
@@ -2762,9 +2879,10 @@ def manual_event_outfit_group_review(
                 <div class="toolbar">
                     <div>
                         <h1>人物内事件装束分组评估</h1>
-                        <div class="summary">{len(persons)} persons · {total_event_count} events · saved {saved_count} · eval-only · file: {_h(str(_MANUAL_EVENT_OUTFIT_GROUP_PATH))}</div>
+                        <div class="summary">{_h(scope_label)} · {len(persons)} persons · {total_event_count} events · saved {saved_count} · eval-only · file: {_h(str(_MANUAL_EVENT_OUTFIT_GROUP_PATH))}</div>
                     </div>
                     <div class="actions">
+                        {scope_tabs}
                         <button type="button" id="saveAll" class="primary">保存全部</button>
                         <span id="status" class="status">等待审核</span>
                     </div>
@@ -2877,6 +2995,7 @@ def manual_outfit_label_review(
     status: Optional[str] = None,
     limit: int = 1000,
     mode: str = "manual",
+    include_candidates: bool = True,
 ):
     if mode != "auto":
         return _manual_person_outfit_group_review(
@@ -2885,14 +3004,22 @@ def manual_outfit_label_review(
             unsaved_only=unsaved_only,
             status=status,
             limit=limit,
+            include_candidates=include_candidates,
         )
 
     saved_data = _load_manual_outfit_labels()
     saved_labels = saved_data.get("labels", {})
+    scoped_persons = _scoped_persons(person_id, include_candidates)
+    scoped_person_ids = {person["person_id"] for person in scoped_persons}
     groups = outfit_service.build_outfit_groups(
         person_id=person_id,
         distance_threshold=max(0.1, min(float(distance_threshold), 0.9)),
     )
+    groups = [
+        group
+        for group in groups
+        if group.get("person_id") in scoped_person_ids
+    ]
     groups = groups[: max(1, min(int(limit), 3000))]
 
     if unsaved_only:
@@ -2909,11 +3036,7 @@ def manual_outfit_label_review(
         for session_id in group.get("source_session_ids") or []:
             session_group_counts[session_id] += 1
 
-    persons = {
-        person["person_id"]: person
-        for person in db.list_persons()
-        if not person_id or person["person_id"] == person_id
-    }
+    persons = {person["person_id"]: person for person in scoped_persons}
     groups_by_person: dict[str, list[dict]] = defaultdict(list)
     for group in groups:
         groups_by_person[group["person_id"]].append(group)
@@ -3147,6 +3270,18 @@ def manual_outfit_label_review(
         )
 
     body = "\n".join(person_blocks) or '<p class="empty">No outfit groups</p>'
+    scope_tabs = _person_scope_tabs(
+        "/api/v1/outfit-labels/review",
+        include_candidates,
+        mode="auto",
+        person_id=person_id,
+        sample_count=sample_count,
+        distance_threshold=distance_threshold,
+        unsaved_only=unsaved_only,
+        status=status,
+        limit=limit,
+    )
+    scope_label = "全部人物" if include_candidates else "只看稳定人物"
     return HTMLResponse(
         f"""
         <!doctype html>
@@ -3165,6 +3300,9 @@ def manual_outfit_label_review(
                 h3 {{ margin: 0; font-size: 14px; }}
                 .summary, .meta-line, .person-stats, .state, .source-line {{ color: #5d6875; font-size: 12px; }}
                 .actions {{ display: flex; align-items: center; gap: 10px; }}
+                .scope-tabs {{ display: inline-flex; align-items: center; height: 34px; padding: 3px; border: 1px solid #cdd4df; border-radius: 7px; background: #fff; }}
+                .scope-tab {{ display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 5px; color: #5d6875; text-decoration: none; font-size: 13px; }}
+                .scope-tab.active {{ background: #20242a; color: #fff; }}
                 button {{ height: 34px; border: 1px solid #bac3cf; border-radius: 6px; background: #fff; color: #20242a; cursor: pointer; padding: 0 12px; font-weight: 600; }}
                 button.primary {{ background: #1f5f9f; border-color: #1f5f9f; color: #fff; }}
                 button:disabled {{ opacity: .55; cursor: default; }}
@@ -3229,9 +3367,10 @@ def manual_outfit_label_review(
                 <div class="toolbar">
                     <div>
                         <h1>装束分组审核</h1>
-                        <div class="summary">{len(groups)} outfit groups · {sample_total} samples · saved {saved_count} · split groups {split_group_count} · file: {_h(str(_MANUAL_OUTFIT_LABEL_PATH))}</div>
+                        <div class="summary">{_h(scope_label)} · {len(groups)} outfit groups · {sample_total} samples · saved {saved_count} · split groups {split_group_count} · file: {_h(str(_MANUAL_OUTFIT_LABEL_PATH))}</div>
                     </div>
                     <div class="actions">
+                        {scope_tabs}
                         <button type="button" id="saveAll" class="primary">保存全部</button>
                         <span id="status" class="status">等待审核</span>
                     </div>
@@ -4800,6 +4939,62 @@ def search_by_clothes(
         limit=limit,
         offset=offset,
     )
+
+
+@router.post("/query/face-image")
+async def query_face_image(
+    files: list[UploadFile] = File(...),
+    query_face_indices: Optional[str] = Form(None),
+    query_face_index: Optional[int] = Form(None),
+    top_k: int = Form(5),
+    min_score: Optional[float] = Form(None),
+    max_gap_sec: float = Form(3.0),
+    include_candidates: bool = Form(False),
+    event_limit_per_person: int = Form(20),
+    match_limit_per_person: int = Form(10),
+    include_events: bool = Form(True),
+    include_matches: bool = Form(True),
+    camera_id: Optional[str] = Form(None),
+    start_time: Optional[str] = Form(None),
+    end_time: Optional[str] = Form(None),
+):
+    import uuid
+
+    temp_search_id = "face_query_" + uuid.uuid4().hex
+    paths = []
+    for upload in files:
+        if not upload.filename:
+            continue
+        paths.append(search_service.save_query_image(upload.file, upload.filename, temp_search_id))
+
+    if not paths:
+        raise HTTPException(status_code=400, detail="No query image uploaded.")
+
+    parsed_indices = _parse_query_face_indices(query_face_indices, fallback_index=query_face_index)
+    return person_service.query_face_image_candidates(
+        paths,
+        query_face_indices=parsed_indices,
+        top_k=max(1, min(int(top_k), 50)),
+        min_score=min_score,
+        max_gap_sec=max(0.0, float(max_gap_sec)),
+        include_candidates=include_candidates,
+        event_limit_per_person=max(0, min(int(event_limit_per_person), 200)),
+        match_limit_per_person=max(0, min(int(match_limit_per_person), 200)),
+        include_events=include_events,
+        include_matches=include_matches,
+        camera_id=camera_id,
+        start_time=start_time,
+        end_time=end_time,
+    )
+
+
+@router.post("/query/person-attributes", response_model=PersonAttributeQueryResult)
+def query_person_attributes(payload: PersonAttributeQueryRequest):
+    data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    try:
+        return person_attribute_query_service.query_person_attributes(data)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/videos/{video_id}/index", response_model=IndexResult)

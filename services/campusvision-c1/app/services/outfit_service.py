@@ -249,6 +249,137 @@ def _dominant_color(group: list[dict[str, Any]]) -> tuple[str, float]:
     return color, float(count / max(1, sum(counts.values())))
 
 
+def _event_upper_probabilities(event: dict[str, Any]) -> dict[str, float]:
+    raw = (
+        event.get("upper_color_probs")
+        or event.get("normalized_upper_color_probs")
+        or event.get("raw_upper_color_probs")
+        or {}
+    )
+    if not isinstance(raw, dict):
+        return {}
+
+    out: dict[str, float] = {}
+    for color in settings.clothing_color_labels:
+        if color in {"unknown", "other"}:
+            continue
+        try:
+            value = float(raw.get(color) or 0.0)
+        except (TypeError, ValueError):
+            value = 0.0
+        if value > 0.0:
+            out[color] = value
+    total = sum(out.values())
+    return {color: value / total for color, value in out.items()} if total > 0.0 else {}
+
+
+def _aggregate_upper_probabilities(events: list[dict[str, Any]]) -> dict[str, float]:
+    totals: Counter[str] = Counter()
+    total_weight = 0.0
+    for event in events:
+        probabilities = _event_upper_probabilities(event)
+        if not probabilities:
+            continue
+        confidence = max(0.05, min(1.0, float(event.get("upper_color_confidence") or 0.0)))
+        for color, probability in probabilities.items():
+            totals[color] += probability * confidence
+        total_weight += confidence
+    if total_weight <= 0.0:
+        return {}
+    return {color: float(value / total_weight) for color, value in totals.items()}
+
+
+def _resolve_outfit_upper_color(
+    color_counts: Counter[str],
+    events: list[dict[str, Any]],
+    *,
+    average_confidence: float | None,
+    max_striped_score: float,
+) -> tuple[str, dict[str, Any]]:
+    base_color = color_counts.most_common(1)[0][0] if color_counts else "unknown"
+    if base_color == "unknown":
+        return "unknown", {"action": "keep_base", "base_color": base_color}
+
+    probabilities = _aggregate_upper_probabilities(events)
+    confidence = float(average_confidence or 0.0)
+    gray_probability = float(probabilities.get("gray", 0.0))
+    white_probability = float(probabilities.get("white", 0.0))
+    striped_probability = float(probabilities.get("striped", 0.0))
+
+    black_count = int(color_counts.get("black", 0))
+    blue_count = int(color_counts.get("blue", 0))
+    gray_count = int(color_counts.get("gray", 0))
+    purple_count = int(color_counts.get("purple", 0))
+    striped_count = int(color_counts.get("striped", 0))
+    white_count = int(color_counts.get("white", 0))
+
+    if base_color == "purple" and black_count > 0 and black_count >= purple_count:
+        return "black", {
+            "action": "override_dark_purple_cast",
+            "base_color": base_color,
+            "black_count": black_count,
+            "purple_count": purple_count,
+        }
+
+    if base_color == "gray" and white_count > 0 and white_count >= gray_count and len(color_counts) <= 3:
+        return "white", {
+            "action": "override_gray_white_tie",
+            "base_color": base_color,
+            "gray_count": gray_count,
+            "white_count": white_count,
+        }
+
+    if base_color == "gray" and striped_count > 0 and max_striped_score >= 0.55:
+        return "striped", {
+            "action": "override_gray_high_stripe_evidence",
+            "base_color": base_color,
+            "max_striped_score": round(float(max_striped_score), 4),
+            "striped_count": striped_count,
+        }
+
+    if (
+        base_color == "striped"
+        and gray_count > 0
+        and max_striped_score <= 0.30
+        and gray_probability >= striped_probability * 0.80
+    ):
+        return "gray", {
+            "action": "override_low_stripe_gray_evidence",
+            "base_color": base_color,
+            "gray_probability": round(gray_probability, 6),
+            "striped_probability": round(striped_probability, 6),
+            "max_striped_score": round(float(max_striped_score), 4),
+        }
+
+    if (
+        base_color == "blue"
+        and purple_count > 0
+        and blue_count > 0
+        and purple_count >= blue_count
+        and confidence < 0.35
+    ):
+        return "purple", {
+            "action": "override_low_confidence_blue_purple_tie",
+            "base_color": base_color,
+            "blue_count": blue_count,
+            "purple_count": purple_count,
+            "average_confidence": round(confidence, 4),
+        }
+
+    if base_color == "gray" and confidence < 0.30 and white_probability >= 0.10:
+        return "white", {
+            "action": "override_low_confidence_gray_white_probability",
+            "base_color": base_color,
+            "average_confidence": round(confidence, 4),
+            "white_probability": round(white_probability, 6),
+        }
+
+    return "unknown" if base_color == "unknown" else base_color, {
+        "action": "keep_base",
+        "base_color": base_color,
+    }
+
+
 def _source_segments_for_group(group: list[dict[str, Any]]) -> set[str]:
     return {
         str(item.get("source_segment") or "")
@@ -330,6 +461,14 @@ def _group_summary(person_id: str, group: list[dict[str, Any]], group_index: int
         for item in group
         if item.get("diagnostics", {}).get("feature_status") == "ok"
     ]
+    average_confidence = sum(confidences) / len(confidences) if confidences else None
+    max_striped_score = max(striped_scores) if striped_scores else 0.0
+    model_upper_color, color_resolution = _resolve_outfit_upper_color(
+        color_counts,
+        events,
+        average_confidence=average_confidence,
+        max_striped_score=max_striped_score,
+    )
     return {
         "outfit_id": _outfit_id(person_id, events),
         "person_id": person_id,
@@ -343,11 +482,13 @@ def _group_summary(person_id: str, group: list[dict[str, Any]], group_index: int
         "end_time": events[-1].get("end_time"),
         "start_timestamp_sec": events[0].get("start_timestamp_sec"),
         "end_timestamp_sec": events[-1].get("end_timestamp_sec"),
-        "model_upper_color": color_counts.most_common(1)[0][0] if color_counts else "unknown",
+        "model_upper_color": model_upper_color,
+        "model_upper_color_base": color_resolution.get("base_color") or "unknown",
         "model_upper_color_counts": dict(color_counts.most_common()),
-        "model_upper_color_confidence": round(sum(confidences) / len(confidences), 4) if confidences else None,
+        "model_upper_color_confidence": round(average_confidence, 4) if average_confidence is not None else None,
+        "model_upper_color_resolution": color_resolution,
         "feature_status_counts": dict(feature_status.most_common()),
-        "max_striped_score": round(max(striped_scores), 4) if striped_scores else 0.0,
+        "max_striped_score": round(max_striped_score, 4),
         "events": events,
         "samples": [_sample_for_event(event) for event in events],
         "grouping_version": OUTFIT_GROUPING_VERSION,

@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from app.core.config import settings  # noqa: E402
+from app.services import outfit_service  # noqa: E402
 from app.storage import db  # noqa: E402
 from app.vision import person_analysis  # noqa: E402
 
@@ -284,9 +285,61 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
     if not isinstance(labels, dict):
         raise ValueError("manual outfit labels must contain a labels object")
 
-    items: list[dict[str, Any]] = []
-    for label in labels.values():
+    review_items: list[dict[str, Any]] = []
+    legacy_items: list[dict[str, Any]] = []
+    current_outfit_ids: set[str] | None = None
+    for label_id, label in labels.items():
         if not isinstance(label, dict):
+            continue
+        if label.get("source") == "manual_outfit_review":
+            if current_outfit_ids is None:
+                current_outfit_ids = {
+                    group["outfit_id"]
+                    for group in outfit_service.build_outfit_groups(distance_threshold=0.42)
+                }
+            outfit_id = str(label.get("outfit_id") or label_id)
+            color = str(label.get("upper_color") or "unknown")
+            if not outfit_id.startswith("outfit_") or color == "unknown" or outfit_id not in current_outfit_ids:
+                continue
+            snapshots = [
+                snapshot
+                for snapshot in label.get("sample_snapshots") or []
+                if isinstance(snapshot, dict) and snapshot.get("snapshot_available")
+            ]
+            if not snapshots:
+                event_ids = [
+                    str(event_id)
+                    for event_id in label.get("sample_event_ids") or []
+                    if event_id
+                ]
+                observation_ids = [
+                    str(observation_id)
+                    for observation_id in label.get("sample_observation_ids") or []
+                    if observation_id
+                ]
+                max_len = max(len(event_ids), len(observation_ids))
+                snapshots = [
+                    {
+                        "event_id": event_ids[index] if index < len(event_ids) else "",
+                        "observation_id": observation_ids[index] if index < len(observation_ids) else "",
+                    }
+                    for index in range(max_len)
+                ]
+            for index, snapshot in enumerate(snapshots, start=1):
+                event_id = str(snapshot.get("event_id") or "")
+                observation_id = str(snapshot.get("observation_id") or "")
+                sample_key = observation_id or event_id or f"{outfit_id}_{index}"
+                review_items.append(
+                    {
+                        "sample_key": sample_key,
+                        "person_id": str(label.get("person_id") or ""),
+                        "split_group": outfit_id,
+                        "event_id": event_id,
+                        "observation_id": observation_id,
+                        "upper_color": color,
+                        "sample_snapshot": snapshot,
+                    }
+                )
             continue
         if not (label.get("source") == "manual_person_outfit_grouping" or label.get("manual_grouping")):
             continue
@@ -319,7 +372,7 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
                 continue
             for assignment in assignments_by_group.get(str(split_group), []):
                 sample_key = assignment.get("observation_id") or assignment.get("event_id")
-                items.append(
+                legacy_items.append(
                     {
                         "sample_key": sample_key,
                         "person_id": person_id,
@@ -330,7 +383,7 @@ def _load_manual_items(path: Path) -> list[dict[str, Any]]:
                         "sample_snapshot": assignment.get("sample_snapshot") or {},
                     }
                 )
-    return items
+    return review_items or legacy_items
 
 
 def _sample_snapshot_lookup(snapshots: Any) -> dict[tuple[str, str], dict[str, Any]]:
