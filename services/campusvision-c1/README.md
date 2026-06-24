@@ -74,7 +74,7 @@ INSIGHTFACE_DET_SIZE=1280
 
 ## 安全与资源限制
 
-默认本地开发绑定 `127.0.0.1`，不要求 API key。若服务绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`；受保护的相机元数据、视频列表、上传、索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口会在读取 multipart 请求体前校验 `X-CampusVision-API-Key`。人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。查询图不可解码时返回 400，上传体积、解码像素数或单边尺寸超限时返回 413，并清理临时上传；视频索引失败时会回滚本次尝试新增的人脸记录、人物观测和帧文件，保留既有成功索引。不要把 API key 写入仓库或日志。
+默认本地开发绑定 `127.0.0.1`，不要求 API key。若服务绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`；受保护的相机元数据、视频列表、上传、索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口会在读取 multipart 请求体前校验 `X-CampusVision-API-Key`。人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。查询图不可解码时返回 400，上传体积、解码像素数或单边尺寸超限时返回 413，并清理临时上传；重复索引同一 `video_id` 会先替换旧索引产物，如果替换索引失败，需要重新运行索引，不应依赖旧事件或人物结果自动保留。不要把 API key 写入仓库或日志。
 
 `.env` 可配置以下资源上限：
 
@@ -345,7 +345,7 @@ INSIGHTFACE_DET_SIZE=1280
 
 ## Security And Resource Limits
 
-Local development binds to `127.0.0.1` by default and does not require an API key. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, set `CAMPUSVISION_API_KEY` or `C1_API_KEY`; protected camera-metadata, video-list, upload, indexing, person-index, search-result, media-frame, face-crop, and record endpoints validate `X-CampusVision-API-Key` before reading multipart request bodies. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Undecodable query images return 400, query-image upload-size, decoded-pixel, or maximum-side violations return 413, and these paths clean up temporary uploads; failed video indexing rolls back face records, person observations, and frame files created by the current attempt while preserving existing successful indexes. Do not write API keys to the repository or logs.
+Local development binds to `127.0.0.1` by default and does not require an API key. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, set `CAMPUSVISION_API_KEY` or `C1_API_KEY`; protected camera-metadata, video-list, upload, indexing, person-index, search-result, media-frame, face-crop, and record endpoints validate `X-CampusVision-API-Key` before reading multipart request bodies. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Undecodable query images return 400, query-image upload-size, decoded-pixel, or maximum-side violations return 413, and these paths clean up temporary uploads; re-indexing the same `video_id` replaces the old index artifacts first, so a failed replacement index must be run again instead of relying on old event or person results being preserved automatically. Do not write API keys to the repository or logs.
 
 These resource limits can be configured in `.env`:
 
