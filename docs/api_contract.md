@@ -167,6 +167,8 @@ Multipart 表单字段：
 
 该接口调用 CampusVision C1 `POST /api/v1/query/face-image`，用于返回查询图片对应的候选人物、候选事件和查询图人脸检测信息。它不替代 `/c1/search/person-by-image` 的结果页主流程，但可用于确认候选人物、扩展事件入口或后续高级检索。
 
+上传限制：该接口沿用 CampusVision C1 查询图上传数量和单文件大小限制；文件数量或大小超限时返回 413，并清理本次临时上传文件。
+
 `POST /c1/query/person-attributes`
 
 JSON 请求体：
@@ -204,6 +206,8 @@ GKGuard C2 返回归一化结果：
 - `records[]`：结果页记录，优先使用事件人体裁剪图或事件代表关键帧，保留 `eventId`、`personId`、`observationId`、`attributes`、`failedConditions`、`conditionScores` 和 `rawEvent`。
 - `routePoints[]`：由事件时间、摄像头和位置生成的路线点。
 - `summary`：候选扫描、排序和返回数量摘要。
+
+匹配语义：`unknown` 表示 CampusVision C1 无法判断对应属性，不等同于否定结果；当查询条件显式选择 `unknown` 时，真实 `unknown` 事件会作为满足条件处理。候选扫描优先覆盖最新事件窗口，避免大规模索引下只检索到最早事件。
 
 前端行为：人物特征检索不需要上传图片；结果为空时提示未匹配事件并停留在可继续修改条件的检索页。低分或部分匹配结果会保留分数与未命中条件说明，供人工复核，不应表述为确定身份。
 
@@ -564,6 +568,8 @@ Multipart form fields:
 
 This calls CampusVision C1 `POST /api/v1/query/face-image` and returns candidate persons, candidate events, and query-face detection information for the uploaded image. It does not replace `/c1/search/person-by-image` as the main result-page flow, but it can support candidate confirmation, expanded event entry points, or future advanced search.
 
+Upload limits: this endpoint reuses CampusVision C1 query-image upload-count and per-file-size limits. Over-limit requests return 413 and clean up the current temporary upload files.
+
 `POST /c1/query/person-attributes`
 
 JSON request body:
@@ -601,6 +607,8 @@ GKGuard C2 returns a normalized result:
 - `records[]`: result-screen records. They prefer event body crops or representative keyframes and preserve `eventId`, `personId`, `observationId`, `attributes`, `failedConditions`, `conditionScores`, and `rawEvent`.
 - `routePoints[]`: route points generated from event time, camera, and location.
 - `summary`: candidate scanning, ranking, and returned-count summary.
+
+Matching semantics: `unknown` means CampusVision C1 cannot determine that attribute, not that the attribute is false. When query filters explicitly select `unknown`, events whose actual value is `unknown` satisfy that condition. Candidate scanning prioritizes the newest event window so large indexes do not only evaluate the oldest events.
 
 Frontend behavior: person-attribute search does not require an uploaded image. Empty results show a no-match event warning and keep the user on the search screen so the filters can be adjusted. Low-score or partial-match results keep their score and failed-condition notes for human review, and must not be described as confirmed identity.
 

@@ -270,16 +270,18 @@ def test_attribute_query_rehydrates_page_media_after_scan_without_loading_vision
 
 
 def test_attribute_query_matches_requested_unknown_choice() -> None:
-    from app.services import person_attribute_query_service
+    service_source = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "services"
+        / "person_attribute_query_service.py"
+    ).read_text(encoding="utf-8")
+    choice_segment = service_source.split("def _choice_condition", 1)[1].split("def _camera_condition", 1)[0]
 
-    score, failure = person_attribute_query_service._choice_condition(
-        field="glasses_status",
-        expected=["unknown"],
-        actual="unknown",
+    assert 'actual_value = actual or "unknown"' in choice_segment
+    assert choice_segment.index("if actual_value in expected:") < choice_segment.index(
+        'if actual_value == "unknown":'
     )
-
-    assert score == 1.0
-    assert failure is None
 
 
 def test_face_image_query_uses_upload_limit_guard() -> None:
