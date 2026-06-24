@@ -19,6 +19,10 @@ class FaceEngine(Protocol):
         """Return one normalized embedding for each box."""
         ...
 
+    def detect_faces_with_embeddings(self, image_bgr: np.ndarray) -> tuple[list[dict], list[list[float]]]:
+        """Return aligned face boxes and normalized embeddings from one backend pass."""
+        ...
+
 
 @lru_cache(maxsize=1)
 def get_face_engine() -> FaceEngine:

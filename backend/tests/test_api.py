@@ -42,7 +42,8 @@ def test_health() -> None:
 def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
-    assert "GKGuard 人脸检索" in response.text
+    assert "GKGuard 智能检索" in response.text
+    assert "人物特征检索" in response.text
     assert "人脸检索结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
@@ -50,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.37-ui" in response.text
-    assert "/static/app.js?v=v0.1.37-ui" in response.text
+    assert "/static/styles.css?v=v0.2.0-ui" in response.text
+    assert "/static/app.js?v=v0.2.0-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -259,7 +260,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.37-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.2.0-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script

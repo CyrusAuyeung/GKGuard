@@ -7,4 +7,5 @@ pillow>=10.0
 pydantic>=2.0,<3.0
 python-dotenv>=1.0
 insightface>=0.7.3
-onnxruntime>=1.17.0
+onnxruntime-gpu==1.23.2
+ultralytics>=8.4

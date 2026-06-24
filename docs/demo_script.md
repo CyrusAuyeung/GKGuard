@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.1.37` 推荐流程：
+安装版 `v0.2.0` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.1.37.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.0.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -29,6 +29,18 @@
 12. 在最大化窗口、常规桌面窗口、约 `820px` 中等宽度、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；中等宽度结果页的人物照片不应遮挡数据来源和命中记录信息；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
+
+## 人物特征检索流程
+
+`v0.2.0` 新增的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口：
+
+1. 在搜索页切换到 `人物特征检索`。
+2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
+3. 点击 `开始检索`。GKGuard C2 会调用 `/c1/query/person-attributes`，后端再代理到 CampusVision C1 的 `/api/v1/query/person-attributes`。
+4. 结果页标题会切换为 `人物特征检索结果`，记录列表优先展示事件人体图，其次回退事件关键帧或人脸图。
+5. 详情区显示事件关键帧、人体图或人脸图，并在 `相关信息` 中展示上装颜色、眼镜状态、外观倾向、匹配类型、未满足条件和条件评分。
+6. `exact` 表示已填写条件全部满足；`partial` 表示相似但部分条件不满足，应结合未满足条件人工判断；`unknown` 表示模型无法判断，不等同于否定结果。
+7. 若 CampusVision C1 返回空结果，页面应停留在搜索页并提示未匹配事件，不应进入本地模拟结果。
 
 本地开发流程：
 
@@ -216,9 +228,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.1.37`:
+Recommended packaged-app flow for `v0.2.0`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.1.37.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.0.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -301,6 +313,18 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 - The UI falls back to local mock records only when no image has been uploaded; uploaded-image detection or real-search failures keep the UI on the upload screen with a retry/error message.
 - The result source shows `本地模拟` only when no image has been uploaded; uploaded-image detection or search failures do not enter the mock result screen.
 - The page remains usable for demonstrating the GKGuard C2 workbench and interactions.
+
+## Person-Attribute Search Flow
+
+The CampusVision C1 person-attribute search added in `v0.2.0` does not require a query image and is suitable for demonstrating event lookup by conditions:
+
+1. Switch to `人物特征检索` on the search screen.
+2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.
+3. Click `开始检索`. GKGuard C2 calls `/c1/query/person-attributes`, and the backend proxies it to CampusVision C1 `/api/v1/query/person-attributes`.
+4. The result title changes to `人物特征检索结果`. The record list prefers event body crops, then falls back to event keyframes or face crops.
+5. The detail panel shows the event keyframe, body crop, or face crop, and `相关信息` shows upper color, glasses status, appearance presentation, match type, failed conditions, and condition scores.
+6. `exact` means all filled conditions match. `partial` means the event is similar but some conditions failed and needs human judgment. `unknown` means the model cannot determine the attribute, not that the attribute is false.
+7. If CampusVision C1 returns no results, the UI should stay on the search screen with a no-event warning instead of entering local mock results.
 
 ## Legacy Mock API Walkthrough
 

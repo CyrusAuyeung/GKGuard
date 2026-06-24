@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import importlib
 from pathlib import Path
+import sys
+
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 
 
 def test_api_key_prefers_campusvision_api_key(monkeypatch) -> None:
@@ -35,6 +40,9 @@ def test_api_key_required_for_sensitive_read_paths() -> None:
         "/api/v1/searches/search001",
         "/api/v1/media/frame/face001",
         "/api/v1/media/face/face001",
+        "/api/v1/query/person-attributes",
+        "/api/v1/live-sources/source001/status",
+        "/api/v1/events/event001",
         "/api/v1/records",
         "/api/v1/videos",
         "/api/v1/videos/video001",
@@ -52,7 +60,7 @@ def test_api_key_not_required_for_public_health() -> None:
     from app.api.security import c1_api_key_required_for_path
 
     assert not c1_api_key_required_for_path("/health", "GET")
-    assert not c1_api_key_required_for_path("/api/v1/videos-extra", "GET")
+    assert not c1_api_key_required_for_path("/api/v2/videos", "GET")
 
 
 def test_delete_face_records_by_ids_preserves_existing_video_records(monkeypatch, tmp_path: Path) -> None:

@@ -25,6 +25,18 @@ def _iou(left: dict, right: dict) -> float:
     return inter / union if union > 0 else 0.0
 
 
+def _select_onnx_providers(available: list[str]) -> list[str]:
+    # TensorRT may be advertised by onnxruntime-gpu even when TensorRT runtime
+    # libraries are absent. Passing it to InsightFace can force a full CPU
+    # fallback, so prefer the stable CUDA path explicitly.
+    preferred = [
+        provider
+        for provider in ("CUDAExecutionProvider", "CPUExecutionProvider")
+        if provider in available
+    ]
+    return preferred or ["CPUExecutionProvider"]
+
+
 class InsightFaceEngine:
     """InsightFace/ArcFace backend for real-world face detection and embedding."""
 
@@ -42,7 +54,7 @@ class InsightFaceEngine:
         try:
             import onnxruntime as ort
 
-            providers = ort.get_available_providers()
+            providers = _select_onnx_providers(ort.get_available_providers())
         except Exception:
             providers = ["CPUExecutionProvider"]
 
@@ -56,13 +68,32 @@ class InsightFaceEngine:
             return []
         return self.app.get(image_bgr)
 
+    def _face_box_and_embedding(self, face) -> tuple[dict, list[float] | None]:
+        x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
+        score = float(getattr(face, "det_score", 0.0))
+        embedding = getattr(face, "normed_embedding", None)
+        if embedding is None:
+            embedding = getattr(face, "embedding", None)
+        normalized = _normalize(np.asarray(embedding)).tolist() if embedding is not None else None
+        return {"x1": x1, "y1": y1, "x2": x2, "y2": y2, "score": score}, normalized
+
     def detect_faces(self, image_bgr: np.ndarray) -> list[dict]:
         out = []
         for face in self._faces(image_bgr):
-            x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
-            score = float(getattr(face, "det_score", 0.0))
-            out.append({"x1": x1, "y1": y1, "x2": x2, "y2": y2, "score": score})
+            box, _embedding = self._face_box_and_embedding(face)
+            out.append(box)
         return out
+
+    def detect_faces_with_embeddings(self, image_bgr: np.ndarray) -> tuple[list[dict], list[list[float]]]:
+        boxes = []
+        embeddings = []
+        for face in self._faces(image_bgr):
+            box, embedding = self._face_box_and_embedding(face)
+            if embedding is None:
+                continue
+            boxes.append(box)
+            embeddings.append(embedding)
+        return boxes, embeddings
 
     def embed_faces(self, image_bgr: np.ndarray, boxes: list[dict]) -> list[list[float]]:
         if not boxes:
@@ -70,16 +101,13 @@ class InsightFaceEngine:
 
         detected = []
         for face in self._faces(image_bgr):
-            x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]
-            embedding = getattr(face, "normed_embedding", None)
-            if embedding is None:
-                embedding = getattr(face, "embedding", None)
+            box, embedding = self._face_box_and_embedding(face)
             if embedding is None:
                 continue
             detected.append(
                 {
-                    "box": {"x1": x1, "y1": y1, "x2": x2, "y2": y2},
-                    "embedding": _normalize(np.asarray(embedding)).tolist(),
+                    "box": box,
+                    "embedding": embedding,
                 }
             )
 

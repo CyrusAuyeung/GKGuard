@@ -24,7 +24,7 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 3. 真实 CampusVision C1 服务、campusCar、UE 能力必须能离线降级或有清晰失败提示。
 4. 发布前必须有可追溯版本号、发布说明、测试结果和安装包文件。
 5. 历史发布说明保留发布时的语境；当前状态文档同步最新版本。
-6. 每次发布后再次核对 README 和所有当前状态文档，确保版本号、功能边界、验证结果和安装包说明一致。
+6. 每次发布准备和发布后都要逐份核对根目录与 `docs/` 下所有 Markdown 文档全文，确保版本号、功能边界、验证结果、安装包说明、安全边界和协作流程一致。
 
 ## 仓库协作规则
 
@@ -46,6 +46,8 @@ GKGuard 当前是项目演示仓库，管理目标是保持 GKGuard C2 工作台
 - 维护者可直接处理低风险文档勘误、Release 正文同步和紧急小修，但仍需保留可追溯提交记录。
 - 影响安装包的变更需要更新版本号和 `docs/releases/vX.Y.Z.md`。
 - 影响当前行为或仓库边界的变更需要同步 README、`docs/README.md`、API/集成/演示/支持/安全等相关文档。
+- 版本号按变更规模推进：补丁修复使用 patch 版本，功能级或集成级更新可以推进 minor 版本。
+- 发布准备必须逐份阅读全文根目录和 `docs/` 下所有 Markdown 文档，不能只搜索替换版本号或只抽查部分文档。
 - `v*` 版本标签会触发 `.github/workflows/release-desktop.yml` 在 Windows、macOS 和 Linux runner 上构建桌面端安装文件。
 - 发布后检查 GitHub Release 正文、Windows `.exe`、macOS dmg/zip、Linux AppImage/deb、`.blockmap` 和 `latest*.yml`。
 
@@ -83,7 +85,7 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 3. Real CampusVision C1 service, CampusCar, and UE capabilities must degrade offline or provide a clear failure message.
 4. A Release requires traceable version, Release notes, validation results, and installer files.
 5. Historical Release notes keep their historical context; current-state documents track the latest version.
-6. After every release, re-check README and all current-state docs so version numbers, capability boundaries, validation results, and installer instructions stay consistent.
+6. During release preparation and after every release, read every root Markdown document and every Markdown document under `docs/` in full so version numbers, capability boundaries, validation results, installer instructions, security boundaries, and collaboration flow stay consistent.
 
 ## Repository Collaboration Rules
 
@@ -105,6 +107,8 @@ GKGuard is currently a project demo repository. Management focuses on keeping th
 - Maintainers may commit low-risk documentation corrections, Release-body synchronization, and urgent small fixes directly, while keeping traceable commits.
 - Installer-impacting changes must update the version and `docs/releases/vX.Y.Z.md`.
 - Changes that affect current behavior or repository boundaries must also update README, `docs/README.md`, and relevant API/integration/demo/support/security docs.
+- Version numbers advance according to change size: patch fixes use patch versions, while feature-level or integration-level changes may move to a minor version.
+- Release preparation must read every root Markdown document and every Markdown document under `docs/` in full, not only search-and-replace version numbers or sample part of the documentation.
 - Tags matching `v*` trigger `.github/workflows/release-desktop.yml` to build desktop packages on Windows, macOS, and Linux runners.
 - After publishing, check the Release body, Windows `.exe`, macOS dmg/zip, Linux AppImage/deb, `.blockmap`, and `latest*.yml`.
 

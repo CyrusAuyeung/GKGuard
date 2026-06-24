@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from app.api.routes import router
 from app.api.security import c1_api_key_required_for_path, validate_c1_api_key_headers
 from app.core.config import settings
+from app.services import live_service
 from app.storage.db import init_db
 from app.vision.face_engine import get_face_engine
 
@@ -30,6 +31,11 @@ async def require_c1_api_key_before_body_parse(request: Request, call_next):
         except HTTPException as exc:
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     return await call_next(request)
+
+
+@app.on_event("shutdown")
+def shutdown():
+    live_service.stop_all_live_monitors()
 
 
 @app.get("/health")

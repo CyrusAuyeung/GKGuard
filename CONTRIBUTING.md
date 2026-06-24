@@ -452,6 +452,7 @@ git branch -d docs/contributing-guide
 
 如果一个 PR 会影响安装包或新版本发布，需要额外确认：
 
+- 版本号是否按变更规模推进：补丁修复使用 patch 版本，功能级或集成级更新可以推进 minor 版本。
 - `package.json` 版本号是否更新。
 - `package-lock.json` 是否同步。
 - 是否新增或更新 `docs/releases/vX.Y.Z.md`。
@@ -982,6 +983,7 @@ Every version update or release-preparation change must read the full text of ev
 
 If a PR affects a release or installer, confirm:
 
+- The version number matches the change size: patch fixes use patch versions, while feature-level or integration-level changes may move to a minor version.
 - `package.json` version is updated.
 - `package-lock.json` is synchronized.
 - `docs/releases/vX.Y.Z.md` is added or updated.
