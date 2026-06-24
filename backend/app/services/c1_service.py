@@ -422,6 +422,20 @@ def _absolute_media_url(path: str | None) -> str | None:
     return "/c1/media/" + path.removeprefix("/api/v1/media/")
 
 
+def _rewrite_media_urls(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_rewrite_media_urls(item) for item in value]
+    if isinstance(value, dict):
+        rewritten: dict[str, Any] = {}
+        for key, item in value.items():
+            if isinstance(item, str) and (key.endswith("_url") or key.endswith("Url") or key == "url"):
+                rewritten[key] = _absolute_media_url(item)
+            else:
+                rewritten[key] = _rewrite_media_urls(item)
+        return rewritten
+    return value
+
+
 def _number(value: Any) -> float | None:
     try:
         return float(value)
@@ -599,8 +613,71 @@ def _record_from_match(match: dict[str, Any], index: int) -> dict[str, Any]:
     }
 
 
+def _record_from_event(event: dict[str, Any], index: int) -> dict[str, Any]:
+    time, full_time = _time_parts(event.get("start_time") or event.get("captured_at"), event.get("start_time_display"))
+    event_id = event.get("event_id") or f"event-{index}"
+    camera_id = event.get("camera_id") or "C1"
+    frame_url = _absolute_media_url(
+        event.get("representative_frame_url")
+        or (f"/api/v1/media/event/frame/{event_id}" if event.get("event_id") else None)
+    )
+    face_url = _absolute_media_url(event.get("representative_face_crop_url"))
+    body_url = _absolute_media_url(event.get("representative_body_crop_url"))
+    score = _first_number(event.get("score"), event.get("match_score"), event.get("identity_confidence"), 0)
+    note_parts = []
+    upper_color = event.get("upper_color") or event.get("normalized_upper_color")
+    if upper_color and upper_color != "unknown":
+        note_parts.append(f"上衣颜色：{upper_color}")
+    glasses_label = event.get("glasses_status_label") or event.get("glasses_status")
+    if glasses_label and glasses_label != "unknown":
+        note_parts.append(f"眼镜状态：{glasses_label}")
+    gender_label = event.get("gender_presentation_label") or event.get("gender_presentation")
+    if gender_label and gender_label != "unknown":
+        note_parts.append(f"人物呈现：{gender_label}")
+    if event.get("match_type") == "partial":
+        note_parts.append("部分条件命中")
+
+    return {
+        "id": index,
+        "title": f"记录{index}",
+        "time": time,
+        "fullTime": full_time,
+        "location": event.get("location") or event.get("camera_name") or camera_id or "未知位置",
+        "camera": event.get("camera_name") or camera_id,
+        "cameraId": camera_id,
+        "similarity": float(score or 0),
+        "note": "；".join(note_parts) or "来自 CampusVision C1 的人物特征检索结果",
+        "sceneClass": f"scene-{((index - 1) % 5) + 1}",
+        "progress": min(92, max(8, 8 + index * 13)),
+        "frameUrl": frame_url,
+        "faceUrl": face_url,
+        "thumbnailUrl": body_url or face_url or frame_url,
+        "eventId": event.get("event_id"),
+        "personId": event.get("person_id"),
+        "videoId": event.get("video_id"),
+        "videoTimestampSec": event.get("start_timestamp_sec"),
+        "attributes": {
+            "upperColor": upper_color,
+            "upperColorConfidence": event.get("upper_color_confidence") or event.get("normalized_upper_color_confidence"),
+            "glassesStatus": event.get("glasses_status"),
+            "glassesLabel": event.get("glasses_status_label"),
+            "glassesConfidence": event.get("glasses_confidence"),
+            "genderPresentation": event.get("gender_presentation"),
+            "genderLabel": event.get("gender_presentation_label"),
+            "genderConfidence": event.get("gender_presentation_confidence"),
+            "bodyVisibility": event.get("body_visibility"),
+            "matchType": event.get("match_type"),
+            "conditionScores": event.get("condition_scores"),
+            "failedConditions": event.get("failed_conditions"),
+        },
+    }
+
+
 def _route_point_from_item(item: dict[str, Any], index: int, total: int) -> dict[str, Any]:
-    time, _ = _time_parts(item.get("time") or item.get("captured_at"), item.get("time_display"))
+    time, _ = _time_parts(
+        item.get("time") or item.get("captured_at") or item.get("start_time"),
+        item.get("time_display") or item.get("start_time_display"),
+    )
     x = 18 + ((index * 17) % 68)
     y = 76 - ((index * 11) % 52)
     point: dict[str, Any] = {
@@ -610,7 +687,7 @@ def _route_point_from_item(item: dict[str, Any], index: int, total: int) -> dict
         "x": x,
         "y": y,
         "cameraId": item.get("camera_id"),
-        "score": item.get("score"),
+        "score": item.get("score") or item.get("match_score") or item.get("identity_confidence"),
     }
     if index == 1:
         point["kind"] = "start"
@@ -661,6 +738,96 @@ def _summarize_person_result(raw: dict[str, Any]) -> dict[str, Any]:
         "routePoints": route_points,
         "appearanceEvents": person.get("appearance_events") or [],
         "raw": raw,
+    }
+
+
+def _summarize_face_image_candidates(raw: dict[str, Any]) -> dict[str, Any]:
+    candidates = raw.get("candidates") or []
+    candidate = candidates[0] if candidates else {}
+    matches = candidate.get("matches") or []
+    events = candidate.get("events") or []
+    trajectory = candidate.get("trajectory") or []
+    selected_matches = matches[:5]
+    records = [_record_from_match(match, index + 1) for index, match in enumerate(selected_matches)]
+    if not records:
+        records = [_record_from_event(event, index + 1) for index, event in enumerate(events[:5])]
+    if not records:
+        records = [_record_from_match(item, index + 1) for index, item in enumerate(trajectory[:5])]
+
+    route_source = trajectory or events
+    total_points = max(1, min(8, len(route_source)))
+    route_points = [
+        _route_point_from_item(item, index + 1, total_points)
+        for index, item in enumerate(route_source[:total_points])
+    ]
+
+    representative_face = _absolute_media_url(candidate.get("representative_face_crop_url"))
+    if not representative_face and records:
+        representative_face = records[0].get("faceUrl") or records[0].get("thumbnailUrl")
+
+    return {
+        "source": "c1",
+        "mode": "face-image-candidates",
+        "baseUrl": C1_BASE_URL,
+        "searchId": raw.get("search_id"),
+        "engine": raw.get("engine"),
+        "warning": raw.get("warning"),
+        "warnings": raw.get("warnings") or [],
+        "ambiguous": raw.get("ambiguous", False),
+        "queryFaces": [_query_face_from_item(item) for item in raw.get("query_faces") or []],
+        "selectedQueryFaces": [_query_face_from_item(item) for item in raw.get("selected_query_faces") or []],
+        "person": {
+            "personId": candidate.get("person_id"),
+            "score": candidate.get("score"),
+            "confidence": candidate.get("confidence"),
+            "faceCount": candidate.get("face_count"),
+            "eventCount": candidate.get("event_count"),
+            "identityStatus": candidate.get("identity_status"),
+            "representativeFaceUrl": representative_face,
+            "attributes": candidate.get("attributes") or {},
+        },
+        "records": records,
+        "routePoints": route_points,
+        "appearanceEvents": candidate.get("appearance_events") or [],
+        "candidates": _rewrite_media_urls(candidates),
+        "raw": _rewrite_media_urls(raw),
+    }
+
+
+def _summarize_attribute_query(raw: dict[str, Any]) -> dict[str, Any]:
+    results = raw.get("results") or []
+    records = [_record_from_event(item, index + 1) for index, item in enumerate(results)]
+    summary = raw.get("summary") or {}
+    total_matches = _first_number(summary.get("total_matches"), len(results))
+    representative_url = None
+    if records:
+        representative_url = records[0].get("faceUrl") or records[0].get("thumbnailUrl") or records[0].get("frameUrl")
+    total_points = max(1, min(8, len(results)))
+    route_points = [
+        _route_point_from_item(item, index + 1, total_points)
+        for index, item in enumerate(results[:total_points])
+    ]
+    return {
+        "source": "c1",
+        "mode": "person-attributes",
+        "baseUrl": C1_BASE_URL,
+        "searchId": raw.get("query_id"),
+        "createdAt": raw.get("created_at"),
+        "query": raw.get("query") or {},
+        "summary": summary,
+        "warning": None if results else "No event matched the requested attributes.",
+        "person": {
+            "personId": None,
+            "score": records[0].get("similarity") if records else None,
+            "confidence": "attribute",
+            "faceCount": None,
+            "eventCount": int(total_matches or 0),
+            "representativeFaceUrl": representative_url,
+            "attributes": raw.get("query") or {},
+        },
+        "records": records,
+        "routePoints": route_points,
+        "raw": _rewrite_media_urls(raw),
     }
 
 
@@ -785,6 +952,40 @@ def list_videos() -> list[dict[str, Any]]:
     return _request("GET", "/api/v1/videos").json()
 
 
+def list_events(
+    person_id: str | None = None,
+    camera_id: str | None = None,
+    upper_color: str | None = None,
+    identified: bool | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> list[dict[str, Any]]:
+    params = {
+        "person_id": person_id,
+        "camera_id": camera_id,
+        "upper_color": upper_color,
+        "identified": identified,
+        "start_time": start_time,
+        "end_time": end_time,
+        "limit": limit,
+        "offset": offset,
+    }
+    raw = _request("GET", "/api/v1/events", params={k: v for k, v in params.items() if v is not None}).json()
+    return _rewrite_media_urls(raw)
+
+
+def list_person_events(person_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    raw = _request("GET", f"/api/v1/persons/{person_id}/events", params={"limit": limit}).json()
+    return _rewrite_media_urls(raw)
+
+
+def list_event_observations(event_id: str) -> list[dict[str, Any]]:
+    raw = _request("GET", f"/api/v1/events/{event_id}/observations").json()
+    return _rewrite_media_urls(raw)
+
+
 def search_person_by_image(
     filename: str,
     content: bytes,
@@ -804,6 +1005,52 @@ def search_person_by_image(
     return _summarize_person_result(raw)
 
 
+def query_face_image_candidates(
+    filename: str,
+    content: bytes,
+    content_type: str | None,
+    top_k: int,
+    min_score: float | None,
+    max_gap_sec: float,
+    query_face_index: int | None = None,
+    include_candidates: bool = False,
+    event_limit_per_person: int = 20,
+    match_limit_per_person: int = 10,
+    include_events: bool = True,
+    include_matches: bool = True,
+    camera_id: str | None = None,
+    start_time: str | None = None,
+    end_time: str | None = None,
+) -> dict[str, Any]:
+    files = {"files": (filename, content, content_type or "application/octet-stream")}
+    data: dict[str, str] = {
+        "top_k": str(top_k),
+        "max_gap_sec": str(max_gap_sec),
+        "include_candidates": str(include_candidates).lower(),
+        "event_limit_per_person": str(event_limit_per_person),
+        "match_limit_per_person": str(match_limit_per_person),
+        "include_events": str(include_events).lower(),
+        "include_matches": str(include_matches).lower(),
+    }
+    if min_score is not None:
+        data["min_score"] = str(min_score)
+    if query_face_index is not None:
+        data["query_face_index"] = str(query_face_index)
+    if camera_id:
+        data["camera_id"] = camera_id
+    if start_time:
+        data["start_time"] = start_time
+    if end_time:
+        data["end_time"] = end_time
+    raw = _request("POST", "/api/v1/query/face-image", files=files, data=data).json()
+    return _summarize_face_image_candidates(raw)
+
+
+def query_person_attributes(payload: dict[str, Any]) -> dict[str, Any]:
+    raw = _request("POST", "/api/v1/query/person-attributes", json=payload).json()
+    return _summarize_attribute_query(raw)
+
+
 def detect_query_faces(filename: str, content: bytes, content_type: str | None) -> dict[str, Any]:
     files = {"files": (filename, content, content_type or "application/octet-stream")}
     raw = _request("POST", "/api/v1/search/query-faces", files=files).json()
@@ -817,10 +1064,15 @@ def detect_query_faces(filename: str, content: bytes, content_type: str | None) 
     }
 
 
-def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
-    if kind not in {"frame", "face"}:
+def fetch_media_path(media_path: str) -> tuple[bytes, str]:
+    normalized_path = str(media_path or "").strip().strip("/")
+    if not normalized_path or ".." in normalized_path or "?" in normalized_path or "\\" in normalized_path:
         raise C1ServiceError("Unsupported C1 media kind", 400)
-    cached_media = _cached_media_for_keys(_media_cache_keys_for_candidates(kind, face_id))
+    allowed_prefixes = ("frame/", "face/", "observation/frame/", "observation/body/", "event/frame/", "event/body/")
+    if not normalized_path.startswith(allowed_prefixes):
+        raise C1ServiceError("Unsupported C1 media kind", 400)
+
+    cached_media = _cached_media_for_keys(_media_cache_keys_for_candidates("path", normalized_path))
     if cached_media:
         return cached_media
 
@@ -828,14 +1080,14 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
         request_generation = _get_connection_generation()
         try:
             base_url, request_generation = _resolve_base_url_state(required_generation=request_generation)
-            cache_key = _media_cache_key(base_url, kind, face_id, generation=request_generation)
+            cache_key = _media_cache_key(base_url, "path", normalized_path, generation=request_generation)
             cached_media = _cached_media_for_keys([cache_key])
             if cached_media:
                 return cached_media
 
             response, response_base_url, response_generation, selected_applied = _request_with_base_url(
                 "GET",
-                f"/api/v1/media/{kind}/{face_id}",
+                f"/api/v1/media/{normalized_path}",
                 primary_url=base_url,
                 required_generation=request_generation,
             )
@@ -844,7 +1096,7 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
             media_type = response.headers.get("content-type", "image/jpeg")
             if selected_applied:
                 _store_media_cache(
-                    _media_cache_key(response_base_url, kind, face_id, generation=response_generation),
+                    _media_cache_key(response_base_url, "path", normalized_path, generation=response_generation),
                     content,
                     media_type,
                     required_generation=response_generation,
@@ -855,3 +1107,10 @@ def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
         return content, media_type
     else:
         raise C1ServiceError("C1 connection changed while fetching media; please retry.", 409)
+
+
+def fetch_media(kind: str, face_id: str) -> tuple[bytes, str]:
+    cached_media = _cached_media_for_keys(_media_cache_keys_for_candidates(kind, face_id))
+    if cached_media:
+        return cached_media
+    return fetch_media_path(f"{kind}/{face_id}")

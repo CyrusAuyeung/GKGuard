@@ -11,10 +11,26 @@ const elements = {
   uploadHint: document.querySelector("#uploadHint"),
   openQueryFaceModalBtn: document.querySelector("#openQueryFaceModalBtn"),
   startSearchBtn: document.querySelector("#startSearchBtn"),
+  faceSearchTab: document.querySelector("#faceSearchTab"),
+  attributeSearchTab: document.querySelector("#attributeSearchTab"),
+  faceSearchPane: document.querySelector("#faceSearchPane"),
+  attributeSearchPane: document.querySelector("#attributeSearchPane"),
+  startAttributeSearchBtn: document.querySelector("#startAttributeSearchBtn"),
+  upperColorFilter: document.querySelector("#upperColorFilter"),
+  glassesStatusFilter: document.querySelector("#glassesStatusFilter"),
+  genderPresentationFilter: document.querySelector("#genderPresentationFilter"),
+  attributeCameraFilter: document.querySelector("#attributeCameraFilter"),
+  attributePersonScope: document.querySelector("#attributePersonScope"),
+  attributeStartTime: document.querySelector("#attributeStartTime"),
+  attributeEndTime: document.querySelector("#attributeEndTime"),
+  attributeMinScore: document.querySelector("#attributeMinScore"),
+  attributeLimit: document.querySelector("#attributeLimit"),
   resultPortrait: document.querySelector("#resultPortrait"),
   routePortrait: document.querySelector("#routePortrait"),
   resultRecordList: document.querySelector("#resultRecordList"),
   routeRecordList: document.querySelector("#routeRecordList"),
+  resultViewTitle: document.querySelector("#resultViewTitle"),
+  resultViewSubtitle: document.querySelector("#resultViewSubtitle"),
   resultSourceBadge: document.querySelector("#resultSourceBadge"),
   resultCountBadge: document.querySelector("#resultCountBadge"),
   recordTitle: document.querySelector("#recordTitle"),
@@ -122,6 +138,7 @@ const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FRAME_IMAGE_PRELOAD_LIMIT = 24;
 const frameImagePreloadCache = new Map();
 let activeFrameLoadToken = 0;
+let activeResultMode = "face";
 const FACE_HIT_PADDING_PX = 8;
 const QUERY_FACE_MODAL_MIN_ZOOM = 0.5;
 const QUERY_FACE_MODAL_MAX_ZOOM = 3;
@@ -196,6 +213,9 @@ function localizedC1Notice(message) {
   if (/Low-confidence person match/i.test(text)) {
     return "当前为低置信匹配，请结合关键帧人工确认。";
   }
+  if (/No event matched the requested attributes/i.test(text)) {
+    return "未找到符合人物特征条件的事件。请放宽颜色、眼镜、时间或摄像头条件后重试。";
+  }
   return text;
 }
 
@@ -220,7 +240,19 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = C1_SEARCH_TIMEOUT
 }
 
 function sourceLabel() {
-  return activeSource === "c1" ? "CampusVision C1" : "本地模拟";
+  if (activeSource !== "c1") return "本地模拟";
+  return activeResultMode === "attributes" ? "CampusVision C1 · 特征检索" : "CampusVision C1";
+}
+
+function syncResultHeading() {
+  if (!elements.resultViewTitle || !elements.resultViewSubtitle) return;
+  if (activeResultMode === "attributes") {
+    elements.resultViewTitle.textContent = "人物特征检索结果";
+    elements.resultViewSubtitle.textContent = "基于人物特征条件，在 CampusVision C1 事件中检索到相关关键帧";
+    return;
+  }
+  elements.resultViewTitle.textContent = "人脸检索结果";
+  elements.resultViewSubtitle.textContent = "基于上传目标人脸，在历史监控关键帧中检索到相关记录";
 }
 
 function parseTimeSeconds(value) {
@@ -1041,6 +1073,7 @@ function resetToMockData() {
   records.splice(0, records.length, ...mockRecords.map((record) => ({ ...record })));
   routePoints.splice(0, routePoints.length, ...mockRoutePoints.map((point) => ({ ...point })));
   activeSource = "mock";
+  activeResultMode = "face";
   lastC1Notice = "";
 }
 
@@ -1138,6 +1171,126 @@ async function fetchC1Search(signal) {
     throw new Error(detail?.detail?.message || `C1 接口返回 ${response.status}`);
   }
   return response.json();
+}
+
+function normalizeDateTimeInput(value) {
+  const text = String(value || "").trim();
+  return text || null;
+}
+
+function selectedControlValue(control) {
+  return String(control?.value || "").trim();
+}
+
+function numericControlValue(control, fallback, min, max) {
+  const number = Number(control?.value);
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
+function buildAttributeSearchPayload() {
+  const upperColor = selectedControlValue(elements.upperColorFilter);
+  const glassesStatus = selectedControlValue(elements.glassesStatusFilter);
+  const genderPresentation = selectedControlValue(elements.genderPresentationFilter);
+  const cameraId = selectedControlValue(elements.attributeCameraFilter);
+  const personScope = selectedControlValue(elements.attributePersonScope) || "stable";
+  const timeRange = {
+    start_time: normalizeDateTimeInput(elements.attributeStartTime?.value),
+    end_time: normalizeDateTimeInput(elements.attributeEndTime?.value),
+  };
+  const minScore = numericControlValue(elements.attributeMinScore, 0.45, 0, 1);
+  const limit = Math.round(numericControlValue(elements.attributeLimit, 10, 1, 50));
+  return {
+    time_range: timeRange.start_time || timeRange.end_time ? timeRange : null,
+    camera_ids: cameraId ? [cameraId] : [],
+    gender_presentation: genderPresentation ? [genderPresentation] : [],
+    glasses_status: glassesStatus ? [glassesStatus] : [],
+    upper_colors: upperColor ? [upperColor] : [],
+    person_scope: personScope,
+    include_candidates: personScope === "all",
+    include_near_misses: true,
+    min_score: minScore,
+    limit,
+    offset: 0,
+    candidate_pool_size: 5000,
+    scan_limit: 20000,
+  };
+}
+
+async function fetchC1AttributeSearch(signal) {
+  const response = await fetchWithTimeout("/c1/query/person-attributes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(buildAttributeSearchPayload()),
+    signal,
+  }, C1_SEARCH_TIMEOUT_MS);
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail?.detail?.message || `C1 特征检索返回 ${response.status}`);
+  }
+  return response.json();
+}
+
+function attributeLabel(field, value) {
+  const labels = {
+    upperColor: {
+      white: "白色",
+      black: "黑色",
+      blue: "蓝色",
+      red: "红色",
+      yellow: "黄色",
+      green: "绿色",
+      gray: "灰色",
+      orange: "橙色",
+      purple: "紫色",
+      brown: "棕色",
+      pink: "粉色",
+      unknown: "未知",
+    },
+    glassesStatus: {
+      glasses: "佩戴眼镜",
+      no_glasses: "未佩戴眼镜",
+      unknown: "未知",
+    },
+    genderPresentation: {
+      masculine: "男性呈现",
+      feminine: "女性呈现",
+      neutral: "中性呈现",
+      unknown: "未知",
+    },
+    bodyVisibility: {
+      full: "全身可见",
+      upper: "上身可见",
+      partial: "局部可见",
+      unknown: "未知",
+    },
+  };
+  return labels[field]?.[value] || value || "--";
+}
+
+function recordAttributeInfoMarkup(record) {
+  const attributes = record?.attributes || {};
+  const items = [
+    ["上装颜色：", attributeLabel("upperColor", attributes.upperColor || attributes.upper_color)],
+    ["眼镜状态：", attributeLabel("glassesStatus", attributes.glassesStatus || attributes.glasses_status)],
+    ["外观倾向：", attributeLabel("genderPresentation", attributes.genderPresentation || attributes.gender_presentation)],
+    ["人体可见性：", attributeLabel("bodyVisibility", attributes.bodyVisibility || attributes.body_visibility)],
+  ].filter(([, value]) => value && value !== "--");
+  return items.map(([label, value]) => `
+    <div class="info-item"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join("");
+}
+
+function switchSearchMode(mode) {
+  const isAttributes = mode === "attributes";
+  elements.faceSearchTab?.classList.toggle("is-active", !isAttributes);
+  elements.attributeSearchTab?.classList.toggle("is-active", isAttributes);
+  elements.faceSearchTab?.setAttribute("aria-selected", isAttributes ? "false" : "true");
+  elements.attributeSearchTab?.setAttribute("aria-selected", isAttributes ? "true" : "false");
+  elements.faceSearchPane?.classList.toggle("is-active", !isAttributes);
+  elements.attributeSearchPane?.classList.toggle("is-active", isAttributes);
+  if (elements.faceSearchPane) elements.faceSearchPane.hidden = isAttributes;
+  if (elements.attributeSearchPane) elements.attributeSearchPane.hidden = !isAttributes;
 }
 
 async function connectC1AfterFailure(error) {
@@ -1347,6 +1500,7 @@ function renderSelectedRecord() {
     <div class="info-item"><span>说明：</span><strong>${escapeHtml(record.note)}</strong></div>
     <div class="info-item"><span>摄像头：</span><strong>${escapeHtml(record.camera)}</strong></div>
     <div class="info-item"><span>数据来源：</span><strong>${sourceLabel()}</strong></div>
+    ${recordAttributeInfoMarkup(record)}
   `;
   renderRouteCurrentSummary();
 }
@@ -1571,6 +1725,7 @@ async function startSearch() {
   const watchdog = window.setTimeout(() => {
     controller.abort(new Error("CampusVision C1 检索超时"));
   }, SEARCH_WATCHDOG_TIMEOUT_MS);
+  activeResultMode = "face";
 
   async function runC1SearchFlow() {
     const faceState = await prepareQueryFaces({ autoSearchSingle: false, signal: controller.signal });
@@ -1642,6 +1797,94 @@ async function startSearch() {
         setSearchIdleLabel("确认选择并检索");
       }
       if (shouldShowResults) {
+        syncResultHeading();
+        selectedRecordIndex = 0;
+        renderRecordLists();
+        renderSelectedRecord();
+        renderRouteMap();
+        renderRouteTimeline();
+        switchScreen("result");
+      }
+      if (resultToast) {
+        showToast(resultToast.message, resultToast.options);
+      }
+    }
+  }
+}
+
+async function startAttributeSearch() {
+  if (searchInProgress) {
+    showToast("当前检索仍在进行，请等待完成。", { tone: "info", title: "检索中" });
+    return;
+  }
+
+  clearFramePreloadCache();
+  selectedQueryFaceIndex = null;
+  selectedQueryFaceImageUrl = "";
+  matchedPersonImageUrl = "";
+  activeResultMode = "attributes";
+
+  const runId = searchRunId + 1;
+  searchRunId = runId;
+  const controller = new AbortController();
+  activeSearchController = controller;
+  searchInProgress = true;
+  setButtonBusy(elements.startAttributeSearchBtn, true, "检索中...", "开始特征检索");
+  showToast("正在调用 CampusVision C1 人物特征检索服务。", { tone: "loading", title: "特征检索中" });
+  let resultToast = null;
+  let shouldShowResults = false;
+  const watchdog = window.setTimeout(() => {
+    controller.abort(new Error("CampusVision C1 特征检索超时"));
+  }, SEARCH_WATCHDOG_TIMEOUT_MS);
+
+  async function runAttributeFlow() {
+    const result = await fetchC1AttributeSearch(controller.signal);
+    if (runId !== searchRunId) return "stale";
+    const hasResults = await applyC1Result(result);
+    return hasResults ? "searched" : "no-match";
+  }
+
+  try {
+    const flowState = await runAttributeFlow();
+    if (flowState === "no-match") {
+      resultToast = { message: lastC1Notice, options: { tone: "warning", title: "未找到特征匹配", timeout: 6200 } };
+      return;
+    }
+    if (flowState !== "searched") return;
+    shouldShowResults = true;
+    resultToast = lastC1Notice
+      ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选事件。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
+      : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "特征检索完成" } };
+  } catch (error) {
+    if (runId !== searchRunId) return;
+    if (await connectC1AfterFailure(error)) {
+      try {
+        const retryState = await runAttributeFlow();
+        if (retryState === "no-match") {
+          resultToast = { message: lastC1Notice, options: { tone: "warning", title: "未找到特征匹配", timeout: 6200 } };
+          return;
+        }
+        if (retryState !== "searched") return;
+        shouldShowResults = true;
+        resultToast = lastC1Notice
+          ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选事件。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
+          : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "重试检索完成" } };
+      } catch (retryError) {
+        const message = localizedC1Notice(retryError.message) || retryError.message;
+        resultToast = { message: `${message}。未执行特征检索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征检索未完成", timeout: 6200 } };
+      }
+    } else {
+      const message = localizedC1Notice(error.message) || error.message;
+      resultToast = { message: `${message}。未执行特征检索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征检索未完成", timeout: 6200 } };
+    }
+  } finally {
+    window.clearTimeout(watchdog);
+    if (activeSearchController === controller) activeSearchController = null;
+    if (runId === searchRunId) {
+      setButtonBusy(elements.startAttributeSearchBtn, false, "检索中...", "开始特征检索");
+      searchInProgress = false;
+      if (shouldShowResults) {
+        syncResultHeading();
         selectedRecordIndex = 0;
         renderRecordLists();
         renderSelectedRecord();
@@ -1669,6 +1912,9 @@ function downloadText(filename, content) {
 }
 
 function bindEvents() {
+  elements.faceSearchTab?.addEventListener("click", () => switchSearchMode("face"));
+  elements.attributeSearchTab?.addEventListener("click", () => switchSearchMode("attributes"));
+  elements.startAttributeSearchBtn?.addEventListener("click", startAttributeSearch);
   elements.uploadDrop.addEventListener("click", async (event) => {
     if (event.target.closest("#openQueryFaceModalBtn")) return;
     const faceHit = queryFaceHitFromPoint(event);
@@ -1793,6 +2039,7 @@ function bindEvents() {
 }
 
 syncPortraits();
+syncResultHeading();
 renderRecordLists();
 renderSelectedRecord();
 renderRouteMap();

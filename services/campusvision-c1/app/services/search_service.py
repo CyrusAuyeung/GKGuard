@@ -248,6 +248,100 @@ def detect_query_faces(paths: list[str]) -> dict:
     }
 
 
+def _face_without_embedding(face: dict) -> dict:
+    return {key: value for key, value in face.items() if key != "embedding"}
+
+
+def _embedding_consistency(embeddings: list[list[float]]) -> dict:
+    if len(embeddings) <= 1:
+        return {
+            "status": "single_reference" if embeddings else "no_reference",
+            "embedding_count": len(embeddings),
+            "min_pair_similarity": None,
+            "mean_pair_similarity": None,
+        }
+
+    similarities = [
+        cosine_similarity(left, right)
+        for index, left in enumerate(embeddings)
+        for right in embeddings[index + 1 :]
+    ]
+    min_similarity = min(similarities)
+    mean_similarity = sum(similarities) / len(similarities)
+    return {
+        "status": "consistent" if min_similarity >= default_similarity_threshold() else "possibly_mixed",
+        "embedding_count": len(embeddings),
+        "pair_count": len(similarities),
+        "min_pair_similarity": round(float(min_similarity), 6),
+        "mean_pair_similarity": round(float(mean_similarity), 6),
+    }
+
+
+def select_query_face_embeddings(
+    paths: list[str],
+    *,
+    query_face_indices: list[int | None] | None = None,
+) -> dict:
+    result = _query_faces_from_images(paths, include_embeddings=True)
+    faces = result["faces"]
+    selected_faces = []
+    embeddings: list[list[float]] = []
+    warnings = []
+
+    if query_face_indices is not None and len(query_face_indices) != len(paths):
+        warnings.append(
+            "query_face_indices length does not match uploaded file count; missing indices fall back to face_index=0."
+        )
+
+    for image_index in range(len(paths)):
+        image_faces = [face for face in faces if int(face["image_index"]) == image_index]
+        if not image_faces:
+            warnings.append(f"No face detected in uploaded image {image_index}.")
+            continue
+
+        requested_index = None
+        if query_face_indices is not None and image_index < len(query_face_indices):
+            requested_index = query_face_indices[image_index]
+
+        if requested_index is None:
+            selected = next((face for face in image_faces if int(face["face_index"]) == 0), image_faces[0])
+            if len(image_faces) > 1:
+                warnings.append(
+                    f"Uploaded image {image_index} contains {len(image_faces)} faces; selected face_index=0 by default."
+                )
+        else:
+            selected = next(
+                (face for face in image_faces if int(face["face_index"]) == int(requested_index)),
+                None,
+            )
+            if selected is None:
+                warnings.append(f"Selected face_index={requested_index} was not found in uploaded image {image_index}.")
+                continue
+
+        embedding = selected.get("embedding")
+        if embedding is None:
+            warnings.append(f"Selected face in uploaded image {image_index} has no embedding.")
+            continue
+        selected_faces.append(_face_without_embedding(selected))
+        embeddings.append(embedding)
+
+    consistency = _embedding_consistency(embeddings)
+    if consistency["status"] == "possibly_mixed":
+        warnings.append("Reference images may contain different people; candidate scores may be unreliable.")
+
+    return {
+        "engine": get_face_engine().name,
+        "query_faces": [_face_without_embedding(face) for face in faces],
+        "selected_query_faces": selected_faces,
+        "embeddings": embeddings,
+        "face_count": len(faces),
+        "selected_face_count": len(selected_faces),
+        "reference_consistency": consistency,
+        "warnings": warnings,
+        "diagnostics": result["diagnostics"],
+    }
+
+
 def load_embeddings_from_images(paths: list[str], query_face_index: int | None = None) -> list[list[float]]:
     faces = _query_faces_from_images(paths, include_embeddings=True)["faces"]
     embeddings: list[list[float]] = []

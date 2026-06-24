@@ -9,6 +9,7 @@ from app.core.config import settings
 
 
 SENSITIVE_C1_PATHS = {
+    "/api/v1",
     "/api/v1/cameras",
     "/api/v1/persons",
     "/api/v1/records",
@@ -16,6 +17,7 @@ SENSITIVE_C1_PATHS = {
 }
 
 SENSITIVE_C1_PREFIXES = (
+    "/api/v1/",
     "/api/v1/cameras/",
     "/api/v1/media/face/",
     "/api/v1/media/frame/",

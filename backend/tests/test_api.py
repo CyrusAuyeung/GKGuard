@@ -42,7 +42,8 @@ def test_health() -> None:
 def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
-    assert "GKGuard 人脸检索" in response.text
+    assert "GKGuard 智能检索" in response.text
+    assert "人物特征检索" in response.text
     assert "人脸检索结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
@@ -50,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.1.37-ui" in response.text
-    assert "/static/app.js?v=v0.1.37-ui" in response.text
+    assert "/static/styles.css?v=v0.2.0-ui" in response.text
+    assert "/static/app.js?v=v0.2.0-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -121,6 +122,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "function selectRouteRecord" in script
     assert "function emptyStateMarkup" in script
     assert "data-route-index" in script
+    assert "return text || null;" in script
+    assert 'text.replace("T", " ")' not in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
@@ -259,7 +262,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.1.37-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.2.0-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -1396,6 +1399,52 @@ def test_c1_record_mapping_accepts_normalized_face_box(monkeypatch) -> None:
     assert record["faceBox"]["height"] == 50
     assert record["faceBox"]["leftPct"] == 25
     assert record["faceBox"]["heightPct"] == 50
+
+
+def test_c1_event_record_mapping_does_not_fabricate_body_url(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    record = c1_service._record_from_event(
+        {
+            "event_id": "event-face-only",
+            "representative_frame_url": "/api/v1/media/event/frame/event-face-only",
+            "representative_face_crop_url": "/api/v1/media/face/face-1",
+            "camera_id": "cam02",
+            "start_time": "2026-06-24T10:00:00",
+            "score": 0.82,
+        },
+        1,
+    )
+
+    assert record["thumbnailUrl"] == "/c1/media/face/face-1"
+    assert "/event/body/" not in record["thumbnailUrl"]
+
+
+def test_c1_attribute_summary_keeps_all_returned_records(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    raw = {
+        "query_id": "query-1",
+        "query": {"limit": 25},
+        "summary": {"total_matches": 25},
+        "results": [
+            {
+                "event_id": f"event-{index}",
+                "camera_id": "cam02",
+                "start_time": "2026-06-24T10:00:00",
+                "representative_face_crop_url": f"/api/v1/media/face/face-{index}",
+                "score": 0.9,
+            }
+            for index in range(25)
+        ],
+    }
+
+    result = c1_service._summarize_attribute_query(raw)
+
+    assert len(result["records"]) == 25
+    assert result["records"][24]["eventId"] == "event-24"
 
 
 def test_root_redirects_to_demo() -> None:

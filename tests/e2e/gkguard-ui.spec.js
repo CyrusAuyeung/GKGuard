@@ -187,7 +187,7 @@ test.describe("GKGuard C2 demo UI", () => {
     const problems = collectBrowserProblems(page);
 
     await page.goto("/demo?desktop=1&e2e=mock-flow");
-    await expect(page.getByRole("heading", { name: "人脸检索" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "智能检索" })).toBeVisible();
     await expectHealthyPage(page, problems);
 
     await page.getByRole("button", { name: /开始检索/ }).click();
@@ -342,6 +342,88 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await page.keyboard.press("Escape");
     await expect(page.locator("#mediaViewer")).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+    expect(problems).toEqual([]);
+  });
+
+  test("CampusVision C1 attribute search renders event results", async ({ page }) => {
+    const problems = collectBrowserProblems(page);
+    let requestPayload = null;
+
+    await page.route("**/c1/query/person-attributes", async (route) => {
+      requestPayload = route.request().postDataJSON();
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({
+          source: "c1",
+          mode: "person-attributes",
+          searchId: "e2e-attribute",
+          warning: null,
+          person: {
+            confidence: "attribute",
+            representativeFaceUrl: "/static/icons/app-mark.png",
+          },
+          records: [
+            {
+              id: 1,
+              title: "记录1",
+              time: "11:20:30",
+              fullTime: "2026-06-18 11:20:30",
+              location: "图书馆大厅",
+              camera: "C1-ATTR-01 图书馆摄像机",
+              cameraId: "C1-ATTR-01",
+              similarity: 0.82,
+              note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
+              sceneClass: "scene-1",
+              progress: 48,
+              frameUrl: "/static/icons/app-mark.png",
+              faceUrl: "/static/icons/app-mark.png",
+              thumbnailUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+              attributes: {
+                upperColor: "blue",
+                glassesStatus: "glasses",
+                genderPresentation: "masculine",
+                bodyVisibility: "upper",
+              },
+            },
+          ],
+          routePoints: [
+            { id: 1, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "start" },
+          ],
+          raw: {},
+        }),
+      });
+    });
+
+    await page.goto("/demo?desktop=1&e2e=attribute-search");
+    await expectHealthyPage(page, problems);
+    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.locator("#upperColorFilter").selectOption("blue");
+    await page.locator("#glassesStatusFilter").selectOption("glasses");
+    await page.locator("#genderPresentationFilter").selectOption("masculine");
+    await page.locator("#attributeCameraFilter").fill("C1-ATTR-01");
+    await page.locator("#attributePersonScope").selectOption("all");
+    await page.locator("#attributeMinScore").fill("0.4");
+    await page.locator("#attributeLimit").fill("8");
+    await page.locator("#startAttributeSearchBtn").click();
+
+    await expect(page.locator("#resultView")).toHaveClass(/is-active/);
+    expect(requestPayload.upper_colors).toEqual(["blue"]);
+    expect(requestPayload.glasses_status).toEqual(["glasses"]);
+    expect(requestPayload.gender_presentation).toEqual(["masculine"]);
+    expect(requestPayload.camera_ids).toEqual(["C1-ATTR-01"]);
+    expect(requestPayload.person_scope).toBe("all");
+    expect(requestPayload.include_candidates).toBe(true);
+    expect(requestPayload.candidate_pool_size).toBe(5000);
+    expect(requestPayload.min_score).toBe(0.4);
+    expect(requestPayload.limit).toBe(8);
+    await expect(page.locator("#resultViewTitle")).toHaveText("人物特征检索结果");
+    await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1 · 特征检索");
+    await expect(page.locator("#recordTitle")).toHaveText("记录1");
+    await expect(page.locator("#recordInfo")).toContainText("上衣颜色");
+    await expect(page.locator("#recordInfo")).toContainText("佩戴眼镜");
+    await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

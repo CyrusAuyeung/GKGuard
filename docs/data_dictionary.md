@@ -10,7 +10,7 @@
 本文中的 GKGuard C2 指桌面工作台和本地代理层；CampusVision C1 指独立的视频检索服务。GKGuard C2 当前使用两类数据：
 
 - `backend/data/mock/` 下的本地模拟数据或脱敏演示数据，用于人员、车辆、快照、告警、审计和 CampusCar 占位流程。
-- 通过 `/c1/...` 适配器从 CampusVision C1 获取的真实检索数据，包括关键帧、人脸裁剪图、候选人物和轨迹点。
+- 通过 `/c1/...` 适配器从 CampusVision C1 获取的真实检索数据，包括关键帧、人脸裁剪图、人体裁剪图、候选人物、人物事件、人物特征查询结果和轨迹点。
 
 不要提交 CampusVision C1 运行数据，例如真实视频、查询图片、抽帧图片、SQLite 数据库、`.env` 或模型缓存。
 
@@ -79,6 +79,7 @@
 - `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
 - `routePoints`：GKGuard C2 路线页使用的地图轨迹点。
 - `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
+- `attributeSummary`：人物特征查询摘要；仅在 `/c1/query/person-attributes` 归一化结果中出现，用于展示扫描事件数、exact/partial 数量和返回数量。
 - `raw`：CampusVision C1 原始响应内容，用于调试和后续映射。
 
 真实部署中的敏感字段：人脸图、帧图、人员关联、移动轨迹和相似度分数。
@@ -106,10 +107,18 @@
 - `cameraId`：CampusVision C1 摄像头 ID。
 - `similarity`：CampusVision C1 归一化分数。
 - `note`：GKGuard C2 展示说明。
-- `frameUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}`，用于详情关键帧。
+- `frameUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}` 或 `/c1/media/event/frame/{event_id}`，用于详情关键帧。
 - `faceUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图。
+- `bodyUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/event/body/{event_id}` 或 `/c1/media/observation/body/{observation_id}`，用于人物特征检索结果的人体图或事件主图。
 - `frameUrl` 和 `faceUrl` 的字段语义不随缓存变化；GKGuard C2 可能从按 CampusVision C1 响应地址、API key、候选配置和连接代次隔离的进程内短期缓存返回已成功读取的媒体字节，并受条目数、总字节和单项字节上限约束，以减少连续切换记录时的重复下载。
 - `faceId`：CampusVision C1 face record ID。
+- `eventId`：CampusVision C1 event ID；人物特征查询和事件检索代理使用它定位事件关键帧、人体图和观测明细。
+- `observationId`：CampusVision C1 observation ID；可用于读取 observation 级关键帧或人体图。
+- `personId`：CampusVision C1 person ID；可用于读取该人物的事件列表。
+- `matchType`：人物特征查询命中类型，`exact` 表示已填写条件全部满足，`partial` 表示相似但存在不满足项。
+- `attributes`：事件或人物的展示属性，当前包含 `upperColor`、`genderPresentation`、`glassesStatus` 和原始置信信息。
+- `failedConditions`：人物特征查询中 `partial` 结果的不满足条件列表，用于提示“相似但不完全满足”。
+- `conditionScores`：人物特征查询中各条件的可解释评分。
 - `faceBox`：命中关键帧中的目标人脸框，包含 `x1`、`y1`、`x2`、`y2`、`width`、`height` 和可选检测分数；GKGuard C2 用于在详情关键帧和预览弹窗上标注目标人脸。适配器兼容像素坐标、归一化坐标、百分比字段和常见 bbox 字段别名，前端会按实际渲染后的图片内容区域计算显示位置，避免框落在左上角或黑边区域。
 - `videoId`：CampusVision C1 video ID。
 - `videoTimestampSec`：源视频内时间戳。
@@ -123,6 +132,18 @@
 - `kind`：可选 `start` 或 `end`。
 - `cameraId`：CampusVision C1 摄像头 ID。
 - `score`：可用时的 CampusVision C1 命中分数。
+
+## c1_attribute_query
+
+- `source`：GKGuard C2 归一化结果中为 `c1-attribute-query`。
+- `queryId`：CampusVision C1 人物特征查询 ID。
+- `query`：本次人物特征查询条件，包括时间范围、摄像头、外观倾向、眼镜状态、上装颜色、人物范围、是否包含候选碎片人物、是否包含相似结果、最低分和分页参数。
+- `summary`：扫描事件数、候选扫描上限、exact 数、partial 数、总命中数和返回数量。
+- `records`：归一化后的事件结果，复用 `c1_records` 字段，并额外包含 `eventId`、`personId`、`bodyUrl`、`attributes`、`matchType`、`failedConditions` 和 `conditionScores`。
+- `routePoints`：按事件时间和摄像头生成的路线点；属性检索没有人脸检索的连续轨迹时，仍可用于结果定位。
+- `raw`：CampusVision C1 原始人物特征查询响应。
+
+真实部署中的敏感字段：事件图、人体图、人脸图、人物关联、外观属性和移动轨迹。
 
 ## access_records
 
@@ -197,7 +218,7 @@
 Here, GKGuard C2 means the desktop workbench plus local proxy layer, and CampusVision C1 means the standalone video-search service. GKGuard C2 currently uses two classes of data:
 
 - Local mock or desensitized demo data under `backend/data/mock/` for people, vehicles, snapshots, alerts, audit logs, and CampusCar placeholders.
-- Real CampusVision C1 search data returned through `/c1/...` adapter endpoints, including keyframes, face crops, candidate persons, and route points.
+- Real CampusVision C1 search data returned through `/c1/...` adapter endpoints, including keyframes, face crops, body crops, candidate people, person events, person-attribute query results, and route points.
 
 Do not commit CampusVision C1 runtime data such as real videos, query images, extracted frames, SQLite databases, `.env`, or model caches.
 
@@ -266,6 +287,7 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
 - `routePoints`: map-ready route points used by the GKGuard C2 route screen.
 - `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.
+- `attributeSummary`: person-attribute query summary; present only in normalized `/c1/query/person-attributes` results and used to display scanned event count, exact/partial counts, and returned count.
 - `raw`: original CampusVision C1 payload for debugging and future mapping.
 
 Sensitive in real deployments: face images, frame images, person links, movement trajectory, and similarity scores.
@@ -293,11 +315,18 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `cameraId`: CampusVision C1 camera ID.
 - `similarity`: normalized CampusVision C1 score.
 - `note`: GKGuard C2 display note.
-- `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}`, used by the detail keyframe.
+- `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}` or `/c1/media/event/frame/{event_id}`, used by the detail keyframe.
 - `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails.
+- `bodyUrl`: GKGuard C2 proxy media URL, usually `/c1/media/event/body/{event_id}` or `/c1/media/observation/body/{observation_id}`, used for the body image or event main image in person-attribute search results.
 - The semantics of `frameUrl` and `faceUrl` do not change with caching. GKGuard C2 may return successfully fetched media bytes from a short-lived in-process cache scoped by CampusVision C1 responding address, API key, candidate configuration, and connection generation, with item-count, total-byte, and per-item byte limits to reduce repeated downloads during consecutive record switching.
-- `frameUrl` and `faceUrl` field semantics do not change with caching; GKGuard C2 may return successfully fetched media bytes from a short-lived in-process cache to reduce repeated downloads during consecutive record switching.
 - `faceId`: CampusVision C1 face record ID.
+- `eventId`: CampusVision C1 event ID; person-attribute queries and event proxies use it to locate event keyframes, body crops, and observation details.
+- `observationId`: CampusVision C1 observation ID; can be used to fetch observation-level keyframes or body crops.
+- `personId`: CampusVision C1 person ID; can be used to fetch the person's event list.
+- `matchType`: person-attribute query hit type; `exact` means all filled conditions match, and `partial` means the event is similar but has failed conditions.
+- `attributes`: display attributes for an event or person, currently including `upperColor`, `genderPresentation`, `glassesStatus`, and raw confidence information.
+- `failedConditions`: failed condition list for `partial` person-attribute query results, used to explain "similar but not an exact match".
+- `conditionScores`: explainable per-condition scores for person-attribute queries.
 - `faceBox`: target-face box in the matched keyframe, including `x1`, `y1`, `x2`, `y2`, `width`, `height`, and optional detection score; GKGuard C2 uses it for target-face overlays in the detail keyframe and preview dialog. The adapter accepts pixel coordinates, normalized coordinates, percentage fields, and common bbox field aliases, and the frontend positions the overlay against the rendered image content area so it does not fall into the top-left corner or letterbox area.
 - `videoId`: CampusVision C1 video ID.
 - `videoTimestampSec`: timestamp within the source video.
@@ -311,6 +340,18 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `kind`: optional `start` or `end`.
 - `cameraId`: CampusVision C1 camera ID.
 - `score`: CampusVision C1 match score when available.
+
+## c1_attribute_query
+
+- `source`: `c1-attribute-query` in normalized GKGuard C2 results.
+- `queryId`: CampusVision C1 person-attribute query ID.
+- `query`: person-attribute query conditions, including time range, cameras, appearance presentation, glasses status, upper colors, person scope, whether candidate fragments are included, whether near misses are included, minimum score, and pagination.
+- `summary`: scanned event count, candidate scan limit, exact count, partial count, total matches, and returned count.
+- `records`: normalized event results. They reuse `c1_records` fields and additionally include `eventId`, `personId`, `bodyUrl`, `attributes`, `matchType`, `failedConditions`, and `conditionScores`.
+- `routePoints`: route points generated from event time and camera. Attribute search can still use them for result positioning even when it does not have a continuous face-search trajectory.
+- `raw`: original CampusVision C1 person-attribute query response.
+
+Sensitive in real deployments: event images, body images, face images, person links, appearance attributes, and movement trajectory.
 
 ## access_records
 

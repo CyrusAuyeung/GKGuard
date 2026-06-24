@@ -1,4 +1,4 @@
-<p align="right">
+﻿<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -141,7 +141,7 @@ npm run dist:linux
 ## 发布流程
 
 - 普通协作者和 AI agent 不要自行推送 `v*` tag 或创建 GitHub Release，除非用户明确要求，或当前任务就是发布准备且验证已完成。
-- 发布版本按递增版本号推进，例如从 `v0.1.37` 递增到 `v0.1.38`。
+- 发布版本按变更规模递增推进；补丁修复可从 `v0.2.0` 递增到 `v0.2.1`，功能级或集成级更新可推进到新的 minor 版本，例如 `v0.3.0`。
 - 发布前必须：
   - 更新 `package.json` 和 `package-lock.json`。
   - 新增或更新 `docs/releases/vX.Y.Z.md`。
@@ -342,7 +342,7 @@ Note: macOS/Linux packages usually require matching system runners for full veri
 ## Release Flow
 
 - Regular contributors and AI agents must not push `v*` tags or create GitHub Releases unless the user explicitly asks, or the current task is release preparation and validation is complete.
-- Release versions advance incrementally, for example from `v0.1.37` to `v0.1.38`.
+- Release versions advance according to change size. Patch fixes may move from `v0.2.0` to `v0.2.1`, while feature-level or integration-level updates may move to a new minor version such as `v0.3.0`.
 - Before release:
   - Update `package.json` and `package-lock.json`.
   - Add or update `docs/releases/vX.Y.Z.md`.
