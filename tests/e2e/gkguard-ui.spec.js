@@ -380,6 +380,31 @@ test.describe("GKGuard C2 demo UI", () => {
               faceUrl: "/static/icons/app-mark.png",
               thumbnailUrl: "/static/icons/app-mark.png",
               faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+              eventId: "later-high-score",
+              attributes: {
+                upperColor: "blue",
+                glassesStatus: "glasses",
+                genderPresentation: "masculine",
+                bodyVisibility: "upper",
+              },
+            },
+            {
+              id: 2,
+              title: "记录2",
+              time: "08:15:00",
+              fullTime: "2026-06-18 08:15:00",
+              location: "教学楼入口",
+              camera: "C1-ATTR-02 教学楼摄像机",
+              cameraId: "C1-ATTR-02",
+              similarity: 0.48,
+              note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
+              sceneClass: "scene-2",
+              progress: 22,
+              frameUrl: "/static/icons/app-mark.png",
+              faceUrl: "/static/icons/app-mark.png",
+              thumbnailUrl: "/static/icons/app-mark.png",
+              faceBox: { x1: 0.18, y1: 0.18, width: 0.32, height: 0.4 },
+              eventId: "earlier-low-score",
               attributes: {
                 upperColor: "blue",
                 glassesStatus: "glasses",
@@ -389,7 +414,8 @@ test.describe("GKGuard C2 demo UI", () => {
             },
           ],
           routePoints: [
-            { id: 1, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "start" },
+            { id: 1, time: "08:15:00", location: "教学楼入口", x: 36, y: 58, kind: "start", recordIndex: 1, eventId: "earlier-low-score" },
+            { id: 2, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "end", recordIndex: 0, eventId: "later-high-score" },
           ],
           raw: {},
         }),
@@ -424,6 +450,11 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#recordInfo")).toContainText("上衣颜色");
     await expect(page.locator("#recordInfo")).toContainText("佩戴眼镜");
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
+    await page.getByRole("button", { name: /查看人物路线图/ }).click();
+    await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await page.locator("#routeTimelineRows .timeline-row").first().click();
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录2");
+    await expect(page.locator("#routeCurrentLocation")).toContainText("教学楼入口");
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

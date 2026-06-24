@@ -77,7 +77,7 @@
 - `selectedQueryFace`：当前实际用于检索的查询图人脸；单人自动选择或多人手动选择后生成。
 - `person`：当前 UI 选中的候选人物。
 - `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
-- `routePoints`：GKGuard C2 路线页使用的地图轨迹点。
+- `routePoints`：GKGuard C2 路线页使用的地图轨迹点；人物特征检索路线点可携带 `recordIndex` / `eventId`，用于从时间排序后的路线点回到对应结果记录。
 - `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
 - `attributeSummary`：人物特征查询摘要；仅在 `/c1/query/person-attributes` 归一化结果中出现，用于展示扫描事件数、exact/partial 数量和返回数量。
 - `raw`：CampusVision C1 原始响应内容，用于调试和后续映射。
@@ -132,6 +132,8 @@
 - `kind`：可选 `start` 或 `end`。
 - `cameraId`：CampusVision C1 摄像头 ID。
 - `score`：可用时的 CampusVision C1 命中分数。
+- `recordIndex`：可选，指向同一响应中 `records` 的原始下标；当路线点按时间排序、结果记录按匹配分排序时用于稳定联动。
+- `eventId`：可选，CampusVision C1 event ID；可作为 `recordIndex` 的补充映射键。
 
 ## c1_attribute_query
 
@@ -140,7 +142,7 @@
 - `query`：本次人物特征查询条件，包括时间范围、摄像头、外观倾向、眼镜状态、上装颜色、人物范围、是否包含候选碎片人物、是否包含相似结果、最低分和分页参数。
 - `summary`：扫描事件数、候选扫描上限、exact 数、partial 数、总命中数和返回数量。
 - `records`：归一化后的事件结果，复用 `c1_records` 字段，并额外包含 `eventId`、`personId`、`bodyUrl`、`attributes`、`matchType`、`failedConditions` 和 `conditionScores`。
-- `routePoints`：按事件时间和摄像头生成的路线点；属性检索没有人脸检索的连续轨迹时，仍可用于结果定位。
+- `routePoints`：按事件时间和摄像头生成的路线点；属性检索没有人脸检索的连续轨迹时，仍可用于结果定位。人物特征检索结果列表可按匹配分排序，路线点可按事件时间排序，因此 `recordIndex` / `eventId` 必须保留用于联动。
 - `raw`：CampusVision C1 原始人物特征查询响应。
 
 真实部署中的敏感字段：事件图、人体图、人脸图、人物关联、外观属性和移动轨迹。
@@ -285,7 +287,7 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `selectedQueryFace`: query face actually used for this search, produced by single-face auto-selection or manual multi-face selection.
 - `person`: selected candidate person for the current UI.
 - `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
-- `routePoints`: map-ready route points used by the GKGuard C2 route screen.
+- `routePoints`: map-ready route points used by the GKGuard C2 route screen. Person-attribute route points may carry `recordIndex` / `eventId` so time-sorted route points can select the matching result record.
 - `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.
 - `attributeSummary`: person-attribute query summary; present only in normalized `/c1/query/person-attributes` results and used to display scanned event count, exact/partial counts, and returned count.
 - `raw`: original CampusVision C1 payload for debugging and future mapping.
@@ -340,6 +342,8 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `kind`: optional `start` or `end`.
 - `cameraId`: CampusVision C1 camera ID.
 - `score`: CampusVision C1 match score when available.
+- `recordIndex`: optional original index into the same response's `records`; used for stable synchronization when route points are sorted by time while records remain score-ranked.
+- `eventId`: optional CampusVision C1 event ID; used as a supplemental mapping key for the result record.
 
 ## c1_attribute_query
 
@@ -348,7 +352,7 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `query`: person-attribute query conditions, including time range, cameras, appearance presentation, glasses status, upper colors, person scope, whether candidate fragments are included, whether near misses are included, minimum score, and pagination.
 - `summary`: scanned event count, candidate scan limit, exact count, partial count, total matches, and returned count.
 - `records`: normalized event results. They reuse `c1_records` fields and additionally include `eventId`, `personId`, `bodyUrl`, `attributes`, `matchType`, `failedConditions`, and `conditionScores`.
-- `routePoints`: route points generated from event time and camera. Attribute search can still use them for result positioning even when it does not have a continuous face-search trajectory.
+- `routePoints`: route points generated from event time and camera. Attribute search can still use them for result positioning even when it does not have a continuous face-search trajectory. Because person-attribute records may stay score-ranked while route points are time-sorted, `recordIndex` / `eventId` must be preserved for synchronization.
 - `raw`: original CampusVision C1 person-attribute query response.
 
 Sensitive in real deployments: event images, body images, face images, person links, appearance attributes, and movement trajectory.

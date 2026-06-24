@@ -95,12 +95,12 @@ const records = [
 const mockRecords = records.map((record) => ({ ...record }));
 
 const routePoints = [
-  { id: 1, time: "09:48:57", location: "校门口", x: 26, y: 84, kind: "start" },
-  { id: 2, time: "12:05:33", location: "宿舍区主干道", x: 30, y: 56 },
-  { id: 3, time: "14:12:09", location: "体育馆东门", x: 38, y: 42 },
-  { id: 4, time: "15:37:42", location: "图书馆一楼大厅", x: 52, y: 33 },
-  { id: 5, time: "16:05:12", location: "教学楼广场", x: 64, y: 55 },
-  { id: 6, time: "16:24:18", location: "C2 教学楼南门", x: 84, y: 24, kind: "end" },
+  { id: 1, time: "09:48:57", location: "校门口", x: 26, y: 84, kind: "start", recordIndex: 4 },
+  { id: 2, time: "12:05:33", location: "宿舍区主干道", x: 30, y: 56, recordIndex: 3 },
+  { id: 3, time: "14:12:09", location: "体育馆东门", x: 38, y: 42, recordIndex: 2 },
+  { id: 4, time: "15:37:42", location: "图书馆一楼大厅", x: 52, y: 33, recordIndex: 1 },
+  { id: 5, time: "16:05:12", location: "教学楼广场", x: 64, y: 55, recordIndex: 0 },
+  { id: 6, time: "16:24:18", location: "C2 教学楼南门", x: 84, y: 24, kind: "end", recordIndex: 0 },
 ];
 
 const mockRoutePoints = routePoints.map((point) => ({ ...point }));
@@ -1139,12 +1139,19 @@ async function applyC1Result(result) {
     location: record.location,
     x: 22 + ((index * 15) % 62),
     y: 76 - ((index * 11) % 48),
+    recordIndex: index,
+    eventId: record.eventId,
   }));
-  routePoints.splice(0, routePoints.length, ...incomingRoute.map((point, index) => ({
-    ...point,
-    id: index + 1,
-    kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
-  })));
+  routePoints.splice(0, routePoints.length, ...incomingRoute.map((point, index) => {
+    const recordIndex = routePointRecordIndex(point, index);
+    return {
+      ...point,
+      id: index + 1,
+      recordIndex,
+      eventId: point.eventId || point.event_id || records[recordIndex]?.eventId,
+      kind: index === 0 ? "start" : index === incomingRoute.length - 1 ? "end" : point.kind,
+    };
+  }));
 
   if (result.person?.representativeFaceUrl) {
     matchedPersonImageUrl = result.person.representativeFaceUrl;
@@ -1586,9 +1593,30 @@ function renderRouteCurrentSummary() {
   if (elements.routeCurrentSimilarity) elements.routeCurrentSimilarity.textContent = formatPercent(record.similarity);
 }
 
+function routePointRecordIndex(point, fallbackIndex = 0) {
+  if (!records.length) return 0;
+  const rawIndex = point?.recordIndex ?? point?.record_index;
+  const numericIndex = Number(rawIndex);
+  if (Number.isFinite(numericIndex)) {
+    return Math.max(0, Math.min(Math.trunc(numericIndex), records.length - 1));
+  }
+  const eventId = point?.eventId || point?.event_id;
+  if (eventId) {
+    const matchedIndex = records.findIndex((record) => record.eventId === eventId);
+    if (matchedIndex >= 0) return matchedIndex;
+  }
+  const fallback = Number(fallbackIndex);
+  return Math.max(0, Math.min(Number.isFinite(fallback) ? Math.trunc(fallback) : 0, records.length - 1));
+}
+
+function isRoutePointActive(point, index) {
+  return routePointRecordIndex(point, index) === selectedRecordIndex;
+}
+
 function selectRouteRecord(index, shouldAnnounce = true) {
   if (!records.length) return;
-  selectedRecordIndex = Math.max(0, Math.min(Number(index) || 0, records.length - 1));
+  const routeIndex = Math.max(0, Math.min(Number(index) || 0, Math.max(0, routePoints.length - 1)));
+  selectedRecordIndex = routePointRecordIndex(routePoints[routeIndex], routeIndex);
   renderRecordLists();
   renderSelectedRecord();
   renderRouteMap();
@@ -1625,7 +1653,7 @@ function renderRouteMap() {
       <polyline points="${linePoints}" fill="none" stroke="#246ff5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline>
     </svg>
     ${routePoints.map((point, index) => `
-      <button class="map-point ${point.kind || ""} ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-route-index="${index}" style="left:${point.x}%;top:${point.y}%" aria-label="定位到${escapeHtml(point.location)}">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</button>
+      <button class="map-point ${point.kind || ""} ${isRoutePointActive(point, index) ? "is-active" : ""}" type="button" data-route-index="${index}" style="left:${point.x}%;top:${point.y}%" aria-label="定位到${escapeHtml(point.location)}">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</button>
       <span class="${mapLabelClass(point)}" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
     `).join("")}
     <div class="map-legend">
@@ -1640,7 +1668,7 @@ function renderRouteMap() {
 
 function renderRouteTimeline() {
   elements.routeTimelineRows.innerHTML = routePoints.length ? routePoints.map((point, index) => `
-    <button class="timeline-row ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-route-index="${index}">
+    <button class="timeline-row ${isRoutePointActive(point, index) ? "is-active" : ""}" type="button" data-route-index="${index}">
       <b>${point.id}</b>
       <span>${escapeHtml(point.time)}</span>
       <strong>${escapeHtml(point.location)}</strong>

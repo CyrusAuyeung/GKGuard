@@ -330,13 +330,16 @@ def test_face_image_query_uses_upload_limit_guard() -> None:
 
     assert "_validate_query_upload_count(files)" in route_segment
     assert "except search_service.QueryImageTooLarge" in route_segment
+    assert "except search_service.QueryImageDecodeError" in route_segment
     assert "_cleanup_query_uploads(paths, temp_search_id)" in route_segment
     assert "person_service.query_face_image_candidates" in route_segment
 
     call_index = route_segment.index("person_service.query_face_image_candidates")
     except_index = route_segment.rindex("except search_service.QueryImageTooLarge")
+    decode_except_index = route_segment.rindex("except search_service.QueryImageDecodeError")
     cleanup_index = route_segment.rindex("_cleanup_query_uploads(paths, temp_search_id)")
     assert call_index < except_index < cleanup_index
+    assert call_index < decode_except_index < cleanup_index
 
 
 def test_video_reindex_clears_previous_artifacts() -> None:
@@ -349,18 +352,25 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     clear_segment = service_source.split("def _clear_previous_video_index", 1)[1].split("def index_video", 1)[0]
     index_segment = service_source.split("def index_video", 1)[1]
 
-    assert "affected_person_ids = db.list_person_ids_for_video_faces(video_id)" in clear_segment
-    assert "db.delete_events_for_video(video_id)" in clear_segment
-    assert "db.delete_person_observations_for_video(video_id)" in clear_segment
+    assert "affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))" in clear_segment
+    assert "affected_person_ids.update(db.delete_events_for_video(video_id))" in clear_segment
+    assert "affected_person_ids.update(db.delete_person_observations_for_video(video_id))" in clear_segment
     assert "db.delete_face_records_for_video(video_id)" in clear_segment
     assert "person_service.refresh_persons_from_remaining_faces(affected_person_ids)" in clear_segment
+    assert "event_service.rebuild_appearance_sessions_for_persons(affected_person_ids)" in clear_segment
     assert "shutil.rmtree(frame_dir)" in clear_segment
     assert "_clear_previous_video_index(video_id, video_frame_dir)" in index_segment
 
-    collect_index = clear_segment.index("affected_person_ids = db.list_person_ids_for_video_faces(video_id)")
+    collect_index = clear_segment.index("affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))")
+    delete_events_index = clear_segment.index("affected_person_ids.update(db.delete_events_for_video(video_id))")
+    delete_observations_index = clear_segment.index(
+        "affected_person_ids.update(db.delete_person_observations_for_video(video_id))"
+    )
     delete_faces_index = clear_segment.index("db.delete_face_records_for_video(video_id)")
     refresh_index = clear_segment.index("person_service.refresh_persons_from_remaining_faces(affected_person_ids)")
-    assert collect_index < delete_faces_index < refresh_index
+    rebuild_sessions_index = clear_segment.index("event_service.rebuild_appearance_sessions_for_persons(affected_person_ids)")
+    assert collect_index < delete_events_index < delete_observations_index < delete_faces_index
+    assert delete_faces_index < refresh_index < rebuild_sessions_index
 
     try_index = index_segment.index("try:")
     clear_index = index_segment.index("_clear_previous_video_index(video_id, video_frame_dir)")

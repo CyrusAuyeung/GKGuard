@@ -5124,6 +5124,9 @@ async def query_face_image(
     except search_service.QueryImageTooLarge as exc:
         _cleanup_query_uploads(paths, temp_search_id)
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except search_service.QueryImageDecodeError as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/query/person-attributes", response_model=PersonAttributeQueryResult)
@@ -5190,6 +5193,9 @@ async def search_by_image(
     except search_service.QueryImageTooLarge as exc:
         _cleanup_query_uploads(paths, temp_search_id)
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except search_service.QueryImageDecodeError as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return result
 
 
@@ -5211,6 +5217,9 @@ async def detect_query_faces(
     except search_service.QueryImageTooLarge as exc:
         _cleanup_query_uploads(paths, temp_search_id)
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except search_service.QueryImageDecodeError as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")
@@ -5220,6 +5229,9 @@ async def detect_query_faces(
     except search_service.QueryImageTooLarge as exc:
         _cleanup_query_uploads(paths, temp_search_id)
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except search_service.QueryImageDecodeError as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/search/person-by-image")
@@ -5259,6 +5271,9 @@ async def search_person_by_image(
     except search_service.QueryImageTooLarge as exc:
         _cleanup_query_uploads(paths, temp_search_id)
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except search_service.QueryImageDecodeError as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/searches/{search_id}")

@@ -27,6 +27,10 @@ class QueryImageTooLarge(ValueError):
     pass
 
 
+class QueryImageDecodeError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class QueryImageVariant:
     label: str
@@ -117,8 +121,8 @@ def _load_query_image(path: str) -> Image.Image | None:
         raise
     except (DecompressionBombError, DecompressionBombWarning) as exc:
         raise QueryImageTooLarge("Query image dimensions exceed the allowed limit.") from exc
-    except (OSError, UnidentifiedImageError):
-        return None
+    except (OSError, UnidentifiedImageError) as exc:
+        raise QueryImageDecodeError("Query image could not be decoded.") from exc
 
 
 def _query_image_variants(path: str) -> tuple[list[QueryImageVariant], dict]:

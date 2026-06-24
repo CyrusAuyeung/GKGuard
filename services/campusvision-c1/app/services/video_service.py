@@ -86,12 +86,13 @@ def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[f
 
 
 def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
-    affected_person_ids = db.list_person_ids_for_video_faces(video_id)
-    db.delete_events_for_video(video_id)
-    db.delete_person_observations_for_video(video_id)
+    affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))
+    affected_person_ids.update(db.delete_events_for_video(video_id))
+    affected_person_ids.update(db.delete_person_observations_for_video(video_id))
     db.delete_face_records_for_video(video_id)
     if affected_person_ids:
         person_service.refresh_persons_from_remaining_faces(affected_person_ids)
+        event_service.rebuild_appearance_sessions_for_persons(affected_person_ids)
     if frame_dir.exists():
         shutil.rmtree(frame_dir)
 
