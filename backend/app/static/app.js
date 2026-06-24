@@ -140,6 +140,15 @@ const FRAME_IMAGE_PRELOAD_LIMIT = 24;
 const frameImagePreloadCache = new Map();
 let activeFrameLoadToken = 0;
 let activeResultMode = "face";
+
+class C1HttpError extends Error {
+  constructor(message, status, code) {
+    super(message);
+    this.name = "C1HttpError";
+    this.status = status;
+    this.code = code;
+  }
+}
 const FACE_HIT_PADDING_PX = 8;
 const QUERY_FACE_MODAL_MIN_ZOOM = 0.5;
 const QUERY_FACE_MODAL_MAX_ZOOM = 3;
@@ -211,6 +220,12 @@ function localizedC1Notice(message) {
   if (/Selected query face was not found/i.test(text)) {
     return "选中的查询人脸已失效，请重新选择目标人脸后检索。";
   }
+  if (/could not be decoded|undecodable|invalid image/i.test(text)) {
+    return "上传图片无法解码，请换用清晰的 JPG/PNG 图片。";
+  }
+  if (/payload too large|request entity too large|too large/i.test(text)) {
+    return "上传图片过大，请压缩图片后重试。";
+  }
   if (/Low-confidence person match/i.test(text)) {
     return "当前为低置信匹配，请结合关键帧人工确认。";
   }
@@ -238,6 +253,22 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = C1_SEARCH_TIMEOUT
     window.clearTimeout(timeout);
     signal?.removeEventListener("abort", abortFromOuterSignal);
   }
+}
+
+async function c1HttpErrorFromResponse(response, fallbackMessage) {
+  if (response.status < 400 || response.status >= 500) {
+    return new C1HttpError(fallbackMessage, response.status, "C1_UNAVAILABLE");
+  }
+  const detail = await response.json().catch(() => ({}));
+  const detailBody = detail?.detail || detail || {};
+  let message = detailBody?.message || detailBody?.detail || detailBody?.error || fallbackMessage;
+  if (typeof message === "object") {
+    message = fallbackMessage;
+  }
+  const code = detailBody?.code || (response.status === 413
+    ? "C1_PAYLOAD_TOO_LARGE"
+    : "C1_VALIDATION_ERROR");
+  return new C1HttpError(String(message), response.status, String(code));
 }
 
 function sourceLabel() {
@@ -971,8 +1002,7 @@ async function fetchQueryFaces(signal) {
     signal,
   }, C1_QUERY_FACE_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail?.detail?.message || `C1 人脸检测返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `C1 人脸检测返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1063,7 +1093,8 @@ function loadImage(file) {
     syncPortraits();
     showToast("目标照片已加载，正在检测人脸。", { tone: "loading", title: "图片已就绪" });
     prepareQueryFaces({ autoSearchSingle: true }).catch((error) => {
-      showToast(`${error.message}。请重试检测或检查 CampusVision C1 连接。`, { tone: "warning", title: "人脸检测暂不可用", timeout: 5200 });
+      const message = localizedC1Notice(error.message) || error.message;
+      showToast(`${message}。请重试检测或检查 CampusVision C1 连接。`, { tone: "warning", title: "人脸检测暂不可用", timeout: 5200 });
       setSearchIdleLabel("重新检测人脸");
     });
   });
@@ -1179,8 +1210,7 @@ async function fetchC1Search(signal) {
     signal,
   }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail?.detail?.message || `C1 接口返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `C1 接口返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1237,8 +1267,7 @@ async function fetchC1AttributeSearch(signal) {
     signal,
   }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
-    const detail = await response.json().catch(() => ({}));
-    throw new Error(detail?.detail?.message || `C1 特征检索返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `C1 特征检索返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1306,6 +1335,9 @@ function switchSearchMode(mode) {
 }
 
 async function connectC1AfterFailure(error) {
+  if (error?.name === "C1HttpError" && error.status >= 400 && error.status < 500) {
+    return false;
+  }
   const desktopBridge = window.gkguardDesktop;
   const isDesktop = new URLSearchParams(window.location.search).get("desktop") === "1";
   if (!desktopBridge?.connectC1 || !isDesktop) {
@@ -1611,6 +1643,14 @@ function clampRouteIndex(value) {
   return Math.max(0, Math.min(Number.isFinite(numericIndex) ? Math.trunc(numericIndex) : 0, routePoints.length - 1));
 }
 
+function routePointIndexOrNull(value) {
+  if (!routePoints.length) return null;
+  const numericIndex = Number(value);
+  if (!Number.isFinite(numericIndex)) return null;
+  const routeIndex = Math.trunc(numericIndex);
+  return routeIndex >= 0 && routeIndex < routePoints.length ? routeIndex : null;
+}
+
 function routePointStableRecordIndex(point) {
   if (!records.length || !point) return null;
   const rawIndex = point?.recordIndex ?? point?.record_index;
@@ -1633,33 +1673,36 @@ function routePointRecordIndex(point, fallbackIndex = 0) {
 }
 
 function routePointIndexForRecord(recordIndex) {
+  if (!routePoints.length) return null;
   const normalizedIndex = clampRecordIndex(recordIndex);
   const mappedRouteIndex = routePoints.findIndex((point) => routePointStableRecordIndex(point) === normalizedIndex);
-  return mappedRouteIndex >= 0 ? mappedRouteIndex : clampRouteIndex(normalizedIndex);
+  if (mappedRouteIndex >= 0) return mappedRouteIndex;
+  const hasStableRouteMapping = routePoints.some((point) => routePointStableRecordIndex(point) !== null);
+  return hasStableRouteMapping ? null : routePointIndexOrNull(normalizedIndex);
 }
 
 function alignSelectedRecordWithRoutePoints(preferredIndex = selectedRecordIndex) {
   if (!records.length) {
     selectedRecordIndex = 0;
-    selectedRouteIndex = 0;
+    selectedRouteIndex = null;
     return;
   }
   selectedRecordIndex = clampRecordIndex(preferredIndex);
   selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
   if (!routePoints.length) {
-    selectedRouteIndex = 0;
+    selectedRouteIndex = null;
     return;
   }
-  const currentHasRoutePoint = routePoints.some((point) => routePointStableRecordIndex(point) === selectedRecordIndex);
-  if (!currentHasRoutePoint) {
+  if (selectedRouteIndex === null) {
     selectedRouteIndex = 0;
     selectedRecordIndex = routePointRecordIndex(routePoints[0], 0);
   }
 }
 
 function isRoutePointActive(point, index) {
+  if (selectedRouteIndex === null || index !== selectedRouteIndex) return false;
   const stableIndex = routePointStableRecordIndex(point);
-  return stableIndex === null ? index === selectedRouteIndex : stableIndex === selectedRecordIndex;
+  return stableIndex === null || stableIndex === selectedRecordIndex;
 }
 
 function selectRouteRecord(index, shouldAnnounce = true) {

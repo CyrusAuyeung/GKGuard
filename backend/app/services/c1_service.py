@@ -35,9 +35,36 @@ _cache_lock = RLock()
 
 
 class C1ServiceError(RuntimeError):
-    def __init__(self, message: str, status_code: int = 502):
+    def __init__(self, message: str, status_code: int = 502, code: str = "C1_UNAVAILABLE"):
         super().__init__(message)
         self.status_code = status_code
+        self.code = code
+
+
+def _c1_status_error(response: httpx.Response) -> C1ServiceError:
+    status_code = response.status_code
+    message = f"C1 returned HTTP {status_code}"
+    code = "C1_UNAVAILABLE"
+    if 400 <= status_code < 500:
+        code = "C1_VALIDATION_ERROR"
+    if status_code == 413:
+        code = "C1_PAYLOAD_TOO_LARGE"
+    if not (400 <= status_code < 500):
+        return C1ServiceError(message, status_code, code)
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    detail = payload.get("detail") if isinstance(payload, dict) else None
+    if isinstance(detail, dict):
+        message = str(detail.get("message") or detail.get("detail") or message)
+        code = str(detail.get("code") or code)
+    elif detail:
+        message = str(detail)
+    elif isinstance(payload, dict):
+        message = str(payload.get("message") or payload.get("error") or message)
+        code = str(payload.get("code") or code)
+    return C1ServiceError(message, status_code, code)
 
 
 class _ConnectionGenerationChanged(RuntimeError):
@@ -925,13 +952,13 @@ def _request_with_base_url(
             _ensure_generation_current(required_generation)
             status_code = exc.response.status_code
             if status_code not in RETRYABLE_STATUS_CODES:
-                raise C1ServiceError(f"C1 returned HTTP {status_code}", status_code) from exc
+                raise _c1_status_error(exc.response) from exc
         except httpx.HTTPError as exc:
             last_error = exc
 
     if isinstance(last_error, httpx.HTTPStatusError):
         _clear_selected_base_url(required_generation=required_generation)
-        raise C1ServiceError(f"C1 returned HTTP {last_error.response.status_code}", last_error.response.status_code) from last_error
+        raise _c1_status_error(last_error.response) from last_error
     if isinstance(last_error, httpx.HTTPError):
         _clear_selected_base_url(required_generation=required_generation)
         raise C1ServiceError(f"C1 unavailable: {last_error}") from last_error
@@ -1058,7 +1085,7 @@ def query_face_image_candidates(
     end_time: str | None = None,
 ) -> dict[str, Any]:
     files = {"files": (filename, content, content_type or "application/octet-stream")}
-    data: dict[str, str] = {
+    params: dict[str, str] = {
         "top_k": str(top_k),
         "max_gap_sec": str(max_gap_sec),
         "include_candidates": str(include_candidates).lower(),
@@ -1068,16 +1095,16 @@ def query_face_image_candidates(
         "include_matches": str(include_matches).lower(),
     }
     if min_score is not None:
-        data["min_score"] = str(min_score)
+        params["min_score"] = str(min_score)
     if query_face_index is not None:
-        data["query_face_index"] = str(query_face_index)
+        params["query_face_index"] = str(query_face_index)
     if camera_id:
-        data["camera_id"] = camera_id
+        params["camera_id"] = camera_id
     if start_time:
-        data["start_time"] = start_time
+        params["start_time"] = start_time
     if end_time:
-        data["end_time"] = end_time
-    raw = _request("POST", "/api/v1/query/face-image", files=files, data=data).json()
+        params["end_time"] = end_time
+    raw = _request("POST", "/api/v1/query/face-image", files=files, params=params).json()
     return _summarize_face_image_candidates(raw)
 
 

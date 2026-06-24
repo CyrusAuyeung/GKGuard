@@ -9,8 +9,8 @@ from app.services import c1_service
 router = APIRouter(prefix="/c1", tags=["c1"])
 
 
-def _raise_c1_unavailable(exc: c1_service.C1ServiceError, code: str = "C1_UNAVAILABLE") -> None:
-    raise HTTPException(status_code=exc.status_code, detail={"code": code, "message": str(exc)}) from exc
+def _raise_c1_unavailable(exc: c1_service.C1ServiceError, code: str | None = None) -> None:
+    raise HTTPException(status_code=exc.status_code, detail={"code": code or exc.code, "message": str(exc)}) from exc
 
 
 @router.get("/status")
