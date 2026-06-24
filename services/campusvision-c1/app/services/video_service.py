@@ -10,7 +10,7 @@ from typing import BinaryIO
 import cv2
 
 from app.core.config import settings
-from app.services import event_service, observation_service
+from app.services import event_service, observation_service, person_service
 from app.services.upload_limits import copy_upload_with_limit
 from app.storage import db
 from app.vision.body_detector import get_body_detector
@@ -86,9 +86,12 @@ def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[f
 
 
 def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
+    affected_person_ids = db.list_person_ids_for_video_faces(video_id)
     db.delete_events_for_video(video_id)
     db.delete_person_observations_for_video(video_id)
     db.delete_face_records_for_video(video_id)
+    if affected_person_ids:
+        person_service.refresh_persons_from_remaining_faces(affected_person_ids)
     if frame_dir.exists():
         shutil.rmtree(frame_dir)
 

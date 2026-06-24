@@ -32,7 +32,7 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 
 ## 人物特征检索流程
 
-当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、重复索引和 API 规范示例。
+当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、重复索引、受影响人物索引刷新和 API 规范示例。
 
 1. 在搜索页切换到 `人物特征检索`。
 2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
@@ -316,7 +316,7 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 
 ## Person-Attribute Search Flow
 
-The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrects route ordering, duplicate indexing, and API specification examples.
+The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrects route ordering, duplicate indexing, affected person-index refresh, and API specification examples.
 
 1. Switch to `人物特征检索` on the search screen.
 2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.

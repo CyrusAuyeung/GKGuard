@@ -244,6 +244,43 @@ def test_delete_person_observations_for_video_cleans_rollback_artifacts(monkeypa
     assert remaining_links == 0
 
 
+def test_video_face_person_ids_are_available_before_face_cleanup(monkeypatch, tmp_path: Path) -> None:
+    from app.storage import db
+
+    _configure_temp_db(monkeypatch, tmp_path)
+    db.init_db()
+    frame_path = str(tmp_path / "frame.jpg")
+    face_record = {
+        "video_id": "video-001",
+        "camera_id": "cam-001",
+        "frame_path": frame_path,
+        "video_timestamp_sec": 1.0,
+        "captured_at": "2026-06-22T10:00:00Z",
+        "bbox": {"x1": 1, "y1": 2, "x2": 30, "y2": 40},
+        "embedding": [1.0, 0.0, 0.0],
+    }
+    db.add_face_record({"face_id": "face-001", **face_record})
+    db.add_face_record({"face_id": "face-002", **face_record, "video_timestamp_sec": 2.0})
+    db.add_person(
+        {
+            "person_id": "person-001",
+            "representative_face_id": "face-001",
+            "representative_frame_path": frame_path,
+            "embedding": [1.0, 0.0, 0.0],
+            "face_count": 2,
+        }
+    )
+    db.add_person_face("person-001", "face-001", 0.99)
+    db.add_person_face("person-001", "face-002", 0.98)
+
+    assert db.list_person_ids_for_video_faces("video-001") == {"person-001"}
+
+    db.delete_face_records_for_video("video-001")
+
+    assert db.list_person_ids_for_video_faces("video-001") == set()
+    assert db.list_face_records_for_person("person-001") == []
+
+
 def test_person_events_route_honors_limit_without_loading_vision_dependencies() -> None:
     route_source = (Path(__file__).resolve().parents[1] / "app" / "api" / "routes.py").read_text(
         encoding="utf-8"
@@ -312,11 +349,18 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     clear_segment = service_source.split("def _clear_previous_video_index", 1)[1].split("def index_video", 1)[0]
     index_segment = service_source.split("def index_video", 1)[1]
 
+    assert "affected_person_ids = db.list_person_ids_for_video_faces(video_id)" in clear_segment
     assert "db.delete_events_for_video(video_id)" in clear_segment
     assert "db.delete_person_observations_for_video(video_id)" in clear_segment
     assert "db.delete_face_records_for_video(video_id)" in clear_segment
+    assert "person_service.refresh_persons_from_remaining_faces(affected_person_ids)" in clear_segment
     assert "shutil.rmtree(frame_dir)" in clear_segment
     assert "_clear_previous_video_index(video_id, video_frame_dir)" in index_segment
+
+    collect_index = clear_segment.index("affected_person_ids = db.list_person_ids_for_video_faces(video_id)")
+    delete_faces_index = clear_segment.index("db.delete_face_records_for_video(video_id)")
+    refresh_index = clear_segment.index("person_service.refresh_persons_from_remaining_faces(affected_person_ids)")
+    assert collect_index < delete_faces_index < refresh_index
 
     try_index = index_segment.index("try:")
     clear_index = index_segment.index("_clear_previous_video_index(video_id, video_frame_dir)")
