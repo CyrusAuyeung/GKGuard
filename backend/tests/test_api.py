@@ -122,6 +122,8 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "function selectRouteRecord" in script
     assert "function emptyStateMarkup" in script
     assert "data-route-index" in script
+    assert "return text || null;" in script
+    assert 'text.replace("T", " ")' not in script
 
     style_response = client.get("/static/styles.css")
     assert style_response.status_code == 200
@@ -1397,6 +1399,52 @@ def test_c1_record_mapping_accepts_normalized_face_box(monkeypatch) -> None:
     assert record["faceBox"]["height"] == 50
     assert record["faceBox"]["leftPct"] == 25
     assert record["faceBox"]["heightPct"] == 50
+
+
+def test_c1_event_record_mapping_does_not_fabricate_body_url(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    record = c1_service._record_from_event(
+        {
+            "event_id": "event-face-only",
+            "representative_frame_url": "/api/v1/media/event/frame/event-face-only",
+            "representative_face_crop_url": "/api/v1/media/face/face-1",
+            "camera_id": "cam02",
+            "start_time": "2026-06-24T10:00:00",
+            "score": 0.82,
+        },
+        1,
+    )
+
+    assert record["thumbnailUrl"] == "/c1/media/face/face-1"
+    assert "/event/body/" not in record["thumbnailUrl"]
+
+
+def test_c1_attribute_summary_keeps_all_returned_records(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    raw = {
+        "query_id": "query-1",
+        "query": {"limit": 25},
+        "summary": {"total_matches": 25},
+        "results": [
+            {
+                "event_id": f"event-{index}",
+                "camera_id": "cam02",
+                "start_time": "2026-06-24T10:00:00",
+                "representative_face_crop_url": f"/api/v1/media/face/face-{index}",
+                "score": 0.9,
+            }
+            for index in range(25)
+        ],
+    }
+
+    result = c1_service._summarize_attribute_query(raw)
+
+    assert len(result["records"]) == 25
+    assert result["records"][24]["eventId"] == "event-24"
 
 
 def test_root_redirects_to_demo() -> None:

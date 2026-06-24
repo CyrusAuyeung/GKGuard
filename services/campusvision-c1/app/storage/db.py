@@ -894,7 +894,62 @@ def delete_events_for_video(video_id: str) -> set[str]:
     return person_ids
 
 
-def _event_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
+def delete_person_observations_for_video(video_id: str) -> set[str]:
+    with get_conn() as conn:
+        person_rows = conn.execute(
+            "SELECT DISTINCT person_id FROM person_observations WHERE video_id = ? AND person_id IS NOT NULL",
+            (video_id,),
+        ).fetchall()
+        person_ids = {row["person_id"] for row in person_rows}
+        observation_rows = conn.execute(
+            "SELECT observation_id FROM person_observations WHERE video_id = ?",
+            (video_id,),
+        ).fetchall()
+        observation_ids = [row["observation_id"] for row in observation_rows]
+        if observation_ids:
+            for chunk_start in range(0, len(observation_ids), 900):
+                chunk = observation_ids[chunk_start : chunk_start + 900]
+                placeholders = ",".join("?" for _ in chunk)
+                conn.execute(
+                    f"DELETE FROM event_observations WHERE observation_id IN ({placeholders})",
+                    chunk,
+                )
+                conn.execute(
+                    f"UPDATE face_records SET observation_id = NULL WHERE observation_id IN ({placeholders})",
+                    chunk,
+                )
+            conn.execute("DELETE FROM person_observations WHERE video_id = ?", (video_id,))
+    return person_ids
+
+
+def _load_observations_by_ids(
+    conn: sqlite3.Connection,
+    observation_ids: list[str],
+) -> dict[str, dict[str, Any]]:
+    unique_ids = list(dict.fromkeys(observation_id for observation_id in observation_ids if observation_id))
+    observations: dict[str, dict[str, Any]] = {}
+    for chunk_start in range(0, len(unique_ids), 900):
+        chunk = unique_ids[chunk_start : chunk_start + 900]
+        if not chunk:
+            continue
+        placeholders = ",".join("?" for _ in chunk)
+        rows = conn.execute(
+            f"SELECT * FROM person_observations WHERE observation_id IN ({placeholders})",
+            chunk,
+        ).fetchall()
+        for row in rows:
+            observation = _observation_from_row(row)
+            if observation is not None:
+                observations[observation["observation_id"]] = observation
+    return observations
+
+
+def _event_from_row(
+    row: sqlite3.Row | None,
+    *,
+    representative_observation: dict[str, Any] | None = None,
+    load_representative_observation: bool = True,
+) -> dict[str, Any] | None:
     if row is None:
         return None
     data = dict(row)
@@ -926,11 +981,12 @@ def _event_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
         if data.get("representative_face_id")
         else None
     )
-    representative_observation = (
-        get_person_observation(data["representative_observation_id"])
-        if data.get("representative_observation_id")
-        else None
-    )
+    if (
+        representative_observation is None
+        and load_representative_observation
+        and data.get("representative_observation_id")
+    ):
+        representative_observation = get_person_observation(data["representative_observation_id"])
     data["body_visibility"] = (
         representative_observation.get("body_visibility") if representative_observation else None
     )
@@ -1072,6 +1128,8 @@ def list_events(
     end_time: str | None = None,
     limit: int = 100,
     offset: int = 0,
+    include_representative_observation: bool = True,
+    latest_first: bool = False,
 ) -> list[dict[str, Any]]:
     clauses = []
     params: list[Any] = []
@@ -1098,17 +1156,38 @@ def list_events(
         clauses.append("(start_time IS NULL OR start_time <= ?)")
         params.append(end_time)
     where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    if latest_first:
+        order_by = "COALESCE(start_time, end_time, created_at, '') DESC, start_timestamp_sec DESC, created_at DESC"
+    else:
+        order_by = "COALESCE(start_time, ''), start_timestamp_sec, created_at"
     sql = f"""
         SELECT *
         FROM events
         {where}
-        ORDER BY COALESCE(start_time, ''), start_timestamp_sec, created_at
+        ORDER BY {order_by}
         LIMIT ? OFFSET ?
     """
     params.extend([max(1, min(int(limit), 50000)), max(0, int(offset))])
     with get_conn() as conn:
         rows = conn.execute(sql, params).fetchall()
-    return [event for row in rows if (event := _event_from_row(row)) is not None]
+        observation_map: dict[str, dict[str, Any]] = {}
+        if include_representative_observation:
+            observation_map = _load_observations_by_ids(
+                conn,
+                [row["representative_observation_id"] for row in rows if row["representative_observation_id"]],
+            )
+    return [
+        event
+        for row in rows
+        if (
+            event := _event_from_row(
+                row,
+                representative_observation=observation_map.get(row["representative_observation_id"]),
+                load_representative_observation=False,
+            )
+        )
+        is not None
+    ]
 
 
 def _appearance_session_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:

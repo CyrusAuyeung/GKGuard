@@ -90,16 +90,17 @@ def _choice_condition(
     if not expected:
         return 1.0, None
 
-    if not actual or actual == "unknown":
+    actual_value = actual or "unknown"
+    if actual_value in expected:
+        return 1.0, None
+
+    if actual_value == "unknown":
         return 0.35, {
             "field": field,
             "expected": expected,
-            "actual": actual or "unknown",
+            "actual": actual_value,
             "reason": f"{field}_unknown",
         }
-
-    if actual in expected:
-        return 1.0, None
 
     probability_score = 0.0
     if isinstance(probabilities, dict):
@@ -209,6 +210,32 @@ def _event_payload(
     }
 
 
+def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
+    for result in results:
+        event_id = result.get("event_id")
+        if not event_id:
+            continue
+        event = db.get_event(str(event_id))
+        if not event:
+            continue
+        for field in (
+            "representative_frame_url",
+            "representative_body_crop_url",
+            "representative_face_crop_url",
+            "body_visibility",
+        ):
+            result[field] = event.get(field)
+        nested_event = result.get("event")
+        if isinstance(nested_event, dict):
+            for field in (
+                "representative_frame_url",
+                "representative_body_crop_url",
+                "representative_face_crop_url",
+                "body_visibility",
+            ):
+                nested_event[field] = event.get(field)
+
+
 def _passes_person_scope(event: dict[str, Any], person: dict[str, Any] | None, scope: str) -> bool:
     person_id = event.get("person_id")
     if scope == "all":
@@ -291,6 +318,8 @@ def query_person_attributes(query: dict[str, Any]) -> dict[str, Any]:
         end_time=end_time,
         limit=candidate_scan_limit,
         offset=0,
+        latest_first=True,
+        include_representative_observation=False,
     )
 
     active = _active_conditions(
@@ -414,6 +443,7 @@ def query_person_attributes(query: dict[str, Any]) -> dict[str, Any]:
     total = len(results)
     ranked_results = results[:candidate_pool_size]
     page = ranked_results[offset : offset + limit]
+    _hydrate_page_media(page)
     exact_count = sum(1 for item in results if item["match_type"] == "exact")
     partial_count = total - exact_count
     return {

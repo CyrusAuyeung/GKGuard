@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, Response
 
 from app.api.security import require_c1_api_key
@@ -1183,13 +1183,18 @@ def capture_live_source(
     duration_sec: float = 10.0,
     frame_interval_sec: Optional[float] = None,
     index: bool = False,
+    recorded_at: Optional[str] = None,
 ):
     try:
+        capture_recorded_at = recorded_at or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace(
+            "+00:00", "Z"
+        )
         return live_service.capture_live_source(
             source_id,
             duration_sec=duration_sec,
             frame_interval_sec=frame_interval_sec,
             index=index,
+            recorded_at=capture_recorded_at,
         )
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -4948,13 +4953,17 @@ def manual_person_clothing_label_review(sample_count: int = 5):
 
 
 @router.get("/persons/{person_id}/events", response_model=list[PersonEventOut])
-def get_person_events(person_id: str, max_gap_sec: float = 10.0):
+def get_person_events(
+    person_id: str,
+    max_gap_sec: float = 10.0,
+    limit: int = Query(100, ge=1, le=5000),
+):
     if db.get_person(person_id) is None:
         raise HTTPException(status_code=404, detail="Person not found")
-    persisted = event_service.list_events(person_id=person_id, limit=500)
+    persisted = event_service.list_events(person_id=person_id, limit=limit)
     if persisted:
         return [person_service._persisted_event_for_person(event, person_id) for event in persisted]
-    return person_service.person_events(person_id, max_gap_sec=max_gap_sec)
+    return person_service.person_events(person_id, max_gap_sec=max_gap_sec)[:limit]
 
 
 @router.get("/persons/{person_id}/appearance-sessions", response_model=list[AppearanceSessionOut])
@@ -5082,10 +5091,15 @@ async def query_face_image(
 
     temp_search_id = "face_query_" + uuid.uuid4().hex
     paths = []
-    for upload in files:
-        if not upload.filename:
-            continue
-        paths.append(search_service.save_query_image(upload.file, upload.filename, temp_search_id))
+    try:
+        _validate_query_upload_count(files)
+        for upload in files:
+            if not upload.filename:
+                continue
+            paths.append(search_service.save_query_image(upload.file, upload.filename, temp_search_id))
+    except search_service.QueryImageTooLarge as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
     if not paths:
         raise HTTPException(status_code=400, detail="No query image uploaded.")

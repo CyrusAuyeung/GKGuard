@@ -179,7 +179,7 @@ http://127.0.0.1:8000/docs
 
 `POST /api/v1/query/face-image`
 
-上传一张或多张目标人物照片，返回相似人物候选，并在候选人物下带出事件、逐帧匹配和轨迹。该接口面向 GKGuard C2 展示层，返回结构比 `/api/v1/search/person-by-image` 更稳定，便于直接生成候选人物、事件列表和结果详情。
+上传一张或多张目标人物照片，返回相似人物候选，并在候选人物下带出事件、逐帧匹配和轨迹。该接口面向 GKGuard C2 展示层，返回结构比 `/api/v1/search/person-by-image` 更稳定，便于直接生成候选人物、事件列表和结果详情。上传数量和单文件大小沿用查询图上传限制，超过限制时返回 413。
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---:|---|
@@ -261,7 +261,13 @@ http://127.0.0.1:8000/docs
 - `results[].glasses_status`
 - `results[].gender_presentation`
 
-`match_type=exact` 表示已填写条件全部满足；`partial` 表示事件相似但存在不满足项，必须结合 `failed_conditions` 人工判断。`unknown` 表示模型无法判断，不等同于否定结果。
+`match_type=exact` 表示已填写条件全部满足；`partial` 表示事件相似但存在不满足项，必须结合 `failed_conditions` 人工判断。`unknown` 表示模型无法判断，不等同于否定结果；当调用方显式请求 `unknown` 时，真实 `unknown` 事件会作为满足该条件处理。人物特征检索会先按时间范围、摄像头和人物范围取候选，并优先扫描最新事件，避免大规模索引下只检查最早事件窗口。
+
+## 实时源采集
+
+`POST /api/v1/live-sources/{source_id}/capture`
+
+手动采集实时源片段，可选 `index=true` 立即索引。若调用方不传 `recorded_at`，CampusVision C1 会使用采集开始时间写入视频记录，使索引出的事件拥有可用于时间筛选的 `captured_at`、`start_time` 和 `end_time`。
 
 ## 事件与观测
 
@@ -271,7 +277,7 @@ http://127.0.0.1:8000/docs
 
 `GET /api/v1/persons/{person_id}/events`
 
-读取单个人物的连续出现事件。
+读取单个人物的连续出现事件。支持 `limit` 查询参数，默认 `100`，范围 `1..5000`。
 
 `GET /api/v1/events/{event_id}/observations`
 
@@ -497,7 +503,7 @@ Response includes:
 
 `POST /api/v1/query/face-image`
 
-Uploads one or more target-person photos, returns similar candidate people, and includes events, frame-level matches, and trajectory under each candidate. This endpoint is intended for the GKGuard C2 presentation layer and provides a more stable response shape than `/api/v1/search/person-by-image` for rendering candidates, event lists, and result details directly.
+Uploads one or more target-person photos, returns similar candidate people, and includes events, frame-level matches, and trajectory under each candidate. This endpoint is intended for the GKGuard C2 presentation layer and provides a more stable response shape than `/api/v1/search/person-by-image` for rendering candidates, event lists, and result details directly. It reuses the query-image upload-count and single-file-size limits and returns 413 when a request exceeds them.
 
 | Field | Type | Required | Description |
 |---|---|---:|---|
@@ -579,7 +585,13 @@ Response includes:
 - `results[].glasses_status`
 - `results[].gender_presentation`
 
-`match_type=exact` means all filled conditions match. `partial` means the event is similar but has failed conditions and needs human judgment. `unknown` means the model cannot determine the attribute, not that the attribute is false.
+`match_type=exact` means all filled conditions match. `partial` means the event is similar but has failed conditions and needs human judgment. `unknown` means the model cannot determine the attribute, not that the attribute is false. When callers explicitly request `unknown`, events whose actual value is `unknown` satisfy that condition. Person-attribute search first selects candidates by time range, camera, and person scope, and scans the newest events first so large indexes do not only evaluate the oldest event window.
+
+## Live Source Capture
+
+`POST /api/v1/live-sources/{source_id}/capture`
+
+Manually captures a live-source segment and can immediately index it with `index=true`. If the caller does not pass `recorded_at`, CampusVision C1 stamps the video row with the capture start time so indexed events receive `captured_at`, `start_time`, and `end_time` values that work with time-range filtering.
 
 ## Events And Observations
 
@@ -589,7 +601,7 @@ Reads event lists by time, camera, person, upper color, glasses status, appearan
 
 `GET /api/v1/persons/{person_id}/events`
 
-Reads continuous appearance events for one person.
+Reads continuous appearance events for one person. Supports the `limit` query parameter, defaulting to `100` with range `1..5000`.
 
 `GET /api/v1/events/{event_id}/observations`
 

@@ -74,7 +74,7 @@ INSIGHTFACE_DET_SIZE=1280
 
 ## 安全与资源限制
 
-默认本地开发绑定 `127.0.0.1`，不要求 API key。若服务绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`；受保护的相机元数据、视频列表、上传、索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口会在读取 multipart 请求体前校验 `X-CampusVision-API-Key`。人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。查询图解码超过限制时返回 413 并清理临时上传；视频索引失败时只回滚本次尝试新增的人脸记录和帧文件，保留既有成功索引。不要把 API key 写入仓库或日志。
+默认本地开发绑定 `127.0.0.1`，不要求 API key。若服务绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，必须配置 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`；受保护的相机元数据、视频列表、上传、索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口会在读取 multipart 请求体前校验 `X-CampusVision-API-Key`。人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。查询图解码超过限制时返回 413 并清理临时上传；视频索引失败时会回滚本次尝试新增的人脸记录、人物观测和帧文件，保留既有成功索引。不要把 API key 写入仓库或日志。
 
 `.env` 可配置以下资源上限：
 
@@ -159,7 +159,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/query/face-image \
   -F "event_limit_per_person=10"
 ```
 
-该接口复用查询图人脸检测和人物库检索，返回 `candidates[]`、候选人物属性、事件列表、逐帧匹配和轨迹。默认优先稳定人物，`include_candidates=true` 时包含候选碎片人物。多图查询可通过 `query_face_indices` 指定每张图使用的人脸序号。
+该接口复用查询图人脸检测和人物库检索，返回 `candidates[]`、候选人物属性、事件列表、逐帧匹配和轨迹。默认优先稳定人物，`include_candidates=true` 时包含候选碎片人物。多图查询可通过 `query_face_indices` 指定每张图使用的人脸序号。接口沿用查询图上传数量和单文件大小限制，超限时返回 413。
 
 1. 按人物特征查事件。
 
@@ -169,13 +169,15 @@ curl -X POST http://127.0.0.1:8000/api/v1/query/person-attributes \
   -d '{"upper_colors":["black"],"glasses_status":["no_glasses"],"include_candidates":true,"limit":20}'
 ```
 
-该接口按时间、摄像头、上装颜色、眼镜状态、外观倾向和人物范围查询事件。结果分为 `exact` 和 `partial`：`exact` 表示已填写条件全部满足，`partial` 会通过 `failed_conditions` 和 `condition_scores` 说明不满足项；`unknown` 表示模型无法判断，不等同于否定结果。
+该接口按时间、摄像头、上装颜色、眼镜状态、外观倾向和人物范围查询事件。结果分为 `exact` 和 `partial`：`exact` 表示已填写条件全部满足，`partial` 会通过 `failed_conditions` 和 `condition_scores` 说明不满足项；`unknown` 表示模型无法判断，不等同于否定结果。当查询条件显式选择 `unknown` 时，真实 `unknown` 事件会作为满足条件处理。候选扫描优先覆盖最新事件窗口，避免大规模索引只检索到最早事件。
+
+手动实时源采集 `/api/v1/live-sources/{source_id}/capture` 若未传 `recorded_at`，会使用采集开始时间写入视频记录；因此 `index=true` 生成的事件可正常参与时间范围筛选。
 
 1. 查询事件与观测。
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/events
-curl http://127.0.0.1:8000/api/v1/persons/{person_id}/events
+curl 'http://127.0.0.1:8000/api/v1/persons/{person_id}/events?limit=20'
 curl http://127.0.0.1:8000/api/v1/events/{event_id}/observations
 ```
 
@@ -343,7 +345,7 @@ INSIGHTFACE_DET_SIZE=1280
 
 ## Security And Resource Limits
 
-Local development binds to `127.0.0.1` by default and does not require an API key. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, set `CAMPUSVISION_API_KEY` or `C1_API_KEY`; protected camera-metadata, video-list, upload, indexing, person-index, search-result, media-frame, face-crop, and record endpoints validate `X-CampusVision-API-Key` before reading multipart request bodies. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Decoded over-limit query images return 413 and clean up temporary uploads; failed video indexing rolls back only face records and frame files created by the current attempt while preserving existing successful indexes. Do not write API keys to the repository or logs.
+Local development binds to `127.0.0.1` by default and does not require an API key. If the service binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, set `CAMPUSVISION_API_KEY` or `C1_API_KEY`; protected camera-metadata, video-list, upload, indexing, person-index, search-result, media-frame, face-crop, and record endpoints validate `X-CampusVision-API-Key` before reading multipart request bodies. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Decoded over-limit query images return 413 and clean up temporary uploads; failed video indexing rolls back face records, person observations, and frame files created by the current attempt while preserving existing successful indexes. Do not write API keys to the repository or logs.
 
 These resource limits can be configured in `.env`:
 
@@ -428,7 +430,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/query/face-image \
   -F "event_limit_per_person=10"
 ```
 
-This endpoint reuses query-face detection and person-index search, returning `candidates[]`, candidate attributes, events, frame-level matches, and trajectory. It prefers stable people by default; `include_candidates=true` includes candidate fragments. Multi-image queries can use `query_face_indices` to select the face index for each image.
+This endpoint reuses query-face detection and person-index search, returning `candidates[]`, candidate attributes, events, frame-level matches, and trajectory. It prefers stable people by default; `include_candidates=true` includes candidate fragments. Multi-image queries can use `query_face_indices` to select the face index for each image. It reuses the query-image upload-count and single-file-size limits and returns 413 when a request exceeds them.
 
 1. Search events by person attributes.
 
@@ -438,13 +440,15 @@ curl -X POST http://127.0.0.1:8000/api/v1/query/person-attributes \
   -d '{"upper_colors":["black"],"glasses_status":["no_glasses"],"include_candidates":true,"limit":20}'
 ```
 
-This endpoint searches events by time, camera, upper color, glasses status, appearance presentation, and person scope. Results are marked as `exact` or `partial`: `exact` means all filled conditions match, while `partial` explains failed conditions through `failed_conditions` and `condition_scores`; `unknown` means the model cannot determine the attribute, not that the attribute is false.
+This endpoint searches events by time, camera, upper color, glasses status, appearance presentation, and person scope. Results are marked as `exact` or `partial`: `exact` means all filled conditions match, while `partial` explains failed conditions through `failed_conditions` and `condition_scores`; `unknown` means the model cannot determine the attribute, not that the attribute is false. When a query explicitly selects `unknown`, events whose actual value is `unknown` satisfy that condition. Candidate scanning prioritizes the newest event window so large indexes do not only search the oldest events.
+
+Manual live-source capture at `/api/v1/live-sources/{source_id}/capture` stamps the video row with the capture start time when `recorded_at` is omitted, so events produced by `index=true` can participate in time-range filtering.
 
 1. Query events and observations.
 
 ```bash
 curl http://127.0.0.1:8000/api/v1/events
-curl http://127.0.0.1:8000/api/v1/persons/{person_id}/events
+curl 'http://127.0.0.1:8000/api/v1/persons/{person_id}/events?limit=20'
 curl http://127.0.0.1:8000/api/v1/events/{event_id}/observations
 ```
 

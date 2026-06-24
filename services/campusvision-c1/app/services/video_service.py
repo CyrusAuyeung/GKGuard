@@ -180,6 +180,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
         )
     except Exception as exc:
         db.delete_events_for_video(video_id)
+        db.delete_person_observations_for_video(video_id)
         db.delete_face_records_by_ids(created_face_ids)
         for frame_file in created_frame_files:
             frame_file.unlink(missing_ok=True)

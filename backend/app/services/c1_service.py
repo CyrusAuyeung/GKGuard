@@ -622,10 +622,7 @@ def _record_from_event(event: dict[str, Any], index: int) -> dict[str, Any]:
         or (f"/api/v1/media/event/frame/{event_id}" if event.get("event_id") else None)
     )
     face_url = _absolute_media_url(event.get("representative_face_crop_url"))
-    body_url = _absolute_media_url(
-        event.get("representative_body_crop_url")
-        or (f"/api/v1/media/event/body/{event_id}" if event.get("event_id") else None)
-    )
+    body_url = _absolute_media_url(event.get("representative_body_crop_url"))
     score = _first_number(event.get("score"), event.get("match_score"), event.get("identity_confidence"), 0)
     note_parts = []
     upper_color = event.get("upper_color") or event.get("normalized_upper_color")
@@ -799,7 +796,7 @@ def _summarize_face_image_candidates(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _summarize_attribute_query(raw: dict[str, Any]) -> dict[str, Any]:
     results = raw.get("results") or []
-    records = [_record_from_event(item, index + 1) for index, item in enumerate(results[:20])]
+    records = [_record_from_event(item, index + 1) for index, item in enumerate(results)]
     summary = raw.get("summary") or {}
     total_matches = _first_number(summary.get("total_matches"), len(results))
     representative_url = None

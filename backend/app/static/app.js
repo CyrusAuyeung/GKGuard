@@ -1175,7 +1175,7 @@ async function fetchC1Search(signal) {
 
 function normalizeDateTimeInput(value) {
   const text = String(value || "").trim();
-  return text ? text.replace("T", " ") : null;
+  return text || null;
 }
 
 function selectedControlValue(control) {
