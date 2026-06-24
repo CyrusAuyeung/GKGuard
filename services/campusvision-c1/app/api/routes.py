@@ -5105,21 +5105,25 @@ async def query_face_image(
         raise HTTPException(status_code=400, detail="No query image uploaded.")
 
     parsed_indices = _parse_query_face_indices(query_face_indices, fallback_index=query_face_index)
-    return person_service.query_face_image_candidates(
-        paths,
-        query_face_indices=parsed_indices,
-        top_k=max(1, min(int(top_k), 50)),
-        min_score=min_score,
-        max_gap_sec=max(0.0, float(max_gap_sec)),
-        include_candidates=include_candidates,
-        event_limit_per_person=max(0, min(int(event_limit_per_person), 200)),
-        match_limit_per_person=max(0, min(int(match_limit_per_person), 200)),
-        include_events=include_events,
-        include_matches=include_matches,
-        camera_id=camera_id,
-        start_time=start_time,
-        end_time=end_time,
-    )
+    try:
+        return person_service.query_face_image_candidates(
+            paths,
+            query_face_indices=parsed_indices,
+            top_k=max(1, min(int(top_k), 50)),
+            min_score=min_score,
+            max_gap_sec=max(0.0, float(max_gap_sec)),
+            include_candidates=include_candidates,
+            event_limit_per_person=max(0, min(int(event_limit_per_person), 200)),
+            match_limit_per_person=max(0, min(int(match_limit_per_person), 200)),
+            include_events=include_events,
+            include_matches=include_matches,
+            camera_id=camera_id,
+            start_time=start_time,
+            end_time=end_time,
+        )
+    except search_service.QueryImageTooLarge as exc:
+        _cleanup_query_uploads(paths, temp_search_id)
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
 
 
 @router.post("/query/person-attributes", response_model=PersonAttributeQueryResult)

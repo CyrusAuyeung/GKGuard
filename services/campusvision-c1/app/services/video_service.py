@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -84,6 +85,14 @@ def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[f
     return boxes, embeddings
 
 
+def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
+    db.delete_events_for_video(video_id)
+    db.delete_person_observations_for_video(video_id)
+    db.delete_face_records_for_video(video_id)
+    if frame_dir.exists():
+        shutil.rmtree(frame_dir)
+
+
 def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     video = db.get_video(video_id)
     if not video:
@@ -104,7 +113,6 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     detected_bodies = 0
     event_result = None
     video_frame_dir = settings.frames_dir / video_id
-    video_frame_dir.mkdir(parents=True, exist_ok=True)
     upper_color_cache = (
         observation_service.UpperColorTemporalCache()
         if settings.enable_upper_color_temporal_cache
@@ -112,6 +120,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     )
 
     try:
+        _clear_previous_video_index(video_id, video_frame_dir)
+        video_frame_dir.mkdir(parents=True, exist_ok=True)
         for frame_index, (timestamp_sec, frame) in enumerate(
             iter_video_frames(video["path"], every_seconds=float(interval))
         ):

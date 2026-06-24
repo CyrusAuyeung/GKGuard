@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -21,11 +21,11 @@ CampusVision C1 适配器默认本机隧道地址：
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-安装版 `v0.2.0` 默认只内置本机隧道候选地址 `http://127.0.0.1:18000`；校园网直连地址必须通过 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 显式配置。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内连接窗口展示服务器账号、隧道目标、四步连接进度、失败重试和密码安全说明。主进程会在发送服务器密码前自动比对受信 SSH 主机密钥；服务器地址或主机密钥变化时必须通过 `sshTunnel.hostFingerprint` 或 `C1_SSH_HOST_FINGERPRINT` 显式更新受信主机信息。受信主机信息缺失或不匹配时，GKGuard C2 会阻断连接而不会弹出人工确认继续连接入口。
+安装版 `v0.2.1` 默认只内置本机隧道候选地址 `http://127.0.0.1:18000`；校园网直连地址必须通过 `C1_BASE_URL`、`C1_CANDIDATE_URLS` 或 `%APPDATA%\GKGuard\c1-connection.json` 显式配置。GKGuard C2 会自动探测候选 CampusVision C1 服务；若未通过隧道连接，桌面端会在软件内连接窗口展示服务器账号、隧道目标、四步连接进度、失败重试和密码安全说明。主进程会在发送服务器密码前自动比对受信 SSH 主机密钥；服务器地址或主机密钥变化时必须通过 `sshTunnel.hostFingerprint` 或 `C1_SSH_HOST_FINGERPRINT` 显式更新受信主机信息。受信主机信息缺失或不匹配时，GKGuard C2 会阻断连接而不会弹出人工确认继续连接入口。
 
-`v0.2.0` 保留既有查询图人脸检测、选中人脸检索、结果关键帧标注、记录切换预加载、媒体缓存隔离和路线联动能力，并新增 CampusVision C1 事件智能接口：人物事件、事件观测、查询图候选、人物特征查询和扩展媒体代理。人物特征查询可按上装颜色、眼镜状态、外观倾向、摄像头和时间范围筛选 CampusVision C1 事件；GKGuard C2 会把 CampusVision C1 返回的事件、观测、人体裁剪图、人脸裁剪图、关键帧、属性命中和部分匹配原因归一化为结果页记录。
+`v0.2.1` 保留既有查询图人脸检测、选中人脸检索、结果关键帧标注、记录切换预加载、媒体缓存隔离和路线联动能力，并继续提供 `v0.2.0` 引入的 CampusVision C1 事件智能接口：人物事件、事件观测、查询图候选、人物特征查询和扩展媒体代理。人物特征查询可按上装颜色、眼镜状态、外观倾向、摄像头和时间范围筛选 CampusVision C1 事件；GKGuard C2 会把 CampusVision C1 返回的事件、观测、人体裁剪图、人脸裁剪图、关键帧、属性命中和部分匹配原因归一化为结果页记录。本版修正查询图解码超限清理、同一视频重复索引幂等性、人物特征路线点时间顺序和本 API 规范示例。
 
-安全边界：GKGuard C2 只会选择通过 `C1_ALLOWED_HOSTS` 允许列表、OpenAPI 身份检查和 `/health` 检查的 CampusVision C1 候选地址；如果 CampusVision C1 绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，CampusVision C1 要求 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`，GKGuard C2 按相同优先级读取密钥并通过 `X-CampusVision-API-Key` 转发。CampusVision C1 会保护相机元数据、视频列表与索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口；人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。视频索引失败时会回滚本次尝试新增的人脸记录、人物观测和帧文件，保留该视频已有成功索引。旧版模拟图片搜索限制单个文件不超过 2 MiB，并在缺失或超出 `Content-Length` 时提前拒绝请求。案件包导出和审计日志读取属于本地敏感接口，分别需要 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` 和 `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`。
+安全边界：GKGuard C2 只会选择通过 `C1_ALLOWED_HOSTS` 允许列表、OpenAPI 身份检查和 `/health` 检查的 CampusVision C1 候选地址；如果 CampusVision C1 绑定到 `0.0.0.0`、`::` 或显式设置 `CAMPUSVISION_REQUIRE_API_KEY=true`，CampusVision C1 要求 `CAMPUSVISION_API_KEY` 或 `C1_API_KEY`，GKGuard C2 按相同优先级读取密钥并通过 `X-CampusVision-API-Key` 转发。CampusVision C1 会保护相机元数据、视频列表与索引、人物库、检索结果、媒体帧、人脸裁剪图和记录接口；人物库 HTML 预览会在服务端内联人脸图，不依赖浏览器直接请求受保护媒体 URL。视频索引或同一视频重索引会清理该视频旧索引产物，并在失败时将该视频标记为失败状态；失败后应重新运行索引，不应把失败状态描述为保留旧事件结果。旧版模拟图片搜索限制单个文件不超过 2 MiB，并在缺失或超出 `Content-Length` 时提前拒绝请求。案件包导出和审计日志读取属于本地敏感接口，分别需要 `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` 和 `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`。
 
 GKGuard C2 前端只访问 GKGuard C2 API。真实 CampusVision C1 检索通过 GKGuard C2 的 `/c1/...` 代理完成；旧版模拟 API 继续保留用于离线演示和非 CampusVision C1 流程。
 
@@ -162,8 +162,20 @@ Query 参数：
 Multipart 表单字段：
 
 - `file`：查询图片。
-- `top_k`：默认 `5`。
-- `min_score`：默认 `0.0`。
+
+Query 参数：
+
+- `top_k`：默认 `5`，范围 `1..20`。
+- `min_score`：可选相似度阈值，范围 `0..1`；省略时使用 CampusVision C1 默认相似度阈值。
+- `max_gap_sec`：默认 `3.0`。
+- `query_face_index`：可选，指定查询图中的目标人脸序号。
+- `include_candidates`：默认 `false`。
+- `event_limit_per_person`：默认 `20`，范围 `1..100`。
+- `match_limit_per_person`：默认 `10`，范围 `1..100`。
+- `include_events`：默认 `true`。
+- `include_matches`：默认 `true`。
+- `camera_id`：可选，按摄像头筛选。
+- `start_time` / `end_time`：可选，按事件时间筛选。
 
 该接口调用 CampusVision C1 `POST /api/v1/query/face-image`，用于返回查询图片对应的候选人物、候选事件和查询图人脸检测信息。它不替代 `/c1/search/person-by-image` 的结果页主流程，但可用于确认候选人物、扩展事件入口或后续高级检索。
 
@@ -180,8 +192,8 @@ JSON 请求体：
   "gender_presentation": ["neutral"],
   "camera_ids": ["cam02"],
   "time_range": {
-    "start": "2025-05-24T00:00:00",
-    "end": "2025-05-24T23:59:00"
+    "start_time": "2025-05-24T00:00:00",
+    "end_time": "2025-05-24T23:59:00"
   },
   "min_score": 0.45,
   "limit": 10,
@@ -422,11 +434,11 @@ Default local CampusVision C1 tunnel URL:
 C1_BASE_URL=http://127.0.0.1:18000
 ```
 
-The packaged `v0.2.0` app includes only the local tunnel candidate `http://127.0.0.1:18000` by default; campus-network direct URLs must be configured explicitly through `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json`. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app and shows connection progress. Before sending the password, the main process automatically compares the trusted SSH host key. If the server address or host key changes, update trusted host information through `sshTunnel.hostFingerprint` or `C1_SSH_HOST_FINGERPRINT` explicitly. Connections with missing or mismatched trusted host information are blocked instead of allowing manual approval.
+The packaged `v0.2.1` app includes only the local tunnel candidate `http://127.0.0.1:18000` by default; campus-network direct URLs must be configured explicitly through `C1_BASE_URL`, `C1_CANDIDATE_URLS`, or `%APPDATA%\GKGuard\c1-connection.json`. GKGuard C2 probes candidate CampusVision C1 URLs automatically; if the tunnel is not connected, the desktop app prompts for the server password inside the app and shows connection progress. Before sending the password, the main process automatically compares the trusted SSH host key. If the server address or host key changes, update trusted host information through `sshTunnel.hostFingerprint` or `C1_SSH_HOST_FINGERPRINT` explicitly. Connections with missing or mismatched trusted host information are blocked instead of allowing manual approval.
 
-`v0.2.0` keeps the existing query-face detection, selected-face search, result keyframe overlays, preloaded record switching, media-cache isolation, and route synchronization behavior, and adds CampusVision C1 event-intelligence APIs: person events, event observations, query-image candidates, person-attribute queries, and extended media proxying. Person-attribute queries can filter CampusVision C1 events by upper-body color, glasses status, appearance presentation, camera, and time range. GKGuard C2 normalizes returned events, observations, body crops, face crops, keyframes, attribute matches, and partial-match reasons into result-screen records.
+`v0.2.1` keeps the existing query-face detection, selected-face search, result keyframe overlays, preloaded record switching, media-cache isolation, and route synchronization behavior, and continues to provide the CampusVision C1 event-intelligence APIs introduced in `v0.2.0`: person events, event observations, query-image candidates, person-attribute queries, and extended media proxying. Person-attribute queries can filter CampusVision C1 events by upper-body color, glasses status, appearance presentation, camera, and time range. GKGuard C2 normalizes returned events, observations, body crops, face crops, keyframes, attribute matches, and partial-match reasons into result-screen records. This release fixes decoded over-limit query-image cleanup, same-video re-index idempotency, chronological route ordering for person-attribute results, and examples in this API specification.
 
-Security boundary: GKGuard C2 selects only CampusVision C1 candidates that pass the `C1_ALLOWED_HOSTS` allowlist, OpenAPI identity check, and `/health` check. If CampusVision C1 binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, CampusVision C1 requires `CAMPUSVISION_API_KEY` or `C1_API_KEY`; GKGuard C2 reads the key with the same precedence and forwards it through `X-CampusVision-API-Key`. CampusVision C1 protects camera metadata, video listing and indexing, the person index, search results, media frames, face crops, and record endpoints. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Failed video indexing rolls back records, person observations, and frame files created by the current attempt while preserving existing successful indexes for the same video. Legacy mock image search limits one uploaded file to 2 MiB and rejects missing or over-limit `Content-Length` before endpoint handling. Case-package export and audit-log readback are sensitive local endpoints: they require `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` and `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`, respectively.
+Security boundary: GKGuard C2 selects only CampusVision C1 candidates that pass the `C1_ALLOWED_HOSTS` allowlist, OpenAPI identity check, and `/health` check. If CampusVision C1 binds to `0.0.0.0`, `::`, or explicitly sets `CAMPUSVISION_REQUIRE_API_KEY=true`, CampusVision C1 requires `CAMPUSVISION_API_KEY` or `C1_API_KEY`; GKGuard C2 reads the key with the same precedence and forwards it through `X-CampusVision-API-Key`. CampusVision C1 protects camera metadata, video listing and indexing, the person index, search results, media frames, face crops, and record endpoints. The person-gallery HTML preview inlines face images server-side instead of relying on browser requests to protected media URLs. Video indexing or same-video re-indexing clears old index artifacts for that video and marks the video as failed if indexing fails; after failure, run indexing again instead of describing the failed state as preserving old event results. Legacy mock image search limits one uploaded file to 2 MiB and rejects missing or over-limit `Content-Length` before endpoint handling. Case-package export and audit-log readback are sensitive local endpoints: they require `GKGUARD_CASE_PACKAGE_EXPORT_TOKEN` / `X-GKGuard-Export-Token` and `GKGUARD_AUDIT_TOKEN` / `X-GKGuard-Audit-Token`, respectively.
 
 The GKGuard C2 frontend calls GKGuard C2 APIs only. Real CampusVision C1 search is exposed through GKGuard C2 `/c1/...` proxy endpoints. Legacy mock APIs remain available for offline demos and non-CampusVision C1 workflows.
 
@@ -560,11 +572,23 @@ Returns observation frames, observation time, camera, body box, face box, and me
 
 `POST /c1/query/face-image`
 
-Multipart form fields:
+Multipart form field:
 
 - `file`: query image.
-- `top_k`: default `5`.
-- `min_score`: default `0.0`.
+
+Query parameters:
+
+- `top_k`: default `5`, range `1..20`.
+- `min_score`: optional similarity threshold, range `0..1`; when omitted, CampusVision C1 uses its default similarity threshold.
+- `max_gap_sec`: default `3.0`.
+- `query_face_index`: optional target-face index in the query image.
+- `include_candidates`: default `false`.
+- `event_limit_per_person`: default `20`, range `1..100`.
+- `match_limit_per_person`: default `10`, range `1..100`.
+- `include_events`: default `true`.
+- `include_matches`: default `true`.
+- `camera_id`: optional camera filter.
+- `start_time` / `end_time`: optional event-time filter.
 
 This calls CampusVision C1 `POST /api/v1/query/face-image` and returns candidate persons, candidate events, and query-face detection information for the uploaded image. It does not replace `/c1/search/person-by-image` as the main result-page flow, but it can support candidate confirmation, expanded event entry points, or future advanced search.
 
@@ -581,8 +605,8 @@ JSON request body:
   "gender_presentation": ["neutral"],
   "camera_ids": ["cam02"],
   "time_range": {
-    "start": "2025-05-24T00:00:00",
-    "end": "2025-05-24T23:59:00"
+    "start_time": "2025-05-24T00:00:00",
+    "end_time": "2025-05-24T23:59:00"
   },
   "min_score": 0.45,
   "limit": 10,

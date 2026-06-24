@@ -4,10 +4,10 @@
 
 ## 当前集成状态
 
-- GKGuard 集成目标：`v0.2.0`
-- CampusVision C1 来源分支：`speng/c1-person-events`
-- CampusVision C1 来源版本：`2ba9064`
-- 记录时间：`2026-06-24 13:45:33 CST`
+- GKGuard 集成目标：`v0.2.1`
+- CampusVision C1 来源分支：`speng/c1-person-events` + `codex/fix-c1-event-review-followup`
+- CampusVision C1 来源版本：`2ba9064` + 当前仓库补丁分支
+- 记录时间：`2026-06-24 21:00:00 CST`
 - 说明：下方任务记录保留 CampusVision C1 开发过程中的历史语境；GKGuard C2 当前对接行为以 `README_C2_INTEGRATION.md`、`docs/api_contract.md` 和 `docs/c1_c2_integration.md` 为准。
 
 ## 记录规范
@@ -26,6 +26,15 @@
 ```
 
 ## 任务记录
+
+## 2026-06-24 21:00:00 CST - GKGuard v0.2.1 C1 集成 review follow-up
+
+- 版本号：`codex/fix-c1-event-review-followup@working-tree`
+- 任务目标：处理 `v0.2.0` 合并后 review 发现的 CampusVision C1 查询图异常、重复索引和 GKGuard C2 人物特征路线顺序问题。
+- 变更内容：`/api/v1/query/face-image` 在查询图解码或尺寸超限时返回 413 并清理临时上传；同一视频重索引前清理旧事件、人物观测、人脸记录和旧帧目录；GKGuard C2 人物特征检索结果列表保留匹配排序，路线点按事件时间单独排序；API 规范同步 `time_range.start_time/end_time` 和 `/c1/query/face-image` Query 参数位置。
+- 验证结果：新增后端和 CampusVision C1 静态/单元测试覆盖；完整验证结果以 `docs/releases/v0.2.1.md` 和对应 PR 为准。
+- 风险与遗留问题：重索引失败后该视频需要重新执行索引；历史 `v0.2.0` 说明保持发布时语境，当前行为以 `v0.2.1` 文档为准。
+- 涉及文件：`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/app/services/video_service.py`、`services/campusvision-c1/tests/test_security_config.py`、`backend/app/services/c1_service.py`、`docs/api_contract.md`、`docs/releases/v0.2.1.md`
 
 ## 2026-06-24 08:31:03 CST - C1 v1 全链路重跑与指标验收
 
