@@ -708,6 +708,23 @@ test.describe("GKGuard C2 demo UI", () => {
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await expect(page.locator("#endTime")).toHaveValue("2025-01-31T06:52");
+    const datetimeDigitEventsAllowed = await page.locator("#endTime").evaluate((input) => {
+      input.value = "2025-01-31T06:52";
+      return [
+        input.dispatchEvent(new InputEvent("beforeinput", {
+          bubbles: true,
+          cancelable: true,
+          data: "4",
+          inputType: "insertText",
+        })),
+        input.dispatchEvent(new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "4",
+        })),
+      ];
+    });
+    expect(datetimeDigitEventsAllowed).toEqual([true, true]);
     await page.getByRole("button", { name: "人物特征搜索" }).click();
     await page.locator("#upperColorFilter").selectOption("blue");
     await page.locator("#glassesStatusFilter").selectOption("glasses");

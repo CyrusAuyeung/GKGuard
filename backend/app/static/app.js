@@ -322,7 +322,8 @@ function dateTimeYearInsertionWouldOverflow(input, data) {
   const text = String(data || "");
   if (!input || !/^\d+$/.test(text)) return false;
   const value = String(input.value || "");
-  const selectionStart = input.selectionStart ?? 0;
+  const selectionStart = input.selectionStart;
+  if (selectionStart === null || selectionStart === undefined) return false;
   const selectionEnd = input.selectionEnd ?? selectionStart;
   const yearEnd = value.search(/[-/T\s:]/);
   const effectiveYearEnd = yearEnd === -1 ? Math.min(value.length, 4) : yearEnd;
