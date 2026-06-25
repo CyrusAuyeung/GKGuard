@@ -13,9 +13,9 @@
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.2.2` 推荐流程：
+安装版 `v0.2.3` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.2.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.3.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
@@ -32,7 +32,7 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 
 ## 人物特征检索流程
 
-当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、路线点到结果记录的稳定映射、重复索引、受影响人物索引与 appearance session 重建和 API 规范示例。`v0.2.2` 继续补齐 review 后续，确保查询图候选接口参数位置、CampusVision C1 4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连和路线点唯一高亮行为与 API 规范一致。
+当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、路线点到结果记录的稳定映射、重复索引、受影响人物索引与 appearance session 重建和 API 规范示例。`v0.2.2` 继续补齐 review 后续，确保查询图候选接口参数位置、CampusVision C1 4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连和路线点唯一高亮行为与 API 规范一致；`v0.2.3` 进一步修复 CampusVision C1 重建索引失败时的旧索引恢复和写入隔离，不改变演示入口。
 
 1. 在搜索页切换到 `人物特征检索`。
 2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
@@ -228,9 +228,9 @@ Demonstrate the current GKGuard C2 workbench loop: use local mock records for th
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.2.2`:
+Recommended packaged-app flow for `v0.2.3`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.2.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.3.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
@@ -316,7 +316,7 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 
 ## Person-Attribute Search Flow
 
-The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrected route ordering, stable route-to-record mapping, duplicate indexing, affected person-index and appearance-session rebuilds, and API specification examples. `v0.2.2` completes the review follow-up by keeping query-image candidate parameter placement, CampusVision C1 4xx validation propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, and single active route-point highlighting aligned with the API specification.
+The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrected route ordering, stable route-to-record mapping, duplicate indexing, affected person-index and appearance-session rebuilds, and API specification examples. `v0.2.2` completes the review follow-up by keeping query-image candidate parameter placement, CampusVision C1 4xx validation propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, and single active route-point highlighting aligned with the API specification; `v0.2.3` further fixes CampusVision C1 previous-index restoration and write isolation after failed re-index jobs, without changing the demo entries.
 
 1. Switch to `人物特征检索` on the search screen.
 2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.
