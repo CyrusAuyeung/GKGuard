@@ -392,7 +392,7 @@ def query_person_attributes(query: dict[str, Any]) -> dict[str, Any]:
         limit=candidate_scan_limit,
         offset=0,
         latest_first=True,
-        include_representative_observation=True,
+        include_representative_observation=False,
     )
 
     active = _active_conditions(

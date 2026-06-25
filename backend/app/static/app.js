@@ -1381,10 +1381,10 @@ async function applyC1Result(result) {
     result?.people,
     result?.nearMisses,
     result?.near_misses,
-    result?.matches,
   ].filter(Array.isArray);
   candidatePeople = candidateBuckets.flat();
-  if (result?.person && !candidatePeople.includes(result.person)) {
+  const resultPersonId = result?.person?.personId || result?.person?.person_id || result?.person?.id;
+  if (result?.person && result?.mode !== "person-attributes" && resultPersonId && !candidatePeople.includes(result.person)) {
     candidatePeople.push(result.person);
   }
 
@@ -1637,10 +1637,12 @@ function candidateDedupeKey(candidate, index) {
 }
 
 function fallbackCandidatePeople() {
-  const combined = [
-    ...candidatePeople,
-    ...records.slice(0, 12).map(candidateFromRecord),
-  ].filter(Boolean);
+  const explicitCandidates = candidatePeople.filter(Boolean);
+  const combined = (
+    explicitCandidates.length
+      ? explicitCandidates
+      : records.slice(0, 12).map(candidateFromRecord)
+  ).filter(Boolean);
   const seen = new Set();
   const deduped = [];
   combined.forEach((candidate, index) => {

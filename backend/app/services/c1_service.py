@@ -710,7 +710,7 @@ def _record_from_event(event: dict[str, Any], index: int) -> dict[str, Any]:
         "frameUrl": frame_url,
         "faceUrl": face_url,
         "bodyCropUrl": body_url,
-        "thumbnailUrl": face_url or body_url or frame_url,
+        "thumbnailUrl": body_url or face_url or frame_url,
         "faceBox": face_box,
         "personBox": person_box,
         "bodyBox": person_box,

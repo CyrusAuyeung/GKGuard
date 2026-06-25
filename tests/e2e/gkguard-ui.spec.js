@@ -306,6 +306,22 @@ test.describe("GKGuard C2 demo UI", () => {
           routePoints: [
             { id: 1, time: "10:12:30", location: "教学楼南门", x: 84, y: 24, kind: "start" },
           ],
+          candidates: [
+            {
+              personId: "P-E2E",
+              score: 0.99,
+              confidence: "high",
+              eventCount: 3,
+              representativeFaceUrl: "/static/icons/app-mark.png",
+            },
+            {
+              personId: "P-E2E-ALT",
+              score: 0.86,
+              confidence: "candidate",
+              eventCount: 2,
+              representativeFaceUrl: "/static/icons/app-mark.png",
+            },
+          ],
           person: {
             personId: "P-E2E",
             confidence: "high",
@@ -333,6 +349,10 @@ test.describe("GKGuard C2 demo UI", () => {
     await expectResultFaceBoxAwayFromOrigin(page);
     await expectResultFaceLabelOutsideBox(page);
     await expectDesktopRecordListOnLeft(page);
+    await page.locator("#openCandidatesBtn").click();
+    await expect(page.locator("#candidateDrawer")).toHaveClass(/is-visible/);
+    await expect(page.locator("#candidateList .candidate-card")).toHaveCount(2);
+    await page.locator("#candidateDrawerClose").click();
 
     await page.locator("#recordScene").click();
     await expect(page.locator("#mediaViewer")).toBeVisible();
@@ -718,7 +738,8 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#recordScene .result-face-box")).toBeVisible();
     await page.locator("#openCandidatesBtn").click();
     await expect(page.locator("#candidateDrawer")).toHaveClass(/is-visible/);
-    await expect(page.locator("#candidateList .candidate-card")).toHaveCount(3);
+    await expect(page.locator("#candidateList .candidate-card")).toHaveCount(2);
+    await expect(page.locator("#candidateList")).not.toContainText("记录3");
     await page.locator("#candidateDrawerClose").click();
     await page.locator("#openEventDetailBtn").click();
     await expect(page.locator("#eventDetailDrawer")).toHaveClass(/is-visible/);
