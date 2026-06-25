@@ -1,6 +1,10 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { resolveProjectRoot } from '../context.mjs';
+
+const LIVE_TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const IMPECCABLE_DIR = '.impeccable';
 export const LIVE_DIR = 'live';
@@ -59,6 +63,14 @@ export function getLiveServerPath(cwd = process.cwd(), options = {}) {
   return path.join(getLiveDir(cwd, options), 'server.json');
 }
 
+export function getLiveTokenPath(cwd = process.cwd(), options = {}) {
+  const projectRoot = resolveProjectRoot(cwd, options);
+  const scope = createHash('sha256').update(projectRoot).digest('hex').slice(0, 24);
+  const base = process.env.IMPECCABLE_LOCAL_STATE_DIR
+    || path.join(os.homedir() || os.tmpdir(), '.impeccable', 'live-tokens');
+  return path.join(base, scope, 'token.json');
+}
+
 export function getLegacyLiveServerPath(cwd = process.cwd(), options = {}) {
   return path.join(resolveProjectRoot(cwd, options), '.impeccable-live.json');
 }
@@ -68,6 +80,11 @@ export function readLiveServerInfo(cwd = process.cwd(), options = {}) {
     try {
       const info = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
       if (info && typeof info.pid === 'number' && !isLiveServerPidReachable(info.pid)) {
+        try { fs.unlinkSync(filePath); } catch {}
+        continue;
+      }
+      const localToken = readLiveToken(cwd, options);
+      if (!localToken || info?.token !== localToken) {
         try { fs.unlinkSync(filePath); } catch {}
         continue;
       }
@@ -95,6 +112,34 @@ export function writeLiveServerInfo(cwd = process.cwd(), info, options = {}) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(info));
   return filePath;
+}
+
+export function readLiveToken(cwd = process.cwd(), options = {}) {
+  const filePath = getLiveTokenPath(cwd, options);
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    if (typeof data?.token === 'string' && LIVE_TOKEN_RE.test(data.token)) {
+      return data.token;
+    }
+    try { fs.unlinkSync(filePath); } catch {}
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLiveToken(cwd = process.cwd(), token, options = {}) {
+  if (!LIVE_TOKEN_RE.test(String(token || ''))) {
+    throw new Error('Invalid live token format');
+  }
+  const filePath = getLiveTokenPath(cwd, options);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(filePath, JSON.stringify({ token }), { mode: 0o600 });
+  return filePath;
+}
+
+export function removeLiveToken(cwd = process.cwd(), options = {}) {
+  try { fs.unlinkSync(getLiveTokenPath(cwd, options)); } catch {}
 }
 
 export function removeLiveServerInfo(cwd = process.cwd(), options = {}) {

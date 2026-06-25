@@ -37,8 +37,11 @@ import {
   getLiveDir,
   getLiveAnnotationsDir,
   readLiveServerInfo,
+  readLiveToken,
   removeLiveServerInfo,
+  removeLiveToken,
   resolveDesignSidecarPath,
+  writeLiveToken,
   writeLiveServerInfo,
 } from './lib/impeccable-paths.mjs';
 import { countByPage as countPendingByPage } from './live/manual-edits-buffer.mjs';
@@ -50,6 +53,7 @@ import {
   applyDeferredSvelteComponentAccepts,
   removeAllSvelteComponentSessions,
 } from './live/svelte-component.mjs';
+import { ensureLiveGitIgnores } from './live-inject.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PRODUCT.md / DESIGN.md live wherever context.mjs resolves. The generated
@@ -130,6 +134,7 @@ const manualEditRoutes = createManualEditRoutes({
   chatAgentLikelyActive,
   cwd: () => process.cwd(),
   env: () => process.env,
+  setCorsHeaders: setCorsHeadersForAuthorizedRequest,
 });
 
 function chatAgentLikelyActive() {
@@ -382,21 +387,44 @@ function statOrNull(filePath) {
   try { return fs.statSync(filePath); } catch { return null; }
 }
 
+function isAuthorizedRequest(url) {
+  return url.searchParams.get('token') === state.token;
+}
+
+function setCorsHeadersForAuthorizedRequest(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function isInsideProject(absPath) {
+  const root = process.cwd();
+  const rel = path.relative(root, absPath);
+  return rel === '' || (!!rel && !rel.startsWith('..') && !path.isAbsolute(rel));
+}
+
 // HTTP request handler
 // ---------------------------------------------------------------------------
 
 function createRequestHandler({ detectScript, liveScriptParts }) {
   return (req, res) => {
     const url = new URL(req.url, `http://localhost:${state.port}`);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+    if (req.method === 'OPTIONS') {
+      if (!isAuthorizedRequest(url)) { res.writeHead(401); res.end('Unauthorized'); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     const p = url.pathname;
 
     // --- Scripts ---
     if (p === '/live.js') {
+      if (!isAuthorizedRequest(url)) { res.writeHead(401); res.end('Unauthorized'); return; }
       // Re-read from disk each request so edits to live-browser.js land on
       // the next tab reload. No-store headers prevent browser caching across
       // sessions — during iteration, a cached old script silently breaks
@@ -409,6 +437,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
         res.end('Error reading live browser scripts: ' + err.message);
         return;
       }
+      setCorsHeadersForAuthorizedRequest(req, res);
       const body = assembleLiveBrowserScript({
         token: state.token,
         port: state.port,
@@ -454,6 +483,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/annotation' && req.method === 'POST') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
       const eventId = url.searchParams.get('eventId');
       if (!eventId || !/^[A-Za-z0-9_-]{1,64}$/.test(eventId)) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -511,6 +541,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/status') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ error: 'Unauthorized' })); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
       const sessions = activeSessionSummaries();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
@@ -549,6 +580,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/design-system.json' || p === '/design-system/raw') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
 
       const mdPath = DESIGN_MD_PATH;
       const jsonPath = resolveDesignSidecarPath(process.cwd(), PROJECT_CONTEXT.designContextDir || CONTEXT_DIR) || getDesignSidecarPath(process.cwd());
@@ -600,10 +632,11 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/source') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
       const filePath = url.searchParams.get('path');
-      if (!filePath || filePath.includes('..')) { res.writeHead(400); res.end('Bad path'); return; }
+      if (!filePath || filePath.includes('..') || path.isAbsolute(filePath)) { res.writeHead(400); res.end('Bad path'); return; }
       const absPath = path.resolve(process.cwd(), filePath);
-      if (!absPath.startsWith(process.cwd())) { res.writeHead(403); res.end('Forbidden'); return; }
+      if (!isInsideProject(absPath)) { res.writeHead(403); res.end('Forbidden'); return; }
       let content;
       try { content = fs.readFileSync(absPath, 'utf-8'); }
       catch { res.writeHead(404); res.end('File not found'); return; }
@@ -616,6 +649,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/events' && req.method === 'GET') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      setCorsHeadersForAuthorizedRequest(req, res);
       clearTimeout(state.exitTimer);
       state.exitTimer = null;
       cancelQueuedAnonymousExitEvents();
@@ -664,11 +698,12 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
           res.end(JSON.stringify({ error: 'Invalid JSON' }));
           return;
         }
-        if (msg.token !== state.token) {
+        if (msg.token !== state.token && url.searchParams.get('token') !== state.token) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ error: 'Unauthorized' }));
           return;
         }
+        setCorsHeadersForAuthorizedRequest(req, res);
         // Defense in depth: manual copy edits must use the staged stash/apply
         // endpoints. The direct Save event path is disabled in the browser.
         if (msg.type === 'manual_edits') {
@@ -712,6 +747,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/stop') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (url.searchParams.get('clearToken') === '1') removeLiveToken(process.cwd());
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('stopping');
       shutdown();
@@ -1024,11 +1060,15 @@ if (args.includes('stop')) {
   const keepInject = args.includes('--keep-inject');
   try {
     const { info } = readLiveServerInfo(process.cwd()) || {};
-    const res = await fetch(`http://localhost:${info.port}/stop?token=${info.token}`);
+    const stopUrl = new URL(`http://localhost:${info.port}/stop`);
+    stopUrl.searchParams.set('token', info.token);
+    if (!keepInject) stopUrl.searchParams.set('clearToken', '1');
+    const res = await fetch(stopUrl);
     if (res.ok) console.log(`Stopped live server on port ${info.port}.`);
   } catch {
     console.log('No running live server found.');
   }
+  if (!keepInject) removeLiveToken(process.cwd());
   if (!keepInject) {
     const injectPath = path.join(__dirname, 'live-inject.mjs');
     try {
@@ -1101,7 +1141,7 @@ if (existingRecord?.info) {
   }
 }
 
-state.token = randomUUID();
+state.token = readLiveToken(process.cwd()) || randomUUID();
 state.sessionStore = createLiveSessionStore({ cwd: process.cwd() });
 manualApply.rollbackTransaction({
   reason: 'manual_edit_server_start_recovered_abandoned_transaction',
@@ -1122,11 +1162,13 @@ const { detectScript, liveScriptParts } = loadBrowserScripts();
 httpServer = http.createServer(createRequestHandler({ detectScript, liveScriptParts }));
 
 httpServer.listen(state.port, '127.0.0.1', () => {
+  ensureLiveGitIgnores(process.cwd());
+  writeLiveToken(process.cwd(), state.token);
   writeLiveServerInfo(process.cwd(), { pid: process.pid, port: state.port, token: state.token });
   const url = `http://localhost:${state.port}`;
   console.log(`\nImpeccable live server running on ${url}`);
   console.log(`Token: ${state.token}\n`);
-  console.log(`Script: ${url}/live.js`);
+  console.log(`Script: ${url}/live.js?token=${state.token}`);
   console.log('Inject: managed by live-inject.mjs; Astro source tags use is:inline automatically.');
   console.log(`Stop:   node ${path.basename(fileURLToPath(import.meta.url))} stop`);
 });
