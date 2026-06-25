@@ -359,9 +359,14 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     ).read_text(encoding="utf-8")
     clear_segment = service_source.split("def _clear_previous_video_index", 1)[1].split("def index_video", 1)[0]
     index_segment = service_source.split("def index_video", 1)[1]
+    list_videos_segment = db_source.split("def list_videos", 1)[1].split("def upsert_live_source", 1)[0]
 
     assert "def write_lock" in db_source
+    assert "def get_conn(*, write: bool = False)" in db_source
+    assert "lock = _DB_WRITE_LOCK if write else nullcontext()" in db_source
     assert "with _DB_WRITE_LOCK:" in db_source
+    assert "with get_conn(write=True) as conn:" in db_source
+    assert "with get_conn() as conn:" in list_videos_segment
     assert "affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))" in clear_segment
     assert "affected_person_ids.update(db.delete_events_for_video(video_id))" in clear_segment
     assert "affected_person_ids.update(db.delete_person_observations_for_video(video_id))" in clear_segment
@@ -495,8 +500,8 @@ def test_video_reindex_commit_failure_restores_previous_index(monkeypatch, tmp_p
         def detect_people(self, _frame):
             return []
 
-    monkeypatch.setattr(video_service, "get_face_engine", FaceEngine)
-    monkeypatch.setattr(video_service, "get_body_detector", BodyDetector)
+    monkeypatch.setattr(video_service, "get_face_engine", lambda: FaceEngine())
+    monkeypatch.setattr(video_service, "get_body_detector", lambda: BodyDetector())
     monkeypatch.setattr(
         video_service,
         "iter_video_frames",
