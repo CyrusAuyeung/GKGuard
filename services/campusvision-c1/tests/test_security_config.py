@@ -4,6 +4,8 @@ import importlib
 from pathlib import Path
 import sys
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -349,9 +351,22 @@ def test_video_reindex_clears_previous_artifacts() -> None:
         / "services"
         / "video_service.py"
     ).read_text(encoding="utf-8")
+    db_source = (
+        Path(__file__).resolve().parents[1]
+        / "app"
+        / "storage"
+        / "db.py"
+    ).read_text(encoding="utf-8")
     clear_segment = service_source.split("def _clear_previous_video_index", 1)[1].split("def index_video", 1)[0]
     index_segment = service_source.split("def index_video", 1)[1]
+    list_videos_segment = db_source.split("def list_videos", 1)[1].split("def upsert_live_source", 1)[0]
 
+    assert "def write_lock" in db_source
+    assert "def get_conn(*, write: bool = False)" in db_source
+    assert "lock = _DB_WRITE_LOCK if write else nullcontext()" in db_source
+    assert "with _DB_WRITE_LOCK:" in db_source
+    assert "with get_conn(write=True) as conn:" in db_source
+    assert "with get_conn() as conn:" in list_videos_segment
     assert "affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))" in clear_segment
     assert "affected_person_ids.update(db.delete_events_for_video(video_id))" in clear_segment
     assert "affected_person_ids.update(db.delete_person_observations_for_video(video_id))" in clear_segment
@@ -359,7 +374,20 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     assert "person_service.refresh_persons_from_remaining_faces(affected_person_ids)" in clear_segment
     assert "event_service.rebuild_appearance_sessions_for_persons(affected_person_ids)" in clear_segment
     assert "shutil.rmtree(frame_dir)" in clear_segment
+    assert "def _restore_previous_video_index" in service_source
+    assert "shutil.copy2(db_backup, settings.db_path)" in service_source
+    assert "with db.write_lock():" in index_segment
+    assert '"frame": frame' not in index_segment
+    assert "frame = cv2.imread(str(frame_file))" in index_segment
+    assert "if commit_started:" in index_segment
+    assert "can_remove_backups = commit_succeeded or restore_succeeded or not commit_started" in index_segment
     assert "_clear_previous_video_index(video_id, video_frame_dir)" in index_segment
+    assert "shutil.move(str(staging_frame_dir), str(video_frame_dir))" in index_segment
+
+    exception_segment = index_segment.split("except Exception as exc:", 1)[1].split("finally:", 1)[0]
+    assert "db.delete_events_for_video(video_id)" not in exception_segment
+    assert "db.delete_person_observations_for_video(video_id)" not in exception_segment
+    assert "db.delete_face_records_by_ids" not in exception_segment
 
     collect_index = clear_segment.index("affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))")
     delete_events_index = clear_segment.index("affected_person_ids.update(db.delete_events_for_video(video_id))")
@@ -372,10 +400,156 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     assert collect_index < delete_events_index < delete_observations_index < delete_faces_index
     assert delete_faces_index < refresh_index < rebuild_sessions_index
 
-    try_index = index_segment.index("try:")
+    sample_index = index_segment.index("sampled_items.append")
+    lock_index = index_segment.index("with db.write_lock():")
+    db_backup_index = index_segment.index("shutil.copy2(settings.db_path, db_backup)")
+    commit_index = index_segment.index("commit_started = True")
     clear_index = index_segment.index("_clear_previous_video_index(video_id, video_frame_dir)")
-    mkdir_index = index_segment.index("video_frame_dir.mkdir")
-    assert try_index < clear_index < mkdir_index
+    move_index = index_segment.index("shutil.move(str(staging_frame_dir), str(video_frame_dir))")
+    read_index = index_segment.index("frame = cv2.imread(str(frame_file))")
+    persist_index = index_segment.index("db.add_face_record")
+    assert sample_index < lock_index < db_backup_index < commit_index < clear_index < move_index < read_index < persist_index
+
+
+def test_video_reindex_failure_preserves_previous_index(monkeypatch, tmp_path: Path) -> None:
+    pytest.importorskip("cv2")
+    pytest.importorskip("numpy")
+
+    from app.core.config import settings
+    from app.services import video_service
+    from app.storage import db
+
+    _configure_temp_db(monkeypatch, tmp_path)
+    db.init_db()
+    monkeypatch.setattr(video_service.cv2, "imwrite", lambda path, _frame: Path(path).write_bytes(b"new frame") > 0)
+    monkeypatch.setattr(settings, "max_index_frames", 0)
+    monkeypatch.setattr(settings, "enable_event_persistence", False)
+    monkeypatch.setattr(settings, "enable_upper_color_temporal_cache", False)
+    monkeypatch.setattr(video_service, "get_face_engine", lambda: object())
+    monkeypatch.setattr(video_service, "get_body_detector", lambda: object())
+    monkeypatch.setattr(
+        video_service,
+        "iter_video_frames",
+        lambda *_args, **_kwargs: iter([(0.0, object())]),
+    )
+
+    old_frame_dir = settings.frames_dir / "video-001"
+    old_frame_dir.mkdir(parents=True)
+    old_frame = old_frame_dir / "old-frame.jpg"
+    old_frame.write_bytes(b"old frame")
+    video_path = tmp_path / "video.mp4"
+    video_path.write_bytes(b"video")
+    db.upsert_camera(
+        {
+            "camera_id": "cam-001",
+            "name": "cam-001",
+            "location": None,
+            "lat": None,
+            "lng": None,
+        }
+    )
+    db.add_video(
+        {
+            "video_id": "video-001",
+            "filename": "video.mp4",
+            "camera_id": "cam-001",
+            "recorded_at": "2026-06-22T10:00:00",
+            "path": str(video_path),
+            "status": "indexed",
+            "frame_interval_sec": 1.0,
+        }
+    )
+    _seed_event_with_observation(db, str(old_frame))
+
+    try:
+        video_service.index_video("video-001")
+    except RuntimeError as exc:
+        assert "frame limit" in str(exc)
+    else:
+        raise AssertionError("re-index should fail after sampling exceeds the frame limit")
+
+    assert old_frame.read_bytes() == b"old frame"
+    assert db.get_face_record("face-001") is not None
+    assert db.get_person_observation("obs-001") is not None
+    assert db.get_event("event-001") is not None
+    restored_video = db.get_video("video-001")
+    assert restored_video["status"] == "indexed"
+    assert "frame limit" in restored_video["processing_error"]
+
+
+def test_video_reindex_commit_failure_restores_previous_index(monkeypatch, tmp_path: Path) -> None:
+    pytest.importorskip("cv2")
+
+    from app.core.config import settings
+    from app.services import video_service
+    from app.storage import db
+
+    _configure_temp_db(monkeypatch, tmp_path)
+    db.init_db()
+    monkeypatch.setattr(video_service.cv2, "imwrite", lambda path, _frame: Path(path).write_bytes(b"new frame") > 0)
+    monkeypatch.setattr(video_service.cv2, "imread", lambda _path: None)
+    monkeypatch.setattr(settings, "max_index_frames", 10)
+    monkeypatch.setattr(settings, "enable_event_persistence", False)
+    monkeypatch.setattr(settings, "enable_upper_color_temporal_cache", False)
+
+    class FaceEngine:
+        def detect_faces_with_embeddings(self, _frame):
+            return [{"x1": 1, "y1": 2, "x2": 30, "y2": 40}], [[1.0, 0.0, 0.0]]
+
+    class BodyDetector:
+        def detect_people(self, _frame):
+            return []
+
+    monkeypatch.setattr(video_service, "get_face_engine", lambda: FaceEngine())
+    monkeypatch.setattr(video_service, "get_body_detector", lambda: BodyDetector())
+    monkeypatch.setattr(
+        video_service,
+        "iter_video_frames",
+        lambda *_args, **_kwargs: iter([(0.0, object())]),
+    )
+
+    old_frame_dir = settings.frames_dir / "video-001"
+    old_frame_dir.mkdir(parents=True)
+    old_frame = old_frame_dir / "old-frame.jpg"
+    old_frame.write_bytes(b"old frame")
+    video_path = tmp_path / "video.mp4"
+    video_path.write_bytes(b"video")
+    db.upsert_camera(
+        {
+            "camera_id": "cam-001",
+            "name": "cam-001",
+            "location": None,
+            "lat": None,
+            "lng": None,
+        }
+    )
+    db.add_video(
+        {
+            "video_id": "video-001",
+            "filename": "video.mp4",
+            "camera_id": "cam-001",
+            "recorded_at": "2026-06-22T10:00:00",
+            "path": str(video_path),
+            "status": "indexed",
+            "frame_interval_sec": 1.0,
+        }
+    )
+    _seed_event_with_observation(db, str(old_frame))
+
+    try:
+        video_service.index_video("video-001")
+    except RuntimeError as exc:
+        assert "Failed to read staged frame" in str(exc)
+    else:
+        raise AssertionError("re-index should fail during the protected commit phase")
+
+    assert old_frame.read_bytes() == b"old frame"
+    assert db.get_face_record("face-001") is not None
+    assert db.get_person_observation("obs-001") is not None
+    assert db.get_event("event-001") is not None
+    restored_video = db.get_video("video-001")
+    assert restored_video["status"] == "indexed"
+    assert "Failed to read staged frame" in restored_video["processing_error"]
 
 
 def test_manual_live_capture_stamps_recorded_at() -> None:

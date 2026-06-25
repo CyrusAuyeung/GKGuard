@@ -2,23 +2,34 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from contextlib import contextmanager
+import threading
+from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from typing import Any
 
 from app.core.config import settings
 
+_DB_WRITE_LOCK = threading.RLock()
+
 
 @contextmanager
-def get_conn():
+def write_lock():
+    with _DB_WRITE_LOCK:
+        yield
+
+
+@contextmanager
+def get_conn(*, write: bool = False):
     settings.ensure_dirs()
-    conn = sqlite3.connect(settings.db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+    lock = _DB_WRITE_LOCK if write else nullcontext()
+    with lock:
+        conn = sqlite3.connect(settings.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def now_iso() -> str:
@@ -48,7 +59,7 @@ def _loads_json_or_none(value: str | None) -> Any | None:
 
 
 def init_db() -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS cameras (
@@ -363,7 +374,7 @@ def row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 def upsert_camera(camera: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO cameras(camera_id, name, location, lat, lng, created_at, updated_at)
@@ -404,7 +415,7 @@ def list_cameras() -> list[dict[str, Any]]:
 
 def add_video(video: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO videos(video_id, filename, camera_id, recorded_at, path, status, frame_interval_sec, created_at, updated_at)
@@ -441,7 +452,7 @@ def list_videos() -> list[dict[str, Any]]:
 
 def upsert_live_source(source: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO live_sources(source_id, camera_id, name, source_type, url, enabled, created_at, updated_at)
@@ -491,7 +502,7 @@ def list_live_sources() -> list[dict[str, Any]]:
 
 
 def update_video_status(video_id: str, status: str) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             "UPDATE videos SET status = ?, updated_at = ? WHERE video_id = ?",
             (status, now_iso(), video_id),
@@ -500,7 +511,7 @@ def update_video_status(video_id: str, status: str) -> None:
 
 def start_video_processing(video_id: str) -> None:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE videos SET
@@ -524,7 +535,7 @@ def finish_video_processing(
     error: str | None = None,
 ) -> None:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE videos SET
@@ -540,7 +551,7 @@ def finish_video_processing(
 
 
 def purge_live_videos(camera_id: str, before_created_at: str) -> dict[str, Any]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         rows = conn.execute(
             """
             SELECT video_id, path
@@ -643,7 +654,7 @@ def purge_live_videos(camera_id: str, before_created_at: str) -> dict[str, Any]:
 
 
 def add_face_record(record: dict[str, Any]) -> dict[str, Any]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO face_records(
@@ -685,7 +696,7 @@ def list_person_ids_for_video_faces(video_id: str) -> set[str]:
 
 
 def delete_face_records_for_video(video_id: str) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             "DELETE FROM person_faces WHERE face_id IN (SELECT face_id FROM face_records WHERE video_id = ?)",
             (video_id,),
@@ -698,7 +709,7 @@ def delete_face_records_by_ids(face_ids: list[str]) -> None:
         return
 
     placeholders = ",".join("?" for _ in face_ids)
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             f"DELETE FROM person_faces WHERE face_id IN ({placeholders})",
             face_ids,
@@ -754,7 +765,7 @@ def list_face_records(
 
 
 def update_face_record_observation(face_id: str, observation_id: str) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             "UPDATE face_records SET observation_id = ? WHERE face_id = ?",
             (observation_id, face_id),
@@ -782,7 +793,7 @@ def _observation_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 def add_person_observation(observation: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO person_observations(
@@ -879,7 +890,7 @@ def list_person_observations(
 
 
 def delete_events_for_video(video_id: str) -> set[str]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         event_rows = conn.execute("SELECT event_id FROM events WHERE video_id = ?", (video_id,)).fetchall()
         event_ids = [row["event_id"] for row in event_rows]
         person_rows = conn.execute(
@@ -909,7 +920,7 @@ def delete_events_for_video(video_id: str) -> set[str]:
 
 
 def delete_person_observations_for_video(video_id: str) -> set[str]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         person_rows = conn.execute(
             "SELECT DISTINCT person_id FROM person_observations WHERE video_id = ? AND person_id IS NOT NULL",
             (video_id,),
@@ -1034,7 +1045,7 @@ def add_event(event: dict[str, Any], observations: list[dict[str, Any]]) -> dict
         event.get("lower_color_confidence"),
     )
     normalized_lower_visible = event.get("normalized_lower_visible", event.get("lower_visible"))
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO events(
@@ -1215,7 +1226,7 @@ def _appearance_session_from_row(row: sqlite3.Row | None) -> dict[str, Any] | No
 
 
 def delete_appearance_sessions_for_person(person_id: str) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE events SET
@@ -1246,7 +1257,7 @@ def delete_appearance_sessions_for_person(person_id: str) -> None:
 
 def add_appearance_session(session: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT OR REPLACE INTO appearance_sessions(
@@ -1312,7 +1323,7 @@ def list_appearance_sessions(person_id: str | None = None) -> list[dict[str, Any
 
 
 def update_event_clothing_normalization(event_id: str, payload: dict[str, Any]) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE events SET
@@ -1367,7 +1378,7 @@ def update_event_clothing_normalization(event_id: str, payload: dict[str, Any]) 
 
 
 def update_person_event_stats(person_id: str) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         row = conn.execute(
             """
             SELECT
@@ -1411,7 +1422,7 @@ def update_person_event_stats(person_id: str) -> None:
 
 
 def add_search(search: dict[str, Any]) -> dict[str, Any]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO searches(search_id, query_paths_json, params_json, result_json, created_at)
@@ -1443,7 +1454,7 @@ def get_search(search_id: str) -> dict[str, Any] | None:
 
 
 def clear_person_index() -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute("DELETE FROM appearance_sessions")
         conn.execute("DELETE FROM person_faces")
         conn.execute("DELETE FROM persons")
@@ -1478,7 +1489,7 @@ def clear_person_index() -> None:
 
 def add_person(person: dict[str, Any]) -> dict[str, Any]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO persons(
@@ -1506,7 +1517,7 @@ def add_person(person: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_person_face(person_id: str, face_id: str, score_to_person: float | None = None) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             INSERT INTO person_faces(person_id, face_id, score_to_person, created_at)
@@ -1525,7 +1536,7 @@ def add_person_face(person_id: str, face_id: str, score_to_person: float | None 
 
 
 def update_person_face_score(person_id: str, face_id: str, score_to_person: float | None) -> None:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE person_faces
@@ -1537,7 +1548,7 @@ def update_person_face_score(person_id: str, face_id: str, score_to_person: floa
 
 
 def update_person(person_id: str, person: dict[str, Any]) -> dict[str, Any]:
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute(
             """
             UPDATE persons SET
@@ -1570,7 +1581,7 @@ def update_person(person_id: str, person: dict[str, Any]) -> dict[str, Any]:
 
 def delete_person(person_id: str) -> dict[str, int]:
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         conn.execute("DELETE FROM appearance_sessions WHERE person_id = ?", (person_id,))
         deleted_sessions = conn.execute("SELECT changes()").fetchone()[0]
         conn.execute("DELETE FROM person_faces WHERE person_id = ?", (person_id,))
@@ -1612,7 +1623,7 @@ def merge_person_into(source_person_id: str, target_person_id: str) -> dict[str,
         raise ValueError("source_person_id and target_person_id must be different")
 
     ts = now_iso()
-    with get_conn() as conn:
+    with get_conn(write=True) as conn:
         source = conn.execute(
             "SELECT person_id FROM persons WHERE person_id = ?",
             (source_person_id,),
