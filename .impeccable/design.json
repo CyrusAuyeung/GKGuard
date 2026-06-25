@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-06-25T14:40:00+08:00",
+  "title": "Design System: GKGuard C2 Workbench",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Operational Blue",
+        "canonical": "#246FF5",
+        "tonalRamp": ["#0B1E45", "#123A87", "#1858D6", "#246FF5", "#78A7FF", "#CFE0FF", "#EEF5FF", "#F8FBFF"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface White",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#142033", "#33445D", "#66758A", "#CDD8E8", "#DFE6F1", "#F4F7FB", "#F8FBFF", "#FFFFFF"]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Evidence Teal",
+        "canonical": "#0F766E",
+        "tonalRamp": ["#042F2E", "#115E59", "#0F766E", "#14B8A6", "#5EEAD4", "#CCFBF1", "#F0FDFA", "#FFFFFF"]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Review Amber",
+        "canonical": "#B45309",
+        "tonalRamp": ["#451A03", "#78350F", "#B45309", "#F59E0B", "#FCD34D", "#FEF3C7", "#FFFBEB", "#FFFFFF"]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Blocking Red",
+        "canonical": "#B4233A",
+        "tonalRamp": ["#4C0519", "#881337", "#B4233A", "#F04D62", "#FDA4AF", "#FFE4E6", "#FFF1F2", "#FFFFFF"]
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Product Title",
+        "purpose": "Page titles, drawer titles, and high-priority panel labels."
+      },
+      "body": {
+        "displayName": "Interface Body",
+        "purpose": "Default operational UI text, fields, metadata, and controls."
+      },
+      "label": {
+        "displayName": "Dense Label",
+        "purpose": "Chips, compact statuses, model-score labels, and metadata labels."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-shadow",
+        "value": "0 18px 42px rgba(30, 50, 82, 0.13)",
+        "purpose": "Major workbench surfaces and modal/drawer shells."
+      },
+      {
+        "name": "soft-shadow",
+        "value": "0 10px 24px rgba(44, 70, 110, 0.09)",
+        "purpose": "Secondary panels and selected record emphasis."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "160ms ease-out",
+        "purpose": "Button, drawer, selected-row, and feedback transitions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact",
+        "value": "980px"
+      },
+      {
+        "name": "mobile",
+        "value": "680px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary task action for search, confirm, and navigation.",
+      "html": "<button class=\"ds-button-primary\">搜索</button>",
+      "css": ".ds-button-primary{height:38px;padding:0 16px;border:0;border-radius:6px;background:#246FF5;color:#fff;font:700 14px/1.2 'Segoe UI','Microsoft YaHei',Arial,sans-serif;box-shadow:0 9px 18px rgba(36,111,245,.22);transition:background .16s ease-out,box-shadow .16s ease-out}.ds-button-primary:hover{background:#1858D6}.ds-button-primary:focus-visible{outline:3px solid rgba(36,111,245,.28);outline-offset:2px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary operational action for route, export, and reset controls.",
+      "html": "<button class=\"ds-button-secondary\">查看候选人物</button>",
+      "css": ".ds-button-secondary{height:38px;padding:0 14px;border:1px solid #D7E3F4;border-radius:6px;background:#fff;color:#1858D6;font:700 14px/1.2 'Segoe UI','Microsoft YaHei',Arial,sans-serif;transition:border-color .16s ease-out,background .16s ease-out}.ds-button-secondary:hover{border-color:#8CB7FF;background:#F5F9FF}.ds-button-secondary:focus-visible{outline:3px solid rgba(36,111,245,.28);outline-offset:2px}"
+    },
+    {
+      "name": "Navigation Item",
+      "kind": "nav",
+      "refersTo": "navigation",
+      "description": "Fixed-sidebar navigation item with restrained active state.",
+      "html": "<button class=\"ds-nav-item ds-nav-item-active\">人脸以图搜人</button>",
+      "css": ".ds-nav-item{height:40px;width:100%;padding:0 12px;border:0;border-radius:8px;background:transparent;color:#33445D;text-align:left;font:700 14px/1.2 'Segoe UI','Microsoft YaHei',Arial,sans-serif}.ds-nav-item-active{background:#fff;color:#142033;box-shadow:inset 3px 0 0 #246FF5}.ds-nav-item:focus-visible{outline:3px solid rgba(36,111,245,.28);outline-offset:2px}"
+    },
+    {
+      "name": "Evidence Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Event evidence card with body crop, overlaid face crop, time, location, and model status.",
+      "html": "<article class=\"ds-evidence-card\"><div class=\"ds-evidence-image\"><span class=\"ds-face-thumb\"></span></div><strong>记录1</strong><span>2026-06-21 11:09:37</span><span>教学楼东门 · CAM-001</span></article>",
+      "css": ".ds-evidence-card{display:grid;gap:8px;padding:10px;border:1px solid #DFE6F1;border-radius:8px;background:#fff;font-family:'Segoe UI','Microsoft YaHei',Arial,sans-serif}.ds-evidence-card strong{color:#142033}.ds-evidence-card span{color:#66758A;font-size:12px}.ds-evidence-image{position:relative;aspect-ratio:4/3;border-radius:6px;background:#EEF4FF}.ds-face-thumb{position:absolute;right:8px;top:8px;width:42px;height:42px;border:2px solid #fff;border-radius:6px;background:#CDD8E8;box-shadow:0 6px 14px rgba(15,23,42,.18)}"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact model-state chip for exact match, similar result, unknown, or confidence labels.",
+      "html": "<span class=\"ds-chip\">相似度 86%</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;min-height:24px;padding:0 8px;border-radius:999px;background:#E6F4F1;color:#0F766E;font:800 12px/1 'Segoe UI','Microsoft YaHei',Arial,sans-serif}.ds-chip[data-tone='warning']{background:#FEF3C7;color:#B45309}.ds-chip[data-tone='danger']{background:#FFE4E6;color:#B4233A}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Evidence Desk",
+    "overview": "GKGuard C2 is a controlled evidence desk for campus-security review: left-side navigation, a stable work surface, precise filters, visible candidate uncertainty, and evidence imagery at the center of attention.",
+    "keyCharacteristics": [
+      "Fixed left navigation with two primary entries.",
+      "Evidence imagery and route context are the main visual material.",
+      "Candidate comparison and event details use right-side drawers to preserve context.",
+      "Status labels are concise and model-aware.",
+      "Responsive behavior reorganizes panels instead of shrinking text."
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "Operational Blue is the only general-purpose accent and must stay under roughly 10% of a screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Evidence Contrast Rule",
+        "body": "Evidence images are never placed on decorative gradients; they sit on neutral surfaces or Evidence Black.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fixed Scale Rule",
+        "body": "Product text uses fixed rem/px sizes; do not use viewport-scaled headings.",
+        "section": "typography"
+      }
+    ],
+    "dos": [
+      "Do keep the fixed left navigation and right work area as the primary shell.",
+      "Do put event evidence, route context, and model metadata ahead of decoration.",
+      "Do show \"无法判断\" for unknown attributes."
+    ],
+    "donts": [
+      "Don't create a marketing hero, homepage overview, or generic dashboard landing screen.",
+      "Don't use large gradients, glassmorphism, neon security aesthetics, or decorative metric cards.",
+      "Don't describe model output as \"已确认本人\", \"绝对匹配\", or equivalent certainty."
+    ]
+  }
+}
