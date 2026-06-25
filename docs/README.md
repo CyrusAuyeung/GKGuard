@@ -7,7 +7,7 @@
 
 # GKGuard 文档索引
 
-本文档用于维护时快速定位材料。当前文档以 `v0.2.2` 为最新状态，历史发布说明保留各版本发布时的语境。
+本文档用于维护时快速定位材料。当前文档以 `v0.2.3` 为最新状态，历史发布说明保留各版本发布时的语境。
 
 ## 推荐阅读顺序
 
@@ -22,7 +22,8 @@
 
 ## 发布与版本
 
-- [releases/v0.2.2.md](releases/v0.2.2.md)：当前最新版本说明，记录 CampusVision C1 查询图候选接口 Query 参数对齐、4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连、重复映射路线点唯一高亮和未映射尾部记录高亮边界修复。
+- [releases/v0.2.3.md](releases/v0.2.3.md)：当前最新版本说明，记录 CampusVision C1 重建索引失败恢复、数据库写锁隔离、查询图超限临时文件清理和贡献模板说明同步。
+- [releases/v0.2.2.md](releases/v0.2.2.md)：CampusVision C1 查询图候选接口 Query 参数对齐、4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连、重复映射路线点唯一高亮和未映射尾部记录高亮边界修复。
 - [releases/v0.2.1.md](releases/v0.2.1.md)：CampusVision C1 查询图清理、重复索引幂等性、人物索引与 appearance session 重建、人物特征路线顺序、路线点与结果记录联动和 API 规范示例修复。
 - [releases/v0.2.0.md](releases/v0.2.0.md)：CampusVision C1 事件与人物特征查询接口、GKGuard C2 事件检索代理、人物特征检索 UI、事件关键帧/人体图/人脸图媒体代理、结果页属性摘要，以及 Windows/macOS/Linux 桌面发布资产。
 - [releases/v0.1.36.md](releases/v0.1.36.md)：受信 SSH 主机密钥自动比对、CampusVision C1 受保护路径补齐、API key 优先级统一、图库内联预览、查询图超限 413 和索引失败回滚修复。
@@ -72,7 +73,7 @@
 
 # GKGuard Documentation Index
 
-Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.2.2`; historical Release notes keep the context from each release.
+Use this page to locate maintenance material quickly. The current-state documentation tracks `v0.2.3`; historical Release notes keep the context from each release.
 
 ## Recommended Reading Order
 
@@ -87,7 +88,8 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.2.2.md](releases/v0.2.2.md): latest release notes covering CampusVision C1 query-image candidate Query-parameter alignment, 4xx validation-error propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, single highlighting for duplicate-mapped route points, and route-highlight boundaries for unmapped trailing records.
+- [releases/v0.2.3.md](releases/v0.2.3.md): latest release notes covering CampusVision C1 re-index failure recovery, database write-lock isolation, over-limit query-image temporary-file cleanup, and contribution-template wording alignment.
+- [releases/v0.2.2.md](releases/v0.2.2.md): CampusVision C1 query-image candidate Query-parameter alignment, 4xx validation-error propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, single highlighting for duplicate-mapped route points, and route-highlight boundaries for unmapped trailing records.
 - [releases/v0.2.1.md](releases/v0.2.1.md): CampusVision C1 query-image cleanup, re-index idempotency, person-index and appearance-session rebuilds, person-attribute route ordering, route-to-record synchronization, and API specification examples.
 - [releases/v0.2.0.md](releases/v0.2.0.md): CampusVision C1 event and person-attribute query endpoints, GKGuard C2 event-query proxies, the person-attribute search UI, event keyframe/body/face media proxies, result-page attribute summaries, and Windows/macOS/Linux desktop release assets.
 - [releases/v0.1.36.md](releases/v0.1.36.md): automatic trusted SSH host-key comparison, completed CampusVision C1 protected paths, aligned API-key precedence, inline gallery previews, query-image 413 handling, and failed-index rollback fixes.

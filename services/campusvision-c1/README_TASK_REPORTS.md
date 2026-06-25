@@ -4,7 +4,7 @@
 
 ## 当前集成状态
 
-- GKGuard 集成目标：`v0.2.2`
+- GKGuard 集成目标：`v0.2.3`
 - CampusVision C1 来源分支：`speng/c1-person-events` + `codex/fix-c1-event-review-followup`
 - CampusVision C1 来源版本：`2ba9064` + 当前仓库补丁分支
 - 记录时间：`2026-06-25 00:00:00 CST`
@@ -26,6 +26,15 @@
 ```
 
 ## 任务记录
+
+## 2026-06-25 10:30:00 CST - GKGuard v0.2.3 C1 重建索引安全修复
+
+- 版本号：`codex/propose-fix-for-re-index-vulnerability@merged`
+- 任务目标：修复 CampusVision C1 视频重建索引失败时可能破坏既有索引状态的问题，并保持查询图超限临时目录清理。
+- 变更内容：重建索引先暂存采样帧并在提交阶段重新读取文件，避免采样列表长期保留原始帧数组；提交失败时恢复旧事件、人物观测、人脸记录、旧帧目录、人物索引和相关 appearance sessions；数据库写入路径增加写锁保护，读取接口保持普通连接路径；查询图超限继续清理临时上传目录并返回 413。
+- 验证结果：完整验证结果以 `docs/releases/v0.2.3.md` 和对应 PR 为准。
+- 风险与遗留问题：CampusVision C1 全量视觉链路仍依赖远端 `cv2`、InsightFace、ONNXRuntime 和模型文件；Windows 本地环境不能替代远端服务运行验证。
+- 涉及文件：`services/campusvision-c1/app/storage/db.py`、`services/campusvision-c1/app/services/video_service.py`、`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/tests/test_security_config.py`、`docs/releases/v0.2.3.md`
 
 ## 2026-06-25 00:00:00 CST - GKGuard v0.2.2 C1 review 后续收敛
 

@@ -1330,8 +1330,8 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.addInitScript(() => {
       window.__connectC1Calls = 0;
       window.gkguardDesktop = {
-        getAppInfo: async () => ({ version: "0.2.2" }),
-        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        getAppInfo: async () => ({ version: "0.2.3" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.3" }),
         downloadUpdate: async () => ({ embedded: true }),
         installUpdate: async () => ({}),
         onUpdateEvent: () => () => {},
@@ -1391,8 +1391,8 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.addInitScript(() => {
       window.__connectC1Calls = 0;
       window.gkguardDesktop = {
-        getAppInfo: async () => ({ version: "0.2.2" }),
-        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        getAppInfo: async () => ({ version: "0.2.3" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.3" }),
         downloadUpdate: async () => ({ embedded: true }),
         installUpdate: async () => ({}),
         onUpdateEvent: () => () => {},
@@ -1454,8 +1454,8 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.addInitScript(() => {
       window.__connectC1Calls = 0;
       window.gkguardDesktop = {
-        getAppInfo: async () => ({ version: "0.2.2" }),
-        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.2" }),
+        getAppInfo: async () => ({ version: "0.2.3" }),
+        checkForUpdates: async () => ({ updateAvailable: false, currentVersion: "0.2.3" }),
         downloadUpdate: async () => ({ embedded: true }),
         installUpdate: async () => ({}),
         onUpdateEvent: () => () => {},

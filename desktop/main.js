@@ -10,7 +10,7 @@ const { Client: SshClient } = require("ssh2");
 
 const DEFAULT_PORT = Number(process.env.GKGUARD_PORT || 8000);
 const HOST = "127.0.0.1";
-const STATIC_ASSET_VERSION = "v0.2.2-ui";
+const STATIC_ASSET_VERSION = "v0.2.3-ui";
 const START_TIMEOUT_MS = 18000;
 const POLL_INTERVAL_MS = 450;
 const C1_CONNECT_TIMEOUT_MS = Number(process.env.C1_CONNECT_TIMEOUT_MS || 18000);
