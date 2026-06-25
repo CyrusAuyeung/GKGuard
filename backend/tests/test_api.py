@@ -51,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.2.1-ui" in response.text
-    assert "/static/app.js?v=v0.2.1-ui" in response.text
+    assert "/static/styles.css?v=v0.2.2-ui" in response.text
+    assert "/static/app.js?v=v0.2.2-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -262,7 +262,7 @@ def test_desktop_update_bridge_wired() -> None:
     assert "app-mark.ico" in main_script
     assert "minWidth: 680" in main_script
     assert "minHeight: 640" in main_script
-    assert "STATIC_ASSET_VERSION = \"v0.2.1-ui\"" in main_script
+    assert "STATIC_ASSET_VERSION = \"v0.2.2-ui\"" in main_script
     assert "asset=${encodeURIComponent(STATIC_ASSET_VERSION)}" in main_script
     assert "clearCache()" in main_script
     assert "swallowTunnelNetworkError" in main_script
@@ -419,6 +419,66 @@ def test_c1_request_retries_tunnel_after_retryable_http_status(monkeypatch) -> N
     assert response.json() == {"ok": True}
     assert attempts[:2] == ["https://c1.example.test", "http://127.0.0.1:18000"]
     assert c1_service._selected_base_url == "http://127.0.0.1:18000"
+
+
+def test_c1_request_preserves_non_retryable_status_detail(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        request = httpx.Request(method, f"{base_url}{path}")
+        response = httpx.Response(
+            400,
+            json={"detail": {"code": "C1_VALIDATION_ERROR", "message": "Uploaded query image could not be decoded."}},
+            request=request,
+        )
+        raise httpx.HTTPStatusError("Bad request", request=request, response=response)
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+
+    try:
+        c1_service._request("POST", "/api/v1/search/query-faces")
+    except c1_service.C1ServiceError as exc:
+        assert exc.status_code == 400
+        assert exc.code == "C1_VALIDATION_ERROR"
+        assert str(exc) == "Uploaded query image could not be decoded."
+    else:
+        raise AssertionError("Expected C1ServiceError")
+
+
+def test_c1_request_sanitizes_server_error_detail(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_status_for_url(base_url: str):
+        return {"baseUrl": base_url, "reachable": True, "healthOk": True, "identityOk": True}
+
+    def fake_request_once(base_url: str, method: str, path: str, **kwargs):
+        request = httpx.Request(method, f"{base_url}{path}")
+        response = httpx.Response(
+            500,
+            json={"detail": {"code": "TRACEBACK", "message": "internal stack detail"}},
+            request=request,
+        )
+        raise httpx.HTTPStatusError("Internal server error", request=request, response=response)
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", None)
+    monkeypatch.setattr(c1_service, "C1_BASE_URL", "http://127.0.0.1:18000")
+    monkeypatch.setattr(c1_service, "_status_for_url", fake_status_for_url)
+    monkeypatch.setattr(c1_service, "_request_once", fake_request_once)
+
+    try:
+        c1_service._request("POST", "/api/v1/search/query-faces")
+    except c1_service.C1ServiceError as exc:
+        assert exc.status_code == 500
+        assert exc.code == "C1_UNAVAILABLE"
+        assert str(exc) == "C1 returned HTTP 500"
+    else:
+        raise AssertionError("Expected C1ServiceError")
 
 
 def test_c1_fetch_media_uses_in_memory_cache(monkeypatch) -> None:
@@ -1408,6 +1468,28 @@ def test_c1_query_faces_proxy_maps_query_metadata(monkeypatch) -> None:
     assert body["faceCount"] == 2
     assert body["queryFaces"][0]["bbox"]["leftPct"] == 8
     assert body["queryFaces"][1]["score"] == 0.88
+
+
+def test_c1_query_faces_proxy_preserves_validation_error(monkeypatch) -> None:
+    from app.services import c1_service
+
+    def fake_detect_query_faces(**kwargs):
+        raise c1_service.C1ServiceError(
+            "Uploaded query image could not be decoded.",
+            status_code=400,
+            code="C1_VALIDATION_ERROR",
+        )
+
+    monkeypatch.setattr(c1_service, "detect_query_faces", fake_detect_query_faces)
+    response = client.post(
+        "/c1/query-faces",
+        files={"file": ("bad.jpg", b"bad image", "image/jpeg")},
+    )
+
+    assert response.status_code == 400
+    body = response.json()
+    assert body["detail"]["code"] == "C1_VALIDATION_ERROR"
+    assert body["detail"]["message"] == "Uploaded query image could not be decoded."
 
 
 def test_static_assets_avoid_c1_xss_sinks() -> None:
