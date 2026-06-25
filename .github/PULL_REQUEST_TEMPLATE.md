@@ -18,6 +18,7 @@
 
 - [ ] PR 标题使用 `type(scope): summary`，且未包含 `[codex]`、`[copilot]`、`[ai]` 或 `AI:` 等工具来源前缀
 - [ ] 如使用 AI agent 协助，已阅读并遵守 `AGENTS.md`
+- [ ] PR 正文保留模板换行和 Markdown 结构；如使用 PowerShell 更新正文，未把 `gh pr view --jq .body` 的多行输出作为数组写回，已重新读取确认中英标题、列表和复选框仍分行显示
 - [ ] 如包含 AI agent 代码审查输出，review 结论、风险、建议和 inline comment 已中英双语，中文在前、English 在后，并用换行分隔中英文段落
 - [ ] 合并前已确认 PR 正文 reaction、Issue 评论、审查线程和审查状态；审查状态 reaction 只读取 PR 正文下方 reaction，不读取 review/comment 下方 reaction；没有把“未发现评论”当作可合并状态；只有在没有 PR 正文审查信号且需要主动启动审查时才触发 `@codex review`；PR 正文已有 👀 或等价“正在 review”信号时，确认审查已经在进行中，未再次触发 `@codex review`，而是继续轮询等待结果；没有 PR 正文 👀 或等价“正在 review”信号，且已有 PR 正文 👍、approval 或明确无阻断结论
 - [ ] GitHub Actions CI 通过
@@ -61,6 +62,7 @@
 
 - [ ] PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:`
 - [ ] If AI-agent assistance was used, `AGENTS.md` has been read and followed
+- [ ] PR body keeps template line breaks and Markdown structure; if PowerShell was used to update it, multiline output from `gh pr view --jq .body` was not written back as an array, and the body was read again to confirm bilingual headings, lists, and checkboxes still appear on separate lines
 - [ ] If AI-agent code review output is included, the review conclusion, risks, suggestions, and inline comments are bilingual Chinese/English, with Chinese first, English second, and line breaks separating the language paragraphs
 - [ ] Before merge, PR-body reactions, issue comments, review threads, and review state have been checked; review-status reactions are read only from the PR body, not from reactions below review comments or other comments; "no comments found" has not been treated as mergeable; `@codex review` is triggered only when there is no PR-body review signal and a review needs to be started actively; when the PR body already has 👀 or an equivalent "review in progress" signal, review is treated as already running, `@codex review` has not been triggered again, and the agent kept polling for the result; there is no PR-body 👀 or equivalent "review in progress" signal, and there is a PR-body 👍, approval, or explicit no-blocker conclusion
 - [ ] GitHub Actions CI passed

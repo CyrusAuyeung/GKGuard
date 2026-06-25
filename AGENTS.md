@@ -62,6 +62,7 @@
 - 不要在 PR 标题或 commit 标题中使用 `[codex]`、`[copilot]`、`[ai]`、`AI:` 等工具来源前缀。
 - 如果需要说明 AI agent 参与，写在 PR 正文或评论中。
 - PR 正文必须保留并填写 `.github/PULL_REQUEST_TEMPLATE.md` 的中英双语结构。
+- 使用 CLI 或脚本更新 PR 正文时必须保留 Markdown 换行。PowerShell 中不要把 `gh pr view --jq .body` 的多行输出直接赋值后写回；应使用 `(gh pr view <PR_NUMBER> --json body | ConvertFrom-Json).body` 取得单个多行字符串，或使用已确认格式正确的 Markdown 文件作为 `--body-file`。更新后必须重新读取 PR 正文，确认 `## 中文`、`## English`、列表和复选框仍按多行显示。
 - 影响范围、验证项、安全与数据检查必须按实际情况勾选；未运行的验证必须说明原因。
 - CI 未通过、审查未完成、对话未解决时不要合并。
 - 合并前必须检查 PR 正文 reaction、Issue 评论、审查线程和审查状态。👀 / 👍 这类审查状态 reaction 只存在且只读取 PR 正文下方的 reaction，不存在于 review 后评论，也不以 review/comment 下方 reaction 作为审查状态。若暂时没有任何审查信号，AI agent 应持续轮询到出现明确状态再继续；只有在没有 PR 正文审查信号且需要主动启动审查时，才可评论 `@codex review`。PR 正文已有 👀 或等价“正在 review”信号时，说明审查已经在进行中，不得再次手动触发 review，只能继续轮询等待结果。三种标准状态是：PR 正文出现 👀 或等价信号表示仍在 review，不要合并；PR 正文出现 👍、明确 approval 或明确无阻断结论表示 review 完成且当前无阻断问题；Issue 评论、review 评论或未解决线程表示存在反馈，必须处理后再重新等待审查信号。新的提交后需要重新确认最后一次 review 已完成。
@@ -270,6 +271,7 @@ For UI, frontend redesign, or visual-direction work, also read:
 - Do not use tool-source prefixes such as `[codex]`, `[copilot]`, `[ai]`, or `AI:` in PR titles or commit titles.
 - If AI agent participation needs to be disclosed, put it in the PR body or a comment.
 - PR bodies must keep and fill the bilingual structure from `.github/PULL_REQUEST_TEMPLATE.md`.
+- When updating a PR body through the CLI or scripts, preserve Markdown line breaks. In PowerShell, do not assign multiline output from `gh pr view --jq .body` and write it back directly; use `(gh pr view <PR_NUMBER> --json body | ConvertFrom-Json).body` to get a single multiline string, or use a verified Markdown file with `--body-file`. After editing, read the PR body again and confirm `## 中文`, `## English`, lists, and checkboxes still appear on separate lines.
 - Scope, validation, security, and data-check boxes must be checked according to the actual change. Any skipped validation must be explained.
 - Do not merge while CI is failing, review is incomplete, or conversations remain unresolved.
 - Before merging, check PR-body reactions, issue comments, review threads, and review state. Review-status reactions such as 👀 / 👍 exist only below the PR body and only PR-body reactions count; reactions below review comments or other comments are not review-status signals. If no review signal is present yet, the AI agent should keep polling until a clear state appears. Only comment `@codex review` when there is no PR-body review signal and a review needs to be started actively. If the PR body already has 👀 or an equivalent review-in-progress signal, review is already running; do not manually retrigger review, and only keep polling for the result. The three standard states are: 👀 or an equivalent PR-body reaction means review is still in progress and the PR must not be merged; 👍 on the PR body, explicit approval, or an explicit no-blocker conclusion means review is complete with no current blocker; issue comments, review comments, or unresolved threads mean feedback exists and must be addressed before waiting for the next review signal. After new commits, reconfirm that the latest review is complete.
