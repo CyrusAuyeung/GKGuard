@@ -1418,6 +1418,21 @@ body {
   color: var(--workbench-ink);
 }
 
+html,
+body,
+.app-shell {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+.app-shell > .screen,
+.result-screen,
+.route-screen {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 button,
 input,
 select {
@@ -1546,11 +1561,14 @@ select {
 
 .workspace-screens {
   min-width: 0;
+  max-width: 100%;
+  overflow-x: clip;
 }
 
 .workbench-shell .screen {
   width: 100%;
-  max-width: none;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .search-card,
