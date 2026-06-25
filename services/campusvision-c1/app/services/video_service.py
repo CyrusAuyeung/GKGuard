@@ -97,6 +97,15 @@ def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
         shutil.rmtree(frame_dir)
 
 
+def _restore_previous_video_index(db_backup: Path | None, frame_dir: Path, frame_backup_dir: Path | None) -> None:
+    if frame_dir.exists():
+        shutil.rmtree(frame_dir)
+    if frame_backup_dir and frame_backup_dir.exists():
+        shutil.move(str(frame_backup_dir), str(frame_dir))
+    if db_backup and db_backup.exists():
+        shutil.copy2(db_backup, settings.db_path)
+
+
 def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     video = db.get_video(video_id)
     if not video:
@@ -117,6 +126,12 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     detected_bodies = 0
     event_result = None
     video_frame_dir = settings.frames_dir / video_id
+    staging_frame_dir = settings.frames_dir / f".{video_id}.indexing-{uuid.uuid4().hex}"
+    backup_frame_dir = settings.frames_dir / f".{video_id}.previous-{uuid.uuid4().hex}"
+    db_backup = settings.data_dir / f".{video_id}.previous-{uuid.uuid4().hex}.sqlite3"
+    previous_frame_dir_backed_up = False
+    previous_db_backed_up = False
+    sampled_items: list[dict] = []
     upper_color_cache = (
         observation_service.UpperColorTemporalCache()
         if settings.enable_upper_color_temporal_cache
@@ -124,8 +139,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
     )
 
     try:
-        _clear_previous_video_index(video_id, video_frame_dir)
-        video_frame_dir.mkdir(parents=True, exist_ok=True)
+        staging_frame_dir.mkdir(parents=True, exist_ok=True)
         for frame_index, (timestamp_sec, frame) in enumerate(
             iter_video_frames(video["path"], every_seconds=float(interval))
         ):
@@ -145,13 +159,40 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
             if usable_face_count <= 0 and not bodies:
                 continue
 
-            frame_file = video_frame_dir / f"{timestamp_sec:.2f}-{uuid.uuid4().hex}.jpg"
+            frame_file = staging_frame_dir / f"{timestamp_sec:.2f}-{uuid.uuid4().hex}.jpg"
             if not cv2.imwrite(str(frame_file), frame):
                 raise RuntimeError("Failed to write sampled frame.")
             created_frame_files.append(frame_file)
 
+            sampled_items.append(
+                {
+                    "frame_index": frame_index,
+                    "timestamp_sec": float(timestamp_sec),
+                    "frame": frame,
+                    "staging_frame_file": frame_file,
+                    "boxes": boxes[:usable_face_count],
+                    "embeddings": embeddings[:usable_face_count],
+                    "bodies": bodies,
+                }
+            )
+
+        if settings.db_path.exists():
+            shutil.copy2(settings.db_path, db_backup)
+            previous_db_backed_up = True
+        if video_frame_dir.exists():
+            shutil.move(str(video_frame_dir), str(backup_frame_dir))
+            previous_frame_dir_backed_up = True
+        _clear_previous_video_index(video_id, video_frame_dir)
+        shutil.move(str(staging_frame_dir), str(video_frame_dir))
+
+        for sampled_item in sampled_items:
+            timestamp_sec = sampled_item["timestamp_sec"]
+            frame = sampled_item["frame"]
+            frame_index = sampled_item["frame_index"]
+            frame_file = video_frame_dir / sampled_item["staging_frame_file"].name
+
             face_items = []
-            for box, embedding in zip(boxes[:usable_face_count], embeddings[:usable_face_count]):
+            for box, embedding in zip(sampled_item["boxes"], sampled_item["embeddings"]):
                 face_id = uuid.uuid4().hex
                 captured_at = _captured_at(video.get("recorded_at"), timestamp_sec)
                 db.add_face_record(
@@ -179,7 +220,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
                 captured_at=_captured_at(video.get("recorded_at"), timestamp_sec),
                 frame_index=frame_index,
                 faces=face_items,
-                bodies=bodies,
+                bodies=sampled_item["bodies"],
                 upper_color_cache=upper_color_cache,
             )
             observed += len(observations)
@@ -196,19 +237,39 @@ def index_video(video_id: str, frame_interval_sec: float | None = None) -> dict:
         db.delete_events_for_video(video_id)
         db.delete_person_observations_for_video(video_id)
         db.delete_face_records_by_ids(created_face_ids)
-        for frame_file in created_frame_files:
-            frame_file.unlink(missing_ok=True)
-        try:
-            video_frame_dir.rmdir()
-        except OSError:
-            pass
-        db.finish_video_processing(
-            video_id,
-            status="failed",
-            duration_sec=time.perf_counter() - processing_started,
-            error=str(exc),
-        )
+        if previous_db_backed_up or previous_frame_dir_backed_up:
+            _restore_previous_video_index(
+                db_backup if previous_db_backed_up else None,
+                video_frame_dir,
+                backup_frame_dir if previous_frame_dir_backed_up else None,
+            )
+            db.finish_video_processing(
+                video_id,
+                status=video.get("status") or "uploaded",
+                duration_sec=time.perf_counter() - processing_started,
+                error=str(exc),
+            )
+        else:
+            for frame_file in created_frame_files:
+                frame_file.unlink(missing_ok=True)
+            try:
+                staging_frame_dir.rmdir()
+            except OSError:
+                pass
+            db.finish_video_processing(
+                video_id,
+                status="failed",
+                duration_sec=time.perf_counter() - processing_started,
+                error=str(exc),
+            )
         raise
+    finally:
+        if staging_frame_dir.exists():
+            shutil.rmtree(staging_frame_dir)
+        if backup_frame_dir.exists():
+            shutil.rmtree(backup_frame_dir)
+        if db_backup.exists():
+            db_backup.unlink()
 
     return {
         "video_id": video_id,
