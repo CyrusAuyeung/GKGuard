@@ -11,6 +11,8 @@ const elements = {
   uploadHint: document.querySelector("#uploadHint"),
   openQueryFaceModalBtn: document.querySelector("#openQueryFaceModalBtn"),
   startSearchBtn: document.querySelector("#startSearchBtn"),
+  navFaceSearch: document.querySelector("#navFaceSearch"),
+  navAttributeSearch: document.querySelector("#navAttributeSearch"),
   faceSearchTab: document.querySelector("#faceSearchTab"),
   attributeSearchTab: document.querySelector("#attributeSearchTab"),
   faceSearchPane: document.querySelector("#faceSearchPane"),
@@ -60,6 +62,8 @@ const elements = {
   updateStatus: document.querySelector("#updateStatus"),
   newSearchBtn: document.querySelector("#newSearchBtn"),
   routeNewSearchBtn: document.querySelector("#routeNewSearchBtn"),
+  openCandidatesBtn: document.querySelector("#openCandidatesBtn"),
+  openEventDetailBtn: document.querySelector("#openEventDetailBtn"),
   toast: document.querySelector("#toast"),
   toastTitle: document.querySelector("#toastTitle"),
   toastMessage: document.querySelector("#toastMessage"),
@@ -82,6 +86,14 @@ const elements = {
   queryFaceZoomIn: document.querySelector("#queryFaceZoomIn"),
   queryFaceZoomOut: document.querySelector("#queryFaceZoomOut"),
   queryFaceZoomReset: document.querySelector("#queryFaceZoomReset"),
+  candidateDrawer: document.querySelector("#candidateDrawer"),
+  candidateDrawerClose: document.querySelector("#candidateDrawerClose"),
+  candidateList: document.querySelector("#candidateList"),
+  eventDetailDrawer: document.querySelector("#eventDetailDrawer"),
+  eventDetailClose: document.querySelector("#eventDetailClose"),
+  eventDetailTitle: document.querySelector("#eventDetailTitle"),
+  eventDetailSubtitle: document.querySelector("#eventDetailSubtitle"),
+  eventDetailBody: document.querySelector("#eventDetailBody"),
 };
 
 const records = [
@@ -132,6 +144,7 @@ let queryFaceModalZoom = 1;
 let queryFaceModalBaseScale = 1;
 let lastC1Notice = "";
 let activeSource = "mock";
+let candidatePeople = [];
 let toastTimer = null;
 let lastFocusedElement = null;
 const CONFIDENT_QUERY_FACE_SCORE = 0.65;
@@ -1104,6 +1117,7 @@ function loadImage(file) {
 function resetToMockData() {
   records.splice(0, records.length, ...mockRecords.map((record) => ({ ...record })));
   routePoints.splice(0, routePoints.length, ...mockRoutePoints.map((point) => ({ ...point })));
+  candidatePeople = [];
   activeSource = "mock";
   activeResultMode = "face";
   lastC1Notice = "";
@@ -1121,6 +1135,8 @@ function resetSearchInput() {
   if (elements.faceFile) elements.faceFile.value = "";
   if (elements.uploadHint) elements.uploadHint.textContent = "支持 JPG / PNG，建议上传清晰正脸照片";
   resetToMockData();
+  closeCandidateDrawer();
+  closeEventDetailDrawer();
   syncPortraits();
   renderRecordLists();
   renderSelectedRecord();
@@ -1144,6 +1160,14 @@ async function applyC1Result(result) {
   if (selectedQueryFaceIndex !== null && !selectedQueryFaceImageUrl) {
     await selectQueryFace(selectedQueryFaceIndex, { silent: true });
   }
+
+  candidatePeople = Array.isArray(result?.candidates)
+    ? result.candidates
+    : Array.isArray(result?.people)
+      ? result.people
+      : result?.person
+        ? [result.person]
+        : [];
 
   if (!result?.records?.length) {
     records.splice(0, records.length);
@@ -1322,12 +1346,149 @@ function recordAttributeInfoMarkup(record) {
   `).join("");
 }
 
+function candidatePersonId(candidate, index) {
+  return candidate?.personId || candidate?.person_id || candidate?.id || `候选人物 ${index + 1}`;
+}
+
+function candidateScore(candidate) {
+  return finiteNumber(candidate?.score ?? candidate?.match_score ?? candidate?.identity_confidence ?? candidate?.similarity);
+}
+
+function candidateEventCount(candidate) {
+  return Number(candidate?.eventCount ?? candidate?.event_count ?? candidate?.events?.length ?? candidate?.matches?.length ?? 0) || 0;
+}
+
+function candidateFaceUrl(candidate) {
+  return safeImageUrl(
+    candidate?.representativeFaceUrl
+      || candidate?.representative_face_crop_url
+      || candidate?.representative_face_url
+      || candidate?.faceUrl
+      || candidate?.thumbnailUrl,
+  );
+}
+
+function fallbackCandidatePeople() {
+  if (candidatePeople.length) return candidatePeople;
+  if (!records.length) return [];
+  return [{
+    personId: activeResultMode === "attributes" ? "特征候选集合" : "当前候选人物",
+    score: records[0]?.similarity,
+    confidence: records[0]?.similarity >= 0.65 ? "medium" : "low",
+    eventCount: records.length,
+    representativeFaceUrl: matchedPersonImageUrl || selectedQueryFaceImageUrl || records[0]?.faceUrl || records[0]?.thumbnailUrl,
+  }];
+}
+
+function renderCandidateList() {
+  if (!elements.candidateList) return;
+  const candidates = fallbackCandidatePeople();
+  if (!candidates.length) {
+    elements.candidateList.innerHTML = emptyStateMarkup("暂无候选人物", "请先完成一次人脸或人物特征检索。");
+    if (elements.openCandidatesBtn) elements.openCandidatesBtn.disabled = true;
+    return;
+  }
+  if (elements.openCandidatesBtn) elements.openCandidatesBtn.disabled = false;
+  elements.candidateList.innerHTML = candidates.map((candidate, index) => {
+    const faceUrl = candidateFaceUrl(candidate);
+    const score = candidateScore(candidate);
+    const confidence = candidate?.confidence || candidate?.identityStatus || candidate?.identity_status || "candidate";
+    return `
+      <article class="candidate-card ${index === 0 ? "is-primary" : ""}">
+        <div class="candidate-thumb">${faceUrl ? `<img src="${escapeHtml(faceUrl)}" alt="${escapeHtml(candidatePersonId(candidate, index))} 候选人脸" />` : '<span class="portrait-art"></span>'}</div>
+        <div class="candidate-copy">
+          <strong>${escapeHtml(candidatePersonId(candidate, index))}</strong>
+          <span>相似度：${escapeHtml(formatPercent(score))}</span>
+          <span>事件数：${escapeHtml(String(candidateEventCount(candidate) || records.length || "--"))}</span>
+          <span>状态：${escapeHtml(confidence)}</span>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function openCandidateDrawer() {
+  renderCandidateList();
+  if (!elements.candidateDrawer) return;
+  lastFocusedElement = document.activeElement;
+  elements.candidateDrawer.hidden = false;
+  elements.candidateDrawer.classList.add("is-visible");
+  elements.candidateDrawerClose?.focus?.();
+}
+
+function closeCandidateDrawer() {
+  if (!elements.candidateDrawer) return;
+  elements.candidateDrawer.classList.remove("is-visible");
+  elements.candidateDrawer.hidden = true;
+  lastFocusedElement?.focus?.();
+}
+
+function eventDetailMetaMarkup(record) {
+  const rows = [
+    ["出现时间", record?.fullTime || record?.time || "--"],
+    ["摄像头", record?.camera || record?.cameraId || "--"],
+    ["位置", record?.location || "--"],
+    ["相似度", formatPercent(record?.similarity)],
+    ["说明", record?.note || "--"],
+    ["数据来源", sourceLabel()],
+  ];
+  return rows.map(([label, value]) => `
+    <div class="event-detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+  `).join("");
+}
+
+function renderEventDetailDrawer() {
+  if (!elements.eventDetailBody) return;
+  const record = records[selectedRecordIndex];
+  if (!record) {
+    elements.eventDetailTitle.textContent = "事件详情";
+    elements.eventDetailSubtitle.textContent = "当前没有可展示的检索记录";
+    elements.eventDetailBody.innerHTML = emptyStateMarkup("暂无事件详情", "请先完成检索并选择一条记录。");
+    return;
+  }
+  elements.eventDetailTitle.textContent = `${record.title} 事件详情`;
+  elements.eventDetailSubtitle.textContent = `${record.fullTime || record.time || "--"} · ${record.cameraId || record.camera || "--"}`;
+  const frame = recordFrameUrl(record)
+    ? `<div class="event-detail-frame">${frameImageMarkup(record, "event-detail-image")}</div>`
+    : `<div class="event-detail-frame is-empty">${emptyStateMarkup("暂无现场图", "CampusVision C1 未返回该事件现场图。")}</div>`;
+  elements.eventDetailBody.innerHTML = `
+    ${frame}
+    <section class="event-detail-meta" aria-label="事件字段">
+      ${eventDetailMetaMarkup(record)}
+      ${recordAttributeInfoMarkup(record)}
+    </section>
+    <button id="eventDetailOpenMedia" class="primary-action event-detail-open-media" type="button">查看现场图</button>
+  `;
+  elements.eventDetailBody.querySelector("#eventDetailOpenMedia")?.addEventListener("click", () => openMediaViewer(record));
+  positionFrameFaceBoxes(elements.eventDetailBody);
+}
+
+function openEventDetailDrawer() {
+  renderEventDetailDrawer();
+  if (!elements.eventDetailDrawer) return;
+  lastFocusedElement = document.activeElement;
+  elements.eventDetailDrawer.hidden = false;
+  elements.eventDetailDrawer.classList.add("is-visible");
+  elements.eventDetailClose?.focus?.();
+}
+
+function closeEventDetailDrawer() {
+  if (!elements.eventDetailDrawer) return;
+  elements.eventDetailDrawer.classList.remove("is-visible");
+  elements.eventDetailDrawer.hidden = true;
+  lastFocusedElement?.focus?.();
+}
+
 function switchSearchMode(mode) {
   const isAttributes = mode === "attributes";
   elements.faceSearchTab?.classList.toggle("is-active", !isAttributes);
   elements.attributeSearchTab?.classList.toggle("is-active", isAttributes);
+  elements.navFaceSearch?.classList.toggle("is-active", !isAttributes);
+  elements.navAttributeSearch?.classList.toggle("is-active", isAttributes);
   elements.faceSearchTab?.setAttribute("aria-selected", isAttributes ? "false" : "true");
   elements.attributeSearchTab?.setAttribute("aria-selected", isAttributes ? "true" : "false");
+  elements.navFaceSearch?.setAttribute("aria-current", isAttributes ? "false" : "page");
+  elements.navAttributeSearch?.setAttribute("aria-current", isAttributes ? "page" : "false");
   elements.faceSearchPane?.classList.toggle("is-active", !isAttributes);
   elements.attributeSearchPane?.classList.toggle("is-active", isAttributes);
   if (elements.faceSearchPane) elements.faceSearchPane.hidden = isAttributes;
@@ -1368,6 +1529,7 @@ function renderRecordLists() {
     elements.routeRecordList.innerHTML = html;
     if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
     if (elements.resultCountBadge) elements.resultCountBadge.textContent = "0 条";
+    renderCandidateList();
     return;
   }
 
@@ -1385,6 +1547,7 @@ function renderRecordLists() {
   elements.routeRecordList.innerHTML = html;
   if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
   if (elements.resultCountBadge) elements.resultCountBadge.textContent = `${records.length} 条`;
+  renderCandidateList();
   bindRecordThumbnailFallbacks();
 
   document.querySelectorAll(".record-card").forEach((button) => {
@@ -1395,6 +1558,9 @@ function renderRecordLists() {
       renderSelectedRecord();
       renderRouteMap();
       renderRouteTimeline();
+      if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
+        renderEventDetailDrawer();
+      }
     });
   });
 }
@@ -1527,6 +1693,9 @@ function renderSelectedRecord() {
     elements.timeBubble.style.left = "0%";
     elements.recordInfo.innerHTML = emptyStateMarkup("暂无相关信息", "请重新检索或检查 CampusVision C1 返回内容。");
     renderRouteCurrentSummary();
+    if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
+      renderEventDetailDrawer();
+    }
     return;
   }
   elements.recordTitle.textContent = record.title;
@@ -1548,6 +1717,9 @@ function renderSelectedRecord() {
     ${recordAttributeInfoMarkup(record)}
   `;
   renderRouteCurrentSummary();
+  if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
+    renderEventDetailDrawer();
+  }
 }
 
 function renderSelectedRecordFrame(record) {
@@ -2033,6 +2205,14 @@ function downloadText(filename, content) {
 }
 
 function bindEvents() {
+  elements.navFaceSearch?.addEventListener("click", () => {
+    switchScreen("search");
+    switchSearchMode("face");
+  });
+  elements.navAttributeSearch?.addEventListener("click", () => {
+    switchScreen("search");
+    switchSearchMode("attributes");
+  });
   elements.faceSearchTab?.addEventListener("click", () => switchSearchMode("face"));
   elements.attributeSearchTab?.addEventListener("click", () => switchSearchMode("attributes"));
   elements.startAttributeSearchBtn?.addEventListener("click", startAttributeSearch);
@@ -2108,6 +2288,16 @@ function bindEvents() {
   elements.queryFaceZoomIn?.addEventListener("click", () => setQueryFaceModalZoom(queryFaceModalZoom + 0.25));
   elements.queryFaceZoomOut?.addEventListener("click", () => setQueryFaceModalZoom(queryFaceModalZoom - 0.25));
   elements.queryFaceZoomReset?.addEventListener("click", () => setQueryFaceModalZoom(1));
+  elements.openCandidatesBtn?.addEventListener("click", openCandidateDrawer);
+  elements.candidateDrawerClose?.addEventListener("click", closeCandidateDrawer);
+  elements.candidateDrawer?.addEventListener("click", (event) => {
+    if (event.target === elements.candidateDrawer) closeCandidateDrawer();
+  });
+  elements.openEventDetailBtn?.addEventListener("click", openEventDetailDrawer);
+  elements.eventDetailClose?.addEventListener("click", closeEventDetailDrawer);
+  elements.eventDetailDrawer?.addEventListener("click", (event) => {
+    if (event.target === elements.eventDetailDrawer) closeEventDetailDrawer();
+  });
   elements.newSearchBtn?.addEventListener("click", resetSearchInput);
   elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。", { tone: "info", title: "已切换视图" }); });
@@ -2139,6 +2329,12 @@ function bindEvents() {
     }
     if (event.key === "Escape" && elements.queryFaceModal?.classList.contains("is-visible")) {
       closeQueryFaceModal();
+    }
+    if (event.key === "Escape" && elements.candidateDrawer?.classList.contains("is-visible")) {
+      closeCandidateDrawer();
+    }
+    if (event.key === "Escape" && elements.eventDetailDrawer?.classList.contains("is-visible")) {
+      closeEventDetailDrawer();
     }
   });
   window.addEventListener("resize", () => {

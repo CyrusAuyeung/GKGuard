@@ -9,11 +9,11 @@
 
 GKGuard 是面向校园安防场景的 GKGuard C2 桌面工作台，负责本地后端、桌面界面、人脸检索结果展示、人物路线可视化、本地模拟回退、审计能力和外部服务代理。CampusVision C1 是独立的视频检索服务，负责视频上传、抽帧、人脸向量、人物库、以图搜人、关键帧和轨迹输出。
 
-本仓库覆盖 GKGuard C2 的完整工程形态：本地模拟演示、FastAPI 服务接口、静态前端、Electron 桌面运行环境、CampusVision C1 真实检索接入、查询图目标人脸选择、人物特征检索、事件关键帧展示、人物路线联动、Windows/macOS/Linux 桌面端发布、安全加固、协作流程管理和配套文档体系。当前最新版本是 `v0.2.3`。
+本仓库覆盖 GKGuard C2 的完整工程形态：本地模拟演示、FastAPI 服务接口、静态前端、Electron 桌面运行环境、CampusVision C1 真实检索接入、查询图目标人脸选择、人物特征检索、事件关键帧展示、候选人物与事件详情辅助面板、人物路线联动、Windows/macOS/Linux 桌面端发布、安全加固、协作流程管理和配套文档体系。当前最新版本是 `v0.3.0`。
 
 ## 仓库版本
 
-- 当前最新版本：`v0.2.3`。
+- 当前最新版本：`v0.3.0`。
 - 桌面安装包：GitHub Release 中包含 Windows 安装包、macOS dmg/zip、Linux AppImage/deb、`.blockmap` 和 `latest*.yml`。
 - 代码形态：仓库同时保留可本地运行的 FastAPI 后端、静态前端、Electron 桌面壳和导入的 CampusVision C1 源码。
 - 文档形态：仓库内维护中英双语 README、API 规范、CampusVision C1 / GKGuard C2 集成说明、演示脚本、数据字典、发布说明和管理文档。
@@ -21,8 +21,8 @@ GKGuard 是面向校园安防场景的 GKGuard C2 桌面工作台，负责本地
 ## 能力总览
 
 - **GKGuard C2 后端与本地模拟**：FastAPI 后端提供健康检查、人员/车辆模拟 API、事件处置、审计接口、静态演示页、CampusVision C1 代理和 CampusCar/UE 占位接口；无真实 CampusVision C1 环境时仍可使用本地 mock 数据演示主流程。
-- **人脸检索前端流程**：静态前端覆盖 `人脸检索`、`人脸检索结果`、`人物路线图` 三个核心界面；支持上传目标图片、查询图人脸检测、单人自动检索、多人目标选择、放大弹窗选人、低置信候选提示、重新上传、结果列表、关键帧预览、结果记录切换关键帧预加载、路线查看和导出入口。
-- **人物特征检索前端流程**：当前版本包含人物特征检索入口，可按上装颜色、眼镜状态、外观倾向、摄像头和时间范围查询 CampusVision C1 事件；结果复用检索记录、关键帧、人脸框、相似度、路线联动和导出展示模型。`v0.2.3` 延续 `v0.2.0` 功能集成、`v0.2.1` 稳定性修复和 `v0.2.2` review 后续，并补齐 CampusVision C1 重建索引失败恢复、数据库写锁隔离和查询图超限临时文件清理边界。
+- **人脸检索前端流程**：静态前端覆盖 `人脸以图搜人`、`检索结果`、`人物路线图` 三个核心工作区；支持上传目标图片、查询图人脸检测、单人自动检索、多人目标选择、放大弹窗选人、低置信候选提示、重新上传、结果列表、关键帧预览、结果记录切换关键帧预加载、候选人物抽屉、事件详情抽屉、路线查看和导出入口。
+- **人物特征检索前端流程**：当前版本包含人物特征检索入口，可按上装颜色、眼镜状态、外观倾向、摄像头和时间范围查询 CampusVision C1 事件；结果复用检索记录、关键帧、人脸框、相似度、路线联动、候选人物抽屉、事件详情抽屉和导出展示模型。`v0.3.0` 在既有人脸检索与人物特征检索能力上重构为固定工作区导航、证据优先详情布局和响应式抽屉结构，并继续保留 CampusVision C1 重建索引失败恢复、数据库写锁隔离和查询图超限临时文件清理边界。
 - **CampusVision C1 真实检索接入**：GKGuard C2 通过 `/c1/...` 代理探测 CampusVision C1 候选地址，转发查询图检测、以图搜人、查询图候选、人物事件、事件观测和人物特征查询请求，改写关键帧/人脸裁剪图/人体裁剪图媒体 URL，对成功媒体响应按实际响应地址、API key、候选配置和连接代次隔离缓存并限制内存占用，媒体请求发起前和返回前重新校验连接代次，对短期健康状态探测做进程内复用与失败失效处理，把 CampusVision C1 响应归一化成 GKGuard C2 前端可直接展示的记录、相似度、关键帧、人物属性和轨迹模型。
 - **结果审核与可视化**：结果页展示目标人物照片、命中记录、CampusVision C1 人脸缩略图、关键帧、目标人脸框、框外相似度和人物属性摘要；人物照片、数据来源和命中记录信息在桌面、中等宽度和移动布局下保持分离；路线页联动地图点位、关联记录、时间线、轨迹摘要和移动端紧凑视图。
 - **Electron 桌面端**：桌面壳可启动内置 GKGuard C2 后端、显示启动页、加载 `/demo`、清理 renderer cache、避免旧后台资源复用、提供 CampusVision C1 内嵌 SSH 密码窗口和连接进度，并支持 Windows、macOS 和 Linux 平台打包。Windows 继续支持软件内检查更新、下载新版和重启安装；macOS/Linux 会按当前平台打开对应安装文件。
@@ -50,8 +50,9 @@ GKGuard 是面向校园安防场景的 GKGuard C2 桌面工作台，负责本地
 
 ## 当前稳定基线
 
-- 当前稳定基线为 `v0.2.3`：主流程已覆盖本地 mock 演示、CampusVision C1 真实以图搜人和 CampusVision C1 人物特征事件检索，Windows/macOS/Linux 桌面端发布链路和本地开发后端都可进入 `/demo`。
-- GKGuard C2 前端已完成人脸检索、人物特征检索、结果页和路线页工作流：上传页处理单人/多人查询图和异常状态，特征检索页按外观条件查询 CampusVision C1 事件，结果页展示人物照片、命中记录、关键帧、属性摘要和相似度标注，路线页展示轨迹点、时间线和当前轨迹摘要。
+- 当前稳定基线为 `v0.3.0`：主流程已覆盖本地 mock 演示、CampusVision C1 真实以图搜人和 CampusVision C1 人物特征事件检索，Windows/macOS/Linux 桌面端发布链路和本地开发后端都可进入 `/demo`。
+- GKGuard C2 前端已重构为工作台式布局：桌面端使用固定左侧导航切换 `人脸以图搜人` 与 `人物特征搜索`，结果页保持左侧目标人物与检索记录、右侧证据详情的结构；中等宽度和移动视口会切换为紧凑布局，避免人物照片、数据来源、记录列表和操作按钮重叠。
+- GKGuard C2 前端已完成人脸检索、人物特征检索、结果页和路线页工作流：上传页处理单人/多人查询图和异常状态，特征检索页按外观条件查询 CampusVision C1 事件，结果页展示人物照片、命中记录、关键帧、属性摘要和相似度标注，并通过候选人物抽屉与事件详情抽屉辅助复核，路线页展示轨迹点、时间线和当前轨迹摘要。
 - 人脸选择与结果展示已针对真实照片场景做稳定性处理：多人图必须确认目标人物，低置信候选保留可见提示，无匹配/超时/检测失败会回到可继续操作的上传状态，结果页人物照片和关键帧标注按实际目标框与图片内容区域定位，中等宽度窗口下人物照片不会覆盖数据来源和命中记录信息；切换左侧命中记录时保留当前关键帧，预加载并解码目标关键帧后再替换，失败预加载可重试，快速切回当前记录时旧加载任务不会覆盖当前详情。
 - GKGuard C2 的 CampusVision C1 代理已覆盖 `/c1/status`、`/c1/persons`、`/c1/videos`、`/c1/query-faces`、`/c1/search/person-by-image`、`/c1/events`、`/c1/persons/{person_id}/events`、`/c1/events/{event_id}/observations`、`/c1/query/face-image`、`/c1/query/person-attributes` 和扩展 `/c1/media/...`。代理会把 CampusVision C1 人物、事件、观测、特征匹配和媒体字段归一化为 GKGuard C2 前端模型。
 - GKGuard C2 的 CampusVision C1 媒体代理已对成功读取的关键帧、人脸裁剪图、人体裁剪图和事件代表图使用进程内短期缓存，缓存键包含实际响应的 CampusVision C1 地址、API key、候选地址配置和连接代次，并设置条目数、总字节和单项字节上限；实时状态确认或桌面端 SSH 隧道重新确认会清理上一连接代次的媒体缓存，媒体请求发起前或返回前若连接代次已被其他流程推进，会重新解析候选或返回可重试错误，不会把旧 CampusVision C1 实例的媒体或错误直接返回给前端、写入新缓存或回写选中地址；同一次媒体请求内从失效候选回退到可用候选时，会保留成功候选并写入对应代次缓存，普通请求会复用短期 CampusVision C1 健康状态探测结果。
@@ -233,7 +234,7 @@ http://127.0.0.1:8002/docs
 
 网络边界：
 
-- 离线或非校园网环境：可以正常打开软件，使用本地模拟回退演示三屏人脸检索壳体、路线图和占位数据。
+- 离线或非校园网环境：可以正常打开软件，使用本地模拟回退演示 GKGuard C2 工作台、人脸以图搜人、人物特征搜索、结果详情、路线图和占位数据。
 - 校园网、VPN 或 SSH 隧道可用时：可以连接服务器上的真实 CampusVision C1 服务，执行真实视频/人脸检索并显示 CampusVision C1 关键帧和轨迹。
 - 如果不在校园网且没有到 CampusVision C1 服务所在服务器的 VPN/隧道，真实 CampusVision C1 检索不可用，但软件本身仍可打开并演示本地模拟流程。
 
@@ -254,17 +255,17 @@ npm run desktop:dev
 Windows/macOS/Linux 桌面端安装文件由 GitHub Actions 构建。发布流程：
 
 ```powershell
-npm version 0.2.x --no-git-tag-version
+npm version 0.3.x --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump version to 0.2.x"
+git commit -m "Bump version to 0.3.x"
 git push
-git tag -a v0.2.x -m "GKGuard v0.2.x"
-git push origin v0.2.x
+git tag -a v0.3.x -m "GKGuard v0.3.x"
+git push origin v0.3.x
 ```
 
 版本标签推送后，发布工作流会安装 Python 和 Node.js 22、运行后端测试、前端/桌面端语法检查、浏览器 E2E 回归，分别在 Windows、Intel macOS 和 Linux runner 上构建 Electron 桌面端安装文件，再由统一发布任务生成发布说明，并把安装文件和更新元数据附到 GitHub Release。
 
-如果 `docs/releases/v0.2.x.md` 存在，发布工作流会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 GitHub Release 正文。
+如果 `docs/releases/v0.3.x.md` 存在，发布工作流会优先使用这份人工维护的双语详细说明；否则会生成带中文/English 跳转、安装说明、提交和文件变更的兜底 GitHub Release 正文。
 
 Pull Request 和 `main` 分支推送会触发 `.github/workflows/ci.yml`，执行后端测试、前端脚本语法检查、桌面端语法检查、桌面后端入口编译、浏览器 E2E 回归和 npm 安全审计。Release 安装文件仍只由 `v*` 标签触发的 `.github/workflows/release-desktop.yml` 构建。
 
@@ -292,7 +293,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-当前 `v0.2.3` 的基线结果：GKGuard C2 后端测试、CampusVision C1 服务端安全配置测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过；当前 Windows 本地 Python 环境缺少 `cv2`，CampusVision C1 全量视觉测试无法在本机完成，查询图预处理测试被跳过。Release workflow 会在 Windows、Intel macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据，其中 Windows 端继续提供 `GKGuard-Setup-0.2.3.exe`、`.blockmap` 和 `latest.yml`。CampusVision C1 服务能力和 GKGuard C2 前端入口由 `v0.2.0` 引入：CampusVision C1 包含人物事件、事件观测、外观属性分析、查询图候选和人物特征查询接口；GKGuard C2 包含人物特征检索 UI、事件结果归一化、扩展媒体代理和相关属性摘要展示。`v0.2.1` 重点修复查询图异常清理、重复视频索引、受影响人物索引与 appearance session 重建、人物特征路线顺序、路线点到结果记录的稳定映射、默认记录不在路线点内时的路线页选中状态和 API 规范示例；`v0.2.2` 补齐 review 后续，统一 CampusVision C1 查询图候选接口 Query 参数，保留 CampusVision C1 4xx 校验错误详情，对 CampusVision C1 5xx 服务错误详情脱敏，避免图片检索和人物特征检索中的 CampusVision C1 4xx 输入校验失败触发桌面端重连，并修正重复映射路线点和未映射尾部记录的高亮边界；`v0.2.3` 修复重建索引提交失败时的旧索引恢复、数据库写锁隔离和查询图超限临时文件清理边界。既有人脸检索、多人目标选择、结果页关键帧标注、记录切换预加载、路线图联动、媒体缓存隔离、受信 SSH 主机密钥自动比对和桌面端跨平台发布能力继续保留。
+当前 `v0.3.0` 的基线结果：GKGuard C2 后端测试、CampusVision C1 服务端安全配置测试、前端脚本、Electron 主进程和 preload 语法检查、桌面后端入口编译、Playwright E2E、`npm audit --audit-level=low` 和 `git diff --check` 通过。Release workflow 会在 Windows、Intel macOS 和 Linux runner 上分别生成对应桌面端安装文件与 `latest*.yml` 元数据，其中 Windows 端继续提供 `GKGuard-Setup-0.3.0.exe`、`.blockmap` 和 `latest.yml`。`v0.3.0` 在既有 CampusVision C1 真实以图搜人、人物特征检索、多人目标选择、结果关键帧标注、记录切换预加载、路线图联动、媒体缓存隔离、受信 SSH 主机密钥自动比对和跨平台桌面发布能力基础上，重构 GKGuard C2 前端为工作台式信息架构：固定导航承载人脸以图搜人与人物特征搜索入口，结果页采用目标人物/记录列表与证据详情分栏，候选人物与事件详情进入侧边抽屉，中等宽度和移动端布局按内容密度自动收敛。
 
 只修改文档时，可至少执行：
 
@@ -332,11 +333,11 @@ python -m pytest
 
 GKGuard is the GKGuard C2 desktop workbench for campus-security AI search. It owns the local backend, desktop UI, face-search result presentation, person-route visualization, mock fallback, audit capability, and external-service proxy layer. CampusVision C1 is the separate video-search service for video upload, frame sampling, face embeddings, person indexing, image-based person search, keyframes, and trajectory output.
 
-This repository covers GKGuard C2's complete engineering shape: local mock demos, FastAPI service APIs, the static frontend, the Electron desktop runtime, CampusVision C1 real-search integration, query-face target selection, person-attribute search, event keyframe presentation, person-route synchronization, Windows/macOS/Linux desktop release flow, security hardening, collaboration workflow management, and supporting documentation. The latest version is `v0.2.3`.
+This repository covers GKGuard C2's complete engineering shape: local mock demos, FastAPI service APIs, the static frontend, the Electron desktop runtime, CampusVision C1 real-search integration, query-face target selection, person-attribute search, event keyframe presentation, candidate-person and event-detail side panels, person-route synchronization, Windows/macOS/Linux desktop release flow, security hardening, collaboration workflow management, and supporting documentation. The latest version is `v0.3.0`.
 
 ## Repository Version
 
-- Latest version: `v0.2.3`.
+- Latest version: `v0.3.0`.
 - Desktop packages: GitHub Releases contain the Windows installer, macOS dmg/zip, Linux AppImage/deb, `.blockmap`, and `latest*.yml`.
 - Code shape: the repository keeps the locally runnable FastAPI backend, static frontend, Electron desktop shell, and imported CampusVision C1 source.
 - Documentation shape: the repository maintains bilingual README, API specification, CampusVision C1 / GKGuard C2 integration notes, demo script, data dictionary, release notes, and management documents.
@@ -344,8 +345,8 @@ This repository covers GKGuard C2's complete engineering shape: local mock demos
 ## Capability Overview
 
 - **GKGuard C2 backend and mock fallback**: the FastAPI backend provides health checks, people/vehicle mock APIs, event disposition, audit endpoints, the static demo UI, CampusVision C1 proxy endpoints, and CampusCar/UE placeholder interfaces; without a real CampusVision C1 environment, local mock data still demonstrates the main workflow.
-- **Face-search frontend flow**: the static UI covers the `人脸检索`, `人脸检索结果`, and `人物路线图` screens; it supports target-image upload, query-face detection, single-face auto-search, multi-face target selection, enlarged selection modal, low-confidence candidate hints, re-upload, result list, keyframe preview, preloaded keyframe switching between result records, route review, and export entry points.
-- **Person-attribute search frontend flow**: the current version includes a person-attribute search entry that can query CampusVision C1 events by upper-body color, glasses status, appearance presentation, camera, and time range; results reuse the result-record, keyframe, face-box, similarity, route, and export presentation model. `v0.2.3` continues the `v0.2.0` feature integration, the `v0.2.1` stability fixes, and the `v0.2.2` review follow-up, and adds CampusVision C1 re-index failure recovery, database write-lock isolation, and over-limit query-image temporary-file cleanup boundaries.
+- **Face-search frontend flow**: the static UI covers the `人脸以图搜人`, `检索结果`, and `人物路线图` work areas; it supports target-image upload, query-face detection, single-face auto-search, multi-face target selection, enlarged selection modal, low-confidence candidate hints, re-upload, result list, keyframe preview, preloaded keyframe switching between result records, candidate-person drawer, event-detail drawer, route review, and export entry points.
+- **Person-attribute search frontend flow**: the current version includes a person-attribute search entry that can query CampusVision C1 events by upper-body color, glasses status, appearance presentation, camera, and time range; results reuse the result-record, keyframe, face-box, similarity, route, candidate-person drawer, event-detail drawer, and export presentation model. `v0.3.0` redesigns the existing face-search and person-attribute capabilities into a fixed workbench navigation, evidence-first detail layout, and responsive drawer structure while preserving CampusVision C1 re-index failure recovery, database write-lock isolation, and over-limit query-image temporary-file cleanup boundaries.
 - **CampusVision C1 real-search integration**: GKGuard C2 probes CampusVision C1 candidate URLs through `/c1/...`, forwards query-face detection, image search, query-image candidate, person-event, event-observation, and person-attribute search requests, rewrites keyframe/face-crop/body-crop media URLs, caches successful media responses by responding address, API key, candidate configuration, and connection generation with memory limits, re-checks connection generation before sending media requests and before returning media responses, reuses short-lived healthy status probes in process, evicts stale healthy status after failed fresh probes, and normalizes CampusVision C1 responses into records, similarity values, keyframes, attributes, and trajectory models that the GKGuard C2 UI can render directly.
 - **Result review and visualization**: the result screen shows the target portrait, matched records, CampusVision C1 face thumbnails, keyframes, target-face boxes, outside-box similarity labels, and person-attribute summaries; target portrait, source details, and hit-count information stay separated across desktop, medium-width, and mobile layouts; the route screen synchronizes map points, related records, timeline, trajectory summary, and compact mobile views.
 - **Electron desktop app**: the desktop shell starts the bundled GKGuard C2 backend, shows the loading page, loads `/demo`, clears the renderer cache, avoids stale-backend asset reuse, provides the embedded CampusVision C1 SSH password window with connection progress, and supports Windows, macOS, and Linux packaging. Windows keeps in-app update checking, download, and restart-to-install; macOS/Linux open the current platform's release asset.
@@ -375,8 +376,9 @@ This repository currently covers:
 
 ## Current Stable Baseline
 
-- The current stable baseline is `v0.2.3`: the main flow supports local mock demonstration, CampusVision C1 real image search, and CampusVision C1 person-attribute event search, and the Windows/macOS/Linux desktop release flow plus the local development backend can enter `/demo`.
-- The GKGuard C2 frontend has face search, person-attribute search, result-screen, and route-screen workflows: the upload screen handles single-face, multi-face, and error states; the attribute-search screen queries CampusVision C1 events by appearance conditions; the result screen shows the portrait, matched records, keyframes, attribute summaries, and similarity overlays; the route screen shows trajectory points, timeline, and current-route summary.
+- The current stable baseline is `v0.3.0`: the main flow supports local mock demonstration, CampusVision C1 real image search, and CampusVision C1 person-attribute event search, and the Windows/macOS/Linux desktop release flow plus the local development backend can enter `/demo`.
+- The GKGuard C2 frontend has been redesigned as a workbench layout: desktop uses fixed left navigation for `人脸以图搜人` and `人物特征搜索`, while result pages keep target-person and record panels on the left and evidence detail on the right; medium-width and mobile viewports switch to compact layouts that prevent overlap among portraits, source metadata, record lists, and action buttons.
+- The GKGuard C2 frontend has face search, person-attribute search, result-screen, and route-screen workflows: the upload screen handles single-face, multi-face, and error states; the attribute-search screen queries CampusVision C1 events by appearance conditions; the result screen shows the portrait, matched records, keyframes, attribute summaries, similarity overlays, and candidate/event side drawers; the route screen shows trajectory points, timeline, and current-route summary.
 - Face selection and result rendering are hardened for real-photo cases: multi-face images require a confirmed target, low-confidence candidates remain visibly marked, no-match/timeout/detection-failure states return to an actionable upload screen, result portraits plus keyframe overlays are positioned from the actual target box and rendered image-content area, and medium-width windows keep the portrait separate from the source and hit-count summary. When users switch records in the left list, the current keyframe stays visible until the next keyframe is preloaded and decoded, failed preloads can be retried, and stale load tasks cannot overwrite the current detail after users switch back.
 - The GKGuard C2 CampusVision C1 proxy now covers `/c1/status`, `/c1/persons`, `/c1/videos`, `/c1/query-faces`, `/c1/search/person-by-image`, `/c1/events`, `/c1/persons/{person_id}/events`, `/c1/events/{event_id}/observations`, `/c1/query/face-image`, `/c1/query/person-attributes`, and extended `/c1/media/...`. It normalizes CampusVision C1 person, event, observation, feature-match, and media fields into GKGuard C2 frontend models.
 - The GKGuard C2 CampusVision C1 media proxy uses a short-lived in-process cache for successfully fetched keyframes, face crops, body crops, and event representative images, scoped by the responding CampusVision C1 address, API key, candidate-URL configuration, and connection generation, with item-count, total-byte, and per-item byte limits. Fresh status confirmation or desktop SSH-tunnel reconfirmation clears media cache entries from the previous connection generation; media requests re-resolve candidates or return a retryable error if the generation changes before the GET is sent or before the response is returned, and stale media or error responses from the previous CampusVision C1 instance are not returned to the UI, written into the new cache, or allowed to overwrite the selected address. When the same media request falls back from a failed candidate to a healthy candidate, the successful candidate is preserved and cached in its resulting generation, while normal requests reuse short-lived healthy CampusVision C1 status probes.
@@ -558,7 +560,7 @@ For local desktop development or packaging, use Node.js `22.12.0` or later. The 
 
 Network boundary:
 
-- Offline or outside campus network: the app opens normally and can use local mock fallback for the three-screen face-search shell, route map, and placeholder data.
+- Offline or outside campus network: the app opens normally and can use local mock fallback for the GKGuard C2 workbench, face-image search, person-attribute search, result details, route map, and placeholder data.
 - Campus network, VPN, or SSH tunnel available: the app can connect to the server-side CampusVision C1 service for real video/face search, CampusVision C1 keyframes, and trajectories.
 - Without campus access or a VPN/tunnel to the CampusVision C1 server, real CampusVision C1 search is unavailable, but the app itself still opens and can demonstrate the mock flow.
 
@@ -579,17 +581,17 @@ npm run desktop:dev
 Windows/macOS/Linux desktop packages are built by GitHub Actions:
 
 ```powershell
-npm version 0.2.x --no-git-tag-version
+npm version 0.3.x --no-git-tag-version
 git add package.json package-lock.json
-git commit -m "Bump version to 0.2.x"
+git commit -m "Bump version to 0.3.x"
 git push
-git tag -a v0.2.x -m "GKGuard v0.2.x"
-git push origin v0.2.x
+git tag -a v0.3.x -m "GKGuard v0.3.x"
+git push origin v0.3.x
 ```
 
 After a tag is pushed, the workflow installs Python and Node.js 22, runs backend tests, frontend/desktop syntax checks, browser E2E regression, builds Electron desktop packages on Windows, Intel macOS, and Linux runners, then publishes one Release with the platform packages and update metadata attached.
 
-If `docs/releases/v0.2.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
+If `docs/releases/v0.3.x.md` exists, the workflow uses that curated bilingual detailed note first; otherwise it generates a fallback Release body with Chinese/English jump links, installation notes, commits, and file changes.
 
 Pull requests and pushes to `main` trigger `.github/workflows/ci.yml`, which runs backend tests, frontend script syntax checks, desktop syntax checks, desktop backend entrypoint compilation, browser E2E regression, and npm security audit. Release desktop assets are still built only by `.github/workflows/release-desktop.yml` on `v*` tags.
 
@@ -617,7 +619,7 @@ npm audit --audit-level=low
 npm run dist
 ```
 
-Current `v0.2.3` baseline: GKGuard C2 backend tests, CampusVision C1 service-side security configuration tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The current local Windows Python environment lacks `cv2`, so the full CampusVision C1 vision test suite cannot complete locally and the query-face preprocessing tests are skipped. The Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, Intel macOS, and Linux runners, with Windows continuing to provide `GKGuard-Setup-0.2.3.exe`, `.blockmap`, and `latest.yml`. CampusVision C1 service capabilities and GKGuard C2 frontend entry points were introduced by `v0.2.0`: CampusVision C1 includes person events, event observations, appearance-attribute analysis, query-image candidates, and person-attribute query APIs; GKGuard C2 includes the person-attribute search UI, event-result normalization, extended media proxying, and attribute summaries in the result view. `v0.2.1` focuses on query-image error cleanup, repeated video indexing, affected person-index and appearance-session rebuilds, person-attribute route ordering, stable route-to-record mapping, route-screen selection when the default record is not plotted, and API specification examples; `v0.2.2` completes review follow-up by aligning the CampusVision C1 query-image candidate endpoint with Query parameters, preserving CampusVision C1 4xx validation details, sanitizing CampusVision C1 5xx service-error details, preventing CampusVision C1 4xx input-validation failures in image search and person-attribute search from triggering desktop reconnection, and tightening duplicate-mapped and unmapped route-point highlighting; `v0.2.3` fixes previous-index restoration after failed re-index commits, database write-lock isolation, and over-limit query-image temporary-file cleanup. Existing face search, multi-face target selection, keyframe overlays, preloaded record switching, route synchronization, media-cache isolation, automatic trusted SSH host-key comparison, and cross-platform desktop release behavior remain in place.
+Current `v0.3.0` baseline: GKGuard C2 backend tests, CampusVision C1 service-side security configuration tests, frontend script, Electron main-process and preload syntax checks, desktop backend entrypoint compilation, Playwright E2E, `npm audit --audit-level=low`, and `git diff --check` pass. The Release workflow generates platform-specific desktop packages and `latest*.yml` metadata on Windows, Intel macOS, and Linux runners, with Windows continuing to provide `GKGuard-Setup-0.3.0.exe`, `.blockmap`, and `latest.yml`. `v0.3.0` keeps the existing CampusVision C1 real image search, person-attribute search, multi-face target selection, keyframe overlays, preloaded record switching, route synchronization, media-cache isolation, automatic trusted SSH host-key comparison, and cross-platform desktop release behavior, and redesigns the GKGuard C2 frontend into a workbench information architecture: fixed navigation hosts image-based face search and person-attribute search, result pages split target/record context from evidence detail, candidate people and event detail move into side drawers, and medium-width/mobile layouts collapse according to content density.
 
 For documentation-only changes, run at least:
 
@@ -645,7 +647,7 @@ Primary visual demo flow:
 5. Confirm whether the result source is `CampusVision C1` or `本地模拟`.
 6. Click `查看人物路线图` to inspect the route map, top route overview, timeline, and summary.
 
-When CampusVision C1 is connected, the UI calls `/c1/search/person-by-image` and displays real CampusVision C1 frames through `/c1/media/...`. When no image is uploaded, the UI uses local mock records so the shell can still be demonstrated; uploaded-image flows require query-face detection and real CampusVision C1 search to return matched records before showing results.
+When CampusVision C1 is connected, the UI calls `/c1/search/person-by-image` and displays real CampusVision C1 frames through `/c1/media/...`. When no image is uploaded, the UI uses local mock records so the GKGuard C2 workbench flow can still be demonstrated; uploaded-image flows require query-face detection and real CampusVision C1 search to return matched records before showing results.
 
 Legacy mock API demos such as `GET /search/persons?student_id=S2026001`, `POST /search/image`, and `GET /persons/P001/timeline` remain available for API-level walkthroughs and non-CampusVision C1 demos.
 

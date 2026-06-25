@@ -76,6 +76,7 @@
 - `diagnostics`：CampusVision C1 查询图预处理和检测重试诊断信息，包括原图尺寸、检测变体和每次尝试检测到的人脸数，用于排障。
 - `selectedQueryFace`：当前实际用于检索的查询图人脸；单人自动选择或多人手动选择后生成。
 - `person`：当前 UI 选中的候选人物。
+- `candidates` / `people`：CampusVision C1 返回或 GKGuard C2 归一化后的候选人物集合，用于 `v0.3.0` 候选人物抽屉。GKGuard C2 前端会读取 `personId`、`personName`、`score`、`faceUrl`、`eventCount` 和 `raw` 等字段；缺失时会从 `person` 和 `records` 中生成回退候选，避免抽屉为空。
 - `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
 - `routePoints`：GKGuard C2 路线页使用的地图轨迹点；人物特征检索路线点可携带 `recordIndex` / `eventId`，用于从时间排序后的路线点回到对应结果记录。
 - `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
@@ -286,6 +287,7 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `diagnostics`: CampusVision C1 query-image preprocessing and detection retry diagnostics, including original image size, detection variants, and face counts per attempt, for troubleshooting.
 - `selectedQueryFace`: query face actually used for this search, produced by single-face auto-selection or manual multi-face selection.
 - `person`: selected candidate person for the current UI.
+- `candidates` / `people`: candidate-person collection returned by CampusVision C1 or normalized by GKGuard C2 for the `v0.3.0` candidate-person drawer. The GKGuard C2 frontend reads fields such as `personId`, `personName`, `score`, `faceUrl`, `eventCount`, and `raw`; when missing, it falls back from `person` and `records` so the drawer is not empty.
 - `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
 - `routePoints`: map-ready route points used by the GKGuard C2 route screen. Person-attribute route points may carry `recordIndex` / `eventId` so time-sorted route points can select the matching result record.
 - `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.

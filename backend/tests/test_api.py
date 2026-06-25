@@ -51,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.2.3-ui" in response.text
-    assert "/static/app.js?v=v0.2.3-ui" in response.text
+    assert "/static/styles.css?v=v0.3.0-ui" in response.text
+    assert "/static/app.js?v=v0.3.0-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:

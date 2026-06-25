@@ -2,9 +2,9 @@
 
 本文档用于记录 CampusVision C1 每次任务结束后的审阅报告。之后每次完成 CampusVision C1 相关任务时，应在这里追加一条报告，并标明当时分支和版本来源。
 
-## 当前集成状态
+## 最近历史集成记录
 
-- GKGuard 集成目标：`v0.2.3`
+- 历史记录对应的 GKGuard 版本：`v0.2.3`
 - CampusVision C1 来源分支：`speng/c1-person-events` + `codex/fix-c1-event-review-followup`
 - CampusVision C1 来源版本：`2ba9064` + 当前仓库补丁分支
 - 记录时间：`2026-06-25 00:00:00 CST`
@@ -27,7 +27,7 @@
 
 ## 任务记录
 
-## 2026-06-25 10:30:00 CST - GKGuard v0.2.3 C1 重建索引安全修复
+## 2026-06-25 10:30:00 CST - GKGuard v0.2.3 CampusVision C1 重建索引安全修复
 
 - 版本号：`codex/propose-fix-for-re-index-vulnerability@merged`
 - 任务目标：修复 CampusVision C1 视频重建索引失败时可能破坏既有索引状态的问题，并保持查询图超限临时目录清理。
@@ -36,7 +36,7 @@
 - 风险与遗留问题：CampusVision C1 全量视觉链路仍依赖远端 `cv2`、InsightFace、ONNXRuntime 和模型文件；Windows 本地环境不能替代远端服务运行验证。
 - 涉及文件：`services/campusvision-c1/app/storage/db.py`、`services/campusvision-c1/app/services/video_service.py`、`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/tests/test_security_config.py`、`docs/releases/v0.2.3.md`
 
-## 2026-06-25 00:00:00 CST - GKGuard v0.2.2 C1 review 后续收敛
+## 2026-06-25 00:00:00 CST - GKGuard v0.2.2 CampusVision C1 review 后续收敛
 
 - 版本号：`codex/fix-v0.2.1-review-feedback@working-tree`
 - 任务目标：处理 `v0.2.1` 合并后继续保留的 review 反馈，确保 CampusVision C1 查询图候选接口参数位置、GKGuard C2 4xx 错误透传和路线高亮边界与当前 API 规范一致。
@@ -231,14 +231,14 @@
 - 查询策略：多图时默认每张图取第一个检测到的人脸，也可按图指定 face index；用多张参考图 embedding 汇总人物级候选分，并输出参考图一致性状态；默认只查稳定人物，`include_candidates=true` 时包含候选碎片人物。
 - 实测结果：单图样例返回 `query_faces=1`、`selected=1`、`candidates=2`，top1 为 `person_83015b61accd46e3b83b986205f873ea`，score `0.912936`，confidence `high`，返回事件 `3` 条、匹配 `3` 条；双图样例返回 `query_faces=2`、`selected=2`，`reference_consistency=consistent`，top1 一致。
 - 验证结果：`pytest services/campusvision-c1/tests/test_query_face_preprocessing.py -q` 通过，`4 passed`；完整 `pytest services/campusvision-c1/tests -q` 通过，`80 passed, 2 warnings`；C1 8000 服务已用 `campusvision-c1` 环境后台启动，`/health` 正常。
-- 风险与遗留问题：当前实现仍是遍历现有人物和 face records 做向量比对，适合当前本地库规模；后续人物库显著扩大时应引入向量索引或人物 embedding 缓存。事件展示由 C2 消费 JSON 完成，C1 本次不改 C2。
+- 风险与遗留问题：当前实现仍是遍历现有人物和 face records 做向量比对，适合当前本地库规模；后续人物库显著扩大时应引入向量索引或人物 embedding 缓存。事件展示由 GKGuard C2 消费 JSON 完成，CampusVision C1 本次不改 GKGuard C2。
 - 涉及文件：`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/app/services/person_service.py`、`services/campusvision-c1/app/services/search_service.py`、`services/campusvision-c1/tests/test_query_face_preprocessing.py`、`services/campusvision-c1/README_TASK_REPORTS.md`
 
 ## 2026-06-24 13:21:40 CST - 人物特征检索大接口设计计划
 
 - 版本号：`speng/c1-person-events@2ba9064`
 - 任务目标：规划第二个数据库查询大接口：按时间、摄像头、外观倾向、眼镜状态、上装颜色等条件搜索事件；条件均可为空；返回完全匹配事件或相似事件，并标明每条事件不满足哪些条件。
-- 现状判断：C1 已有 `/events`、`/search/by-clothes`、人物外观倾向 profile、眼镜 profile、appearance sessions 和事件代表图/人脸/人体图字段；新接口应复用这些只读能力，不暴露任意 SQL，不引入 C2 改动。
+- 现状判断：CampusVision C1 已有 `/events`、`/search/by-clothes`、人物外观倾向 profile、眼镜 profile、appearance sessions 和事件代表图/人脸/人体图字段；新接口应复用这些只读能力，不暴露任意 SQL，不引入 GKGuard C2 改动。
 - 计划接口：新增 `POST /api/v1/query/person-attributes`，请求体使用 JSON；支持 `time_range`、`camera_ids`、`gender_presentation`、`glasses_status`、`upper_colors`、`person_scope`、`match_mode`、`top_k`、`limit`、`offset`、`include_candidates`、`include_near_misses`。
 - 匹配策略：先用时间、摄像头、识别状态做硬过滤控制搜索空间；再对外观倾向、眼镜、上装颜色做可解释软评分；完全满足条件的事件排前，相似事件按分数排序并输出 `failed_conditions` 和 `condition_scores`。
 - 返回结构：顶层返回 `query_id/query/summary/results`；每条 result 包含 `event_id/person_id/identity_status/score/match_type/failed_conditions/condition_scores/event_time/camera/representative_frame_url/representative_body_crop_url/representative_face_crop_url/upper_color/glasses_status/gender_presentation/appearance_session_id`。
@@ -266,7 +266,7 @@
 ## 2026-06-24 13:39:48 CST - v1 PR 前系统检查
 
 - 版本号：`speng/c1-person-events@2ba9064`，当前工作区仍有未提交变更；远端 `origin/speng/c1-person-events` 也停在 `2ba9064`，今天新增接口和报告尚未 push。
-- 分支状态：当前分支相对 `origin/main` 已有 `38` 个提交；PR 基础能力来自 C1，不涉及 C2/桌面壳。
+- 分支状态：当前分支相对 `origin/main` 已有 `38` 个提交；PR 基础能力来自 CampusVision C1，不涉及 GKGuard C2/桌面壳。
 - PR 文件防护：新增 `.gitignore` 规则，忽略 `.vscode/`、`*.crt`、`*.key`、`services/campusvision-c1/*.log`、`services/campusvision-c1/logs/`；已确认本地 `auto.key`、`auto.crt`、C1 日志、`data/`、`testdata/` 不会误进 PR。
 - 待提交文件范围：tracked diff 约 `1892` 行新增、`93` 行删除；另有必须显式 add 的 untracked 文件：`README_TASK_REPORTS.md`、`person_attribute_query_service.py`、`export_remappable_event_outfit_group_eval.py`、`export_remappable_outfit_eval.py`、`test_event_outfit_group_eval.py`、`test_person_attribute_query.py`。
 - 静态基础检查：`git diff --check` 通过；C1 关键 Python 文件 `py_compile` 通过。
@@ -278,13 +278,13 @@
 - PR 结论：系统可以准备 v1 PR，但必须先提交并 push 当前工作区；PR 描述建议把“装束分组未达最终目标”列为 Known limitations，避免过度承诺。
 - 涉及文件：`.gitignore`、`services/campusvision-c1/**/*`、`services/campusvision-c1/README_TASK_REPORTS.md`
 
-## 2026-06-24 13:45:33 CST - C2 对接文档
+## 2026-06-24 13:45:33 CST - GKGuard C2 对接文档
 
 - 版本号：`speng/c1-person-events@2ba9064`
-- 任务目标：为即将开始的 C2 工作提供 C1 v1 接口契约文档，避免 C2 误读任务报告或直接依赖 C1 本地文件路径。
+- 任务目标：为即将开始的 GKGuard C2 工作提供 CampusVision C1 v1 接口契约文档，避免 GKGuard C2 误读任务报告或直接依赖 CampusVision C1 本地文件路径。
 - 新增文档：`services/campusvision-c1/README_C2_INTEGRATION.md`
 - 文档内容：CampusVision C1 base URL、健康检查、人脸以图搜人接口、人物特征检索接口、media 图片 URL、枚举值、请求/响应示例、GKGuard C2 展示建议、错误处理和 known limitations。
-- 对接重点：C2 事件主图优先用 `representative_body_crop_url`，现场图用 `representative_frame_url`，人脸小图用 `representative_face_crop_url`；`partial` 搜索结果必须展示 `failed_conditions`；`unknown` 表示无法判断，不等于否定。
-- 风险说明：文档明确上装颜色、外观倾向、眼镜状态来自模型/profile，C2 不应当作绝对事实；装束分组当前未完全达到最终指标，但不影响两个查询大接口使用。
-- 验证结果：文档已创建并检查，未改动 C2；当前文件仍未提交，PR 前需要将该文档加入 commit。
+- 对接重点：GKGuard C2 事件主图优先用 `representative_body_crop_url`，现场图用 `representative_frame_url`，人脸小图用 `representative_face_crop_url`；`partial` 搜索结果必须展示 `failed_conditions`；`unknown` 表示无法判断，不等于否定。
+- 风险说明：文档明确上装颜色、外观倾向、眼镜状态来自模型/profile，GKGuard C2 不应当作绝对事实；装束分组当前未完全达到最终指标，但不影响两个查询大接口使用。
+- 验证结果：文档已创建并检查，未改动 GKGuard C2；当前文件仍未提交，PR 前需要将该文档加入 commit。
 - 涉及文件：`services/campusvision-c1/README_C2_INTEGRATION.md`、`services/campusvision-c1/README_TASK_REPORTS.md`

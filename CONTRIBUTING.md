@@ -440,6 +440,7 @@ git branch -d docs/contributing-guide
 | 改 CampusVision C1 / GKGuard C2 接入 | `docs/c1_c2_integration.md`、`docs/c1_auto_connection.md` |
 | 改演示流程 | `docs/demo_script.md` |
 | 改字段 | `docs/data_dictionary.md` |
+| 改 UI、前端重构或视觉方向 | `PRODUCT.md`、`DESIGN.md`、`.github/skills/impeccable/SKILL.md`（如存在）、`docs/demo_script.md`、对应 Release note |
 | 改 CampusCar / UE 占位接口 | `docs/campuscar_ue_integration.md` |
 | 改发布、安装包或更新行为 | `README.md`、`docs/README.md`、对应 Release note |
 | 发新版本 | `package.json`、`package-lock.json`、`docs/releases/vX.Y.Z.md`、根目录 Markdown 文档、`docs/` 下所有 Markdown 文档、GitHub Release 正文 |
@@ -514,6 +515,7 @@ git push
 - PR 标题使用 `type(scope): summary`，且不包含 `[codex]` 等工具来源前缀。
 - PR 正文保留并填写了自动模板。
 - 如果只改文档，已说明代码测试不适用。
+- 如果改动涉及 UI、前端重构或视觉方向，已阅读 `PRODUCT.md`、`DESIGN.md` 和 `.github/skills/impeccable/SKILL.md`（如存在），并验证桌面、中等宽度和移动视口。
 - Issue 或 PR 已按需设置标签并加入 GKGuard Roadmap Project。
 - Project item 已补齐 Status、Area、Type、Priority、Blocked、Start date、End date、Timeline order 和必要的 Target version，并已确认在 GKGuard Roadmap 或 Project 主列表可见；如果没有权限，已说明需要维护者补充哪些字段。
 
@@ -542,18 +544,19 @@ git push
 11. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
 12. 提交前只暂存本次任务相关文件，避免混入无关改动。不要使用破坏性 Git 命令重置用户改动。
 13. 根据改动运行必要检查。文档-only 至少运行 git diff --check；代码或桌面相关改动按 PR 模板运行相应测试，并在 PR 中写明验证结果。
-14. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸。
+14. 如果改动涉及 UI、前端重构或视觉方向，必须先阅读 PRODUCT.md、DESIGN.md 和 .github/skills/impeccable/SKILL.md（如存在），保持 `v0.3.0` GKGuard C2 工作台 / Evidence Desk 方向：固定左侧导航、`人脸以图搜人` 与 `人物特征搜索` 两个入口、左侧目标/记录、右侧证据详情、候选人物抽屉和事件详情抽屉。不要引入营销首页、装饰性仪表盘、霓虹监控风、过度渐变或暗色指挥中心风格。
+15. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸，重点检查人物照片、检索记录、候选人物抽屉、事件详情抽屉、路线页、无横向溢出和中等宽度不重叠。
 
 文档同步：
-15. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md、SECURITY.md、相关当前状态文档和对应 Release note。
-16. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。每次版本更新或发布准备都必须逐份阅读根目录和 `docs/` 下所有 Markdown 文档的全文，包括 SECURITY、SUPPORT、GOVERNANCE、CONTRIBUTING、AGENTS、文档索引、API 规范、集成说明、演示脚本、数据字典和当前版本 Release note，确认每句话仍符合最新功能、安全边界、发布产物、验证结果和协作流程；不能只搜索替换版本号或只抽查部分文档。
-17. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
+16. 如果改动影响当前行为，必须同步相关文档：API 改动同步 docs/api_contract.md；CampusVision C1 / GKGuard C2 接入改动同步 docs/c1_c2_integration.md 或 docs/c1_auto_connection.md；演示流程改动同步 docs/demo_script.md；字段改动同步 docs/data_dictionary.md；UI、前端重构或视觉方向改动同步 PRODUCT.md、DESIGN.md、AGENTS.md、CONTRIBUTING.md 和对应 Release note；CampusCar / UE 占位接口改动同步 docs/campuscar_ue_integration.md；发布或安装包行为改动同步 README.md、docs/README.md、SECURITY.md、相关当前状态文档和对应 Release note。
+17. 当前状态文档描述最新行为；历史 Release notes 保留发布时语境，除非修复术语错误或明显表述问题。每次版本更新或发布准备都必须逐份阅读根目录和 `docs/` 下所有 Markdown 文档的全文，包括 SECURITY、SUPPORT、GOVERNANCE、CONTRIBUTING、AGENTS、文档索引、API 规范、集成说明、演示脚本、数据字典和当前版本 Release note，确认每句话仍符合最新功能、安全边界、发布产物、验证结果和协作流程；不能只搜索替换版本号或只抽查部分文档。
+18. 修改面向仓库用户的 Markdown 时，保持中文在前、English 在后。任何中英双语文档都必须保持中文与 English 章节结构一致、语义一致；新增或删除规则、步骤、限制或验证项时要同步两种语言版本。中文术语优先使用“API 规范”“接口规范”“管理”等仓库当前口径。
 
 发布与收尾：
-18. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
-19. 文档-only、协作流程或模板说明改动通常不需要发布新版本；除非用户明确要求，不要为这类改动创建 Release。
-20. 完成后汇报改动内容、验证结果、是否已更新相关文档、是否存在未解决风险，以及 PR/CI/合并状态。
-21. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态和 Roadmap 日期/顺序字段推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
+19. 不要擅自推送 v* tag 或创建 Release。只有在用户明确要求发布，或当前任务就是发布准备并已完成验证时，才进入发布流程。
+20. 文档-only、协作流程或模板说明改动通常不需要发布新版本；除非用户明确要求，不要为这类改动创建 Release。
+21. 完成后汇报改动内容、验证结果、是否已更新相关文档、是否存在未解决风险，以及 PR/CI/合并状态。
+22. 如果用户要求“按标准流程完成”，在确认无阻断问题后应推送分支、创建 PR、等待 CI、合并，并把 Project 状态和 Roadmap 日期/顺序字段推进到合适阶段；如果规则或权限阻塞，应明确说明阻塞点。
 ```
 
 <p align="right"><a href="#中文">返回中文顶部</a></p>
@@ -971,6 +974,7 @@ If your change affects current behavior, update the related documentation.
 | CampusVision C1 / GKGuard C2 integration changes | `docs/c1_c2_integration.md`, `docs/c1_auto_connection.md` |
 | Demo flow changes | `docs/demo_script.md` |
 | Field changes | `docs/data_dictionary.md` |
+| UI, frontend redesign, or visual-direction changes | `PRODUCT.md`, `DESIGN.md`, `.github/skills/impeccable/SKILL.md` when present, `docs/demo_script.md`, matching Release note |
 | CampusCar / UE placeholder interface changes | `docs/campuscar_ue_integration.md` |
 | Release, installer, or update behavior changes | `README.md`, `docs/README.md`, matching Release note |
 | New release | `package.json`, `package-lock.json`, `docs/releases/vX.Y.Z.md`, root Markdown documents, all Markdown documents under `docs/`, GitHub Release body |
@@ -1041,6 +1045,7 @@ Before opening a Pull Request:
 - The PR title uses `type(scope): summary` and does not include tool-source prefixes such as `[codex]`.
 - The automatic PR template is kept and filled in.
 - Documentation-only changes explain why code tests are not applicable.
+- For UI, frontend redesign, or visual-direction changes, `PRODUCT.md`, `DESIGN.md`, and `.github/skills/impeccable/SKILL.md` when present have been read, and desktop, medium-width, and mobile viewports have been verified.
 - Labels and the GKGuard Roadmap Project item are set where possible.
 - The Project item has Status, Area, Type, Priority, Blocked, Start date, End date, Timeline order, and required Target version fields, and is visible in GKGuard Roadmap or the Project main item list; if I lack permission, I have listed the missing fields for a maintainer.
 
@@ -1069,18 +1074,19 @@ Implementation and validation:
 11. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
 12. Stage only files related to the current task. Avoid mixing unrelated changes. Do not use destructive Git commands to reset user work.
 13. Run the checks relevant to the change. Documentation-only changes should at least run git diff --check. Code or desktop changes should run the checks listed in the PR template and report validation results in the PR.
-14. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes.
+14. If a change affects UI, frontend redesign, or visual direction, read PRODUCT.md, DESIGN.md, and .github/skills/impeccable/SKILL.md when present, and preserve the `v0.3.0` GKGuard C2 Workbench / Evidence Desk direction: fixed left navigation, the `人脸以图搜人` and `人物特征搜索` entries, left-side target/records, right-side evidence detail, candidate-person drawer, and event-detail drawer. Do not introduce marketing homepages, decorative dashboards, neon surveillance styling, excessive gradients, or dark command-center aesthetics.
+15. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes. Specifically check person portraits, result records, candidate-person drawers, event-detail drawers, the route page, no horizontal overflow, and no medium-width overlap.
 
 Documentation synchronization:
-15. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, SECURITY.md, relevant current-state docs, and the matching Release note.
-16. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem. Every version update or release-preparation change must read the full text of every root Markdown document and every Markdown document under `docs/`, including SECURITY, SUPPORT, GOVERNANCE, CONTRIBUTING, AGENTS, documentation indexes, API specifications, integration guides, demo scripts, data dictionaries, and the current release note. Confirm that each sentence still matches the latest features, security boundaries, release assets, validation results, and collaboration flow. Do not only search-and-replace version numbers or sample only part of the documentation.
-17. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
+16. If a change affects current behavior, synchronize related docs: API changes update docs/api_contract.md; CampusVision C1 / GKGuard C2 integration changes update docs/c1_c2_integration.md or docs/c1_auto_connection.md; demo flow changes update docs/demo_script.md; field changes update docs/data_dictionary.md; UI, frontend redesign, or visual-direction changes update PRODUCT.md, DESIGN.md, AGENTS.md, CONTRIBUTING.md, and the matching Release note; CampusCar / UE placeholder interface changes update docs/campuscar_ue_integration.md; release or installer behavior changes update README.md, docs/README.md, SECURITY.md, relevant current-state docs, and the matching Release note.
+17. Current-state docs describe the latest behavior. Historical Release notes keep their release-time context unless fixing terminology or a clear wording problem. Every version update or release-preparation change must read the full text of every root Markdown document and every Markdown document under `docs/`, including SECURITY, SUPPORT, GOVERNANCE, CONTRIBUTING, AGENTS, documentation indexes, API specifications, integration guides, demo scripts, data dictionaries, and the current release note. Confirm that each sentence still matches the latest features, security boundaries, release assets, validation results, and collaboration flow. Do not only search-and-replace version numbers or sample only part of the documentation.
+18. For repository-facing Markdown, keep Chinese first and English second. Any Chinese/English bilingual document must keep the Chinese and English sections structurally and semantically aligned; any added or removed rule, step, constraint, or validation item must be synchronized in both languages. Use the repository's current Chinese wording, including API 规范, 接口规范, and 管理.
 
 Release and closeout:
-18. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.
-19. Documentation-only, collaboration workflow, or template guidance changes usually do not need a new Release. Do not create a Release for them unless the user explicitly asks.
-20. At the end, report what changed, validation results, whether related docs were updated, any remaining risk, and the PR/CI/merge status.
-21. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and update the Project status plus Roadmap date/order fields. If permissions or rules block that flow, state the exact blocker.
+19. Do not push v* tags or create Releases unless the user explicitly requests a release, or the current task is release preparation and validation is complete.
+20. Documentation-only, collaboration workflow, or template guidance changes usually do not need a new Release. Do not create a Release for them unless the user explicitly asks.
+21. At the end, report what changed, validation results, whether related docs were updated, any remaining risk, and the PR/CI/merge status.
+22. If the user asks to complete the standard workflow, push the branch, open a PR, wait for CI, merge when unblocked, and update the Project status plus Roadmap date/order fields. If permissions or rules block that flow, state the exact blocker.
 ```
 
 <p align="right"><a href="#english">Back to English top</a></p>

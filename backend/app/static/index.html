@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 智能检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=v0.2.3-ui" />
+    <link rel="stylesheet" href="/static/styles.css?v=v0.3.0-ui" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -66,7 +66,28 @@
         <span id="updateStatus">检查更新</span>
       </button>
     </div>
-    <main class="app-shell" aria-live="polite">
+    <main class="app-shell workbench-shell" aria-live="polite">
+      <aside class="workspace-nav" aria-label="GKGuard C2 工作区导航">
+        <div class="workspace-brand">
+          <span class="workspace-mark"><svg class="ui-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg></span>
+          <span><strong>GKGuard C2</strong><small>校园安防 AI 搜索工作台</small></span>
+        </div>
+        <nav class="workspace-nav-list" aria-label="主要功能">
+          <button id="navFaceSearch" class="workspace-nav-item is-active" type="button">
+            <svg class="ui-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
+            <span>人脸以图搜人</span>
+          </button>
+          <button id="navAttributeSearch" class="workspace-nav-item" type="button">
+            <svg class="ui-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
+            <span>人物特征搜索</span>
+          </button>
+        </nav>
+        <div class="workspace-nav-foot">
+          <span>CampusVision C1</span>
+          <strong>代理接入</strong>
+        </div>
+      </aside>
+      <div class="workspace-screens">
       <section id="searchView" class="screen search-screen is-active" data-screen="search">
         <article class="search-card">
           <header class="screen-heading compact-heading">
@@ -238,6 +259,8 @@
               <h2 id="recordTitle">记录1</h2>
               <div class="button-cluster">
                 <button id="newSearchBtn" class="outline-action" type="button"><svg class="ui-icon back-icon" aria-hidden="true"><use href="#icon-back-upload"></use></svg>重新上传</button>
+                <button id="openCandidatesBtn" class="outline-action" type="button"><svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>候选人物</button>
+                <button id="openEventDetailBtn" class="outline-action" type="button"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg>事件详情</button>
                 <button id="openRouteBtn" class="outline-action" type="button"><svg class="ui-icon route-small-icon" aria-hidden="true"><use href="#icon-route"></use></svg>查看人物路线图</button>
                 <button id="exportFrameBtn" class="outline-action" type="button"><svg class="ui-icon download-icon" aria-hidden="true"><use href="#icon-export"></use></svg>导出记录</button>
                 <button id="showAllBtn" class="primary-action" type="button">定位记录列表</button>
@@ -342,7 +365,34 @@
           </section>
         </div>
       </section>
+      </div>
     </main>
+
+    <div id="candidateDrawer" class="side-drawer candidate-drawer" role="dialog" aria-modal="true" aria-labelledby="candidateDrawerTitle" hidden>
+      <div class="side-drawer-surface">
+        <header class="side-drawer-header">
+          <div>
+            <strong id="candidateDrawerTitle">候选人物</strong>
+            <span>按相似度与事件覆盖度排序，结果需人工确认。</span>
+          </div>
+          <button id="candidateDrawerClose" class="media-viewer-close" type="button" aria-label="关闭候选人物">×</button>
+        </header>
+        <div id="candidateList" class="candidate-list"></div>
+      </div>
+    </div>
+
+    <div id="eventDetailDrawer" class="side-drawer event-detail-drawer" role="dialog" aria-modal="true" aria-labelledby="eventDetailTitle" hidden>
+      <div class="side-drawer-surface">
+        <header class="side-drawer-header">
+          <div>
+            <strong id="eventDetailTitle">事件详情</strong>
+            <span id="eventDetailSubtitle">当前选中检索记录</span>
+          </div>
+          <button id="eventDetailClose" class="media-viewer-close" type="button" aria-label="关闭事件详情">×</button>
+        </header>
+        <div id="eventDetailBody" class="event-detail-body"></div>
+      </div>
+    </div>
 
     <div id="mediaViewer" class="media-viewer" role="dialog" aria-modal="true" aria-labelledby="mediaViewerTitle" hidden>
       <div class="media-viewer-surface">
@@ -392,6 +442,6 @@
         <span id="toastMessage" class="toast-message"></span>
       </span>
     </div>
-    <script src="/static/app.js?v=v0.2.3-ui" defer></script>
+    <script src="/static/app.js?v=v0.3.0-ui" defer></script>
   </body>
 </html>

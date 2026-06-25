@@ -9,30 +9,30 @@
 
 ## 目标
 
-演示当前 GKGuard C2 工作台闭环：未上传图片时可用本地模拟记录展示三屏流程；上传人脸图片后，GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端调用 CampusVision C1 服务获取真实关键帧和轨迹；若查询图人脸检测或真实检索失败，界面停留在上传页提示重试，不展示伪成功结果；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 模拟工作流。
+演示当前 GKGuard C2 工作台闭环：未上传图片时可用本地模拟记录展示人脸以图搜人、人物特征搜索、结果详情和路线图工作流；上传人脸图片后，GKGuard C2 前端只访问 GKGuard C2 后端，GKGuard C2 后端调用 CampusVision C1 服务获取真实关键帧和轨迹；若查询图人脸检测或真实检索失败，界面停留在上传页提示重试，不展示伪成功结果；同时保留案件研判、审计、CampusCar/UE 占位等 GKGuard C2 模拟工作流。
 
 ## 主视觉流程：CampusVision C1 真实检索
 
-安装版 `v0.2.3` 推荐流程：
+安装版 `v0.3.0` 推荐流程：
 
-1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.2.3.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
+1. 从 GitHub Release 下载当前系统对应的桌面端安装文件：Windows 使用 `GKGuard-Setup-0.3.0.exe`，macOS 使用 `GKGuard-macOS-*.dmg` 或 `GKGuard-macOS-*.zip`，Linux 使用 `GKGuard-Linux-*.AppImage` 或 `GKGuard-Linux-*.deb`。macOS 当前为未签名/未公证的内部测试包。
 2. 打开 GKGuard。
 3. 软件会优先检查本机 SSH 隧道；如果尚未连接，在软件内“连接 CampusVision C1 服务”窗口确认服务器账号和隧道目标，输入服务器密码，并观察四步连接进度。若连接失败，可在同一窗口重新输入。
 4. 如果已经进入页面但真实检索返回 CampusVision C1 503，页面会再次打开同一个内嵌连接窗口并在连接后自动重试一次。
 5. 密码只用于本次 SSH 隧道连接，不会保存到配置或日志。
 6. 等待软件检测到 `http://127.0.0.1:18000` 后进入演示页。
 7. 上传查询图片。若图片只有一张有效候选人脸，GKGuard C2 会自动选中并直接检索；若图片有多张有效候选人脸，上传页会在原图上显示人脸框和检测置信度，并自动打开放大选择弹窗，需要确认目标人脸后再检索；低于 `0.65` 但不低于 `0.45` 的候选应以低置信样式显示并仍可选择。
-8. 搜索完成后，在结果页检查目标人物照片为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。连续点击左侧检索记录时，右侧详情区应保留当前关键帧并显示轻量加载提示，目标记录关键帧加载完成后再替换，不应出现整块黑屏。
+8. 搜索完成后，在结果页检查桌面端保持左侧目标人物与检索记录、右侧证据详情的工作台布局；目标人物照片应为选中的查询人脸，且在方框内完整显示并充分利用可见空间；详情关键帧和关键帧预览弹窗应在目标人脸位置显示框，相似度应显示在框外且不遮挡人脸，目标框不应出现在图片左上角或黑边区域。连续点击左侧检索记录时，右侧详情区应保留当前关键帧并显示轻量加载提示，目标记录关键帧加载完成后再替换，不应出现整块黑屏。
 9. 若 CampusVision C1 返回无匹配结果、请求超时或检索失败，页面应停留在上传页并显示中文提示，不应卡在“检索中”，也不应进入本地模拟结果。
 10. 搜索完成后可在结果页或路线页点击 `重新上传`，返回上传页开始下一次检索。
 11. 后续需要升级时，点击右上角 `检查更新`。Windows 版发现新版后再次点击会在应用内下载，完成后点击 `重启安装`；macOS/Linux 版会打开当前平台的 GitHub Release 安装文件。重启后页面应加载带版本参数的新 `/demo` 页面，不应继续显示旧布局。
-12. 在最大化窗口、常规桌面窗口、约 `820px` 中等宽度、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；中等宽度结果页的人物照片不应遮挡数据来源和命中记录信息；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要。
+12. 在最大化窗口、常规桌面窗口、约 `820px` 中等宽度、`680x640` 小窗口和 `390x720` 移动端视口下检查页面无横向滚动，上传图、结果缩略图、目标人脸框和关键帧不被裁切；中等宽度结果页的人物照片不应遮挡数据来源和命中记录信息；桌面结果页记录列表应位于左侧，移动端结果页和路线页记录列表显示横向滑动提示，移动端路线页能在地图前看到当前轨迹摘要；点击 `候选人物` 与 `事件详情` 时应打开右侧抽屉，抽屉关闭后主流程状态不丢失。
 
 GKGuard 不保存、不读取、不记录 SSH 密码。
 
 ## 人物特征检索流程
 
-当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口由 `v0.2.0` 引入，并在 `v0.2.1` 修正路线顺序、路线点到结果记录的稳定映射、重复索引、受影响人物索引与 appearance session 重建和 API 规范示例。`v0.2.2` 继续补齐 review 后续，确保查询图候选接口参数位置、CampusVision C1 4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连和路线点唯一高亮行为与 API 规范一致；`v0.2.3` 进一步修复 CampusVision C1 重建索引失败时的旧索引恢复和写入隔离，不改变演示入口。
+当前版本包含的 CampusVision C1 人物特征检索不需要上传查询图，适合演示“按条件查事件”的入口；该入口位于 GKGuard C2 工作台左侧导航的 `人物特征搜索`，与 `人脸以图搜人` 共用结果页、候选人物抽屉、事件详情抽屉、路线联动和导出模型。
 
 1. 在搜索页切换到 `人物特征检索`。
 2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
@@ -224,24 +224,24 @@ X-GKGuard-Audit-Token: <configured-token>
 
 ## Goal
 
-Demonstrate the current GKGuard C2 workbench loop: use local mock records for the three-screen flow when no image is uploaded; after uploading a face image, let the GKGuard C2 frontend call only the GKGuard C2 backend and let the GKGuard C2 backend call CampusVision C1 for real keyframes and trajectory. If query-face detection or real search fails, the UI stays on the upload screen with a retry/error message instead of showing false successful results. GKGuard C2 mock workflows for case review, audit, and CampusCar/UE placeholders remain available.
+Demonstrate the current GKGuard C2 workbench loop: use local mock records for the face-image search, person-attribute search, result-detail, and route-map workflows when no image is uploaded; after uploading a face image, let the GKGuard C2 frontend call only the GKGuard C2 backend and let the GKGuard C2 backend call CampusVision C1 for real keyframes and trajectory. If query-face detection or real search fails, the UI stays on the upload screen with a retry/error message instead of showing false successful results. GKGuard C2 mock workflows for case review, audit, and CampusCar/UE placeholders remain available.
 
 ## Primary Visual Flow: Real CampusVision C1 Search
 
-Recommended packaged-app flow for `v0.2.3`:
+Recommended packaged-app flow for `v0.3.0`:
 
-1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.2.3.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
+1. Download the desktop package for the current system from GitHub Releases: `GKGuard-Setup-0.3.0.exe` on Windows, `GKGuard-macOS-*.dmg` or `GKGuard-macOS-*.zip` on macOS, and `GKGuard-Linux-*.AppImage` or `GKGuard-Linux-*.deb` on Linux. The current macOS package is an unsigned and unnotarized internal test build.
 2. Open GKGuard.
 3. The app checks the local SSH tunnel first; if it is not connected, confirm the server account and tunnel target in the embedded “连接 CampusVision C1 服务” window, enter the server password, and watch the four-step connection progress. If connection fails, re-enter the password in the same window.
 4. If the page is already open but real search returns CampusVision C1 503, the page opens the same embedded connection window again and retries once after connection.
 5. The password is used only for the current SSH tunnel and is not stored in config or logs.
 6. Wait for the app to detect `http://127.0.0.1:18000` and enter the demo page.
 7. Upload the query image. If it contains one effective candidate face, GKGuard C2 auto-selects it and searches directly; if it contains multiple effective candidates, the upload screen overlays face boxes and detection confidence on the original image and opens an enlarged selection modal before search. Candidates below `0.65` but at least `0.45` should remain visible with a low-confidence style and remain selectable.
-8. After the search finishes, confirm that the result portrait uses the selected query face, fully fits inside the portrait frame, and uses the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area. When clicking result records in the left list repeatedly, the right detail area should keep the current keyframe visible with a lightweight loading hint, then replace it only after the target keyframe finishes loading. It should not flash into a full black panel.
+8. After the search finishes, confirm that desktop result pages keep the target person and result records on the left and evidence detail on the right. The result portrait should use the selected query face, fully fit inside the portrait frame, and use the available frame space well; the detail keyframe and keyframe preview dialog should show a target-face box, the similarity score should sit outside the box without covering the face, and the target box should not appear in the image top-left corner or letterbox area. When clicking result records in the left list repeatedly, the right detail area should keep the current keyframe visible with a lightweight loading hint, then replace it only after the target keyframe finishes loading. It should not flash into a full black panel.
 9. If CampusVision C1 returns no matched records, times out, or fails during search, the UI should stay on the upload screen with a Chinese warning; it should not stay in `检索中` or enter local mock results.
 10. After a search finishes, click `重新上传` from the result or route screen to return to the upload screen for a new target.
 11. For future upgrades, click the top-right `检查更新`. On Windows, if a newer version is found, click again to download inside the app, then click `重启安装`. On macOS/Linux, the app opens the current platform's GitHub Release package. After restart, the page should load the versioned `/demo` page and should not keep the old layout.
-12. Check maximized, regular desktop, roughly `820px` medium-width, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. In medium-width result layouts, the target portrait must not cover the source and hit-count summary. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map.
+12. Check maximized, regular desktop, roughly `820px` medium-width, `680x640` small-window, and `390x720` mobile layouts for no horizontal scrolling and uncropped uploaded images, result thumbnails, target-face boxes, and keyframes. In medium-width result layouts, the target portrait must not cover the source and hit-count summary. The desktop result record list should stay on the left side, mobile result and route record lists should show horizontal-scroll hints, and the mobile route page should show the current-trajectory summary before the map. Clicking `候选人物` and `事件详情` should open right-side drawers, and closing drawers should preserve the main workflow state.
 
 GKGuard does not store, read, or log the SSH password.
 
@@ -316,7 +316,7 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 
 ## Person-Attribute Search Flow
 
-The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. This entry was introduced in `v0.2.0`, and `v0.2.1` corrected route ordering, stable route-to-record mapping, duplicate indexing, affected person-index and appearance-session rebuilds, and API specification examples. `v0.2.2` completes the review follow-up by keeping query-image candidate parameter placement, CampusVision C1 4xx validation propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, and single active route-point highlighting aligned with the API specification; `v0.2.3` further fixes CampusVision C1 previous-index restoration and write isolation after failed re-index jobs, without changing the demo entries.
+The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. The entry sits in the GKGuard C2 workbench's left navigation as `人物特征搜索`, and shares the result page, candidate-person drawer, event-detail drawer, route synchronization, and export model with `人脸以图搜人`.
 
 1. Switch to `人物特征检索` on the search screen.
 2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.
