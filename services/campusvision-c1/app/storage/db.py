@@ -2,23 +2,33 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 from typing import Any
 
 from app.core.config import settings
 
+_DB_WRITE_LOCK = threading.RLock()
+
+
+@contextmanager
+def write_lock():
+    with _DB_WRITE_LOCK:
+        yield
+
 
 @contextmanager
 def get_conn():
     settings.ensure_dirs()
-    conn = sqlite3.connect(settings.db_path)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
+    with _DB_WRITE_LOCK:
+        conn = sqlite3.connect(settings.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            yield conn
+            conn.commit()
+        finally:
+            conn.close()
 
 
 def now_iso() -> str:
