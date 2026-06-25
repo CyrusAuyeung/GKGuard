@@ -62,6 +62,7 @@ const HARD_EXCLUDES = [
   '**/node_modules/**',
   '**/.git/**',
 ];
+const LIVE_TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function injectCli() {
   const args = process.argv.slice(2);
@@ -149,7 +150,7 @@ Output (JSON):
   }
   const tokenIdx = args.indexOf('--token');
   const token = tokenIdx !== -1 ? args[tokenIdx + 1] : '';
-  if (!token || /[\r\n]/.test(token)) {
+  if (!LIVE_TOKEN_RE.test(String(token || ''))) {
     console.error(JSON.stringify({ ok: false, error: 'missing_token' }));
     process.exit(1);
   }

@@ -144,10 +144,11 @@ export function ensureSvelteLiveRootComponent(cwd, port, token = '') {
 }
 
 export function buildSvelteLiveRootComponent(port, token = '') {
+  const liveUrl = `http://localhost:${Number(port)}/live.js?token=${encodeURIComponent(token)}`;
   return `<script>
   import { onMount } from 'svelte';
 
-  const LIVE_URL = 'http://localhost:${Number(port)}/live.js?token=${encodeURIComponent(token)}';
+  const LIVE_URL = ${JSON.stringify(liveUrl)};
   const HOST_ID = 'impeccable-live-root';
 
   onMount(() => {
