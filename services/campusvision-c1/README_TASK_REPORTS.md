@@ -49,7 +49,7 @@
 
 - 版本号：`codex/fix-c1-event-review-followup@working-tree`
 - 任务目标：处理 `v0.2.0` 合并后 review 发现的 CampusVision C1 查询图异常、重复索引、人物索引与 appearance session 重建和 GKGuard C2 人物特征路线顺序问题。
-- 变更内容：`/api/v1/query/face-image` 在查询图不可解码时返回 400，在上传体积、解码像素数或单边尺寸超限时返回 413，并清理临时上传；同一视频重索引前清理旧事件、人物观测、人脸记录和旧帧目录，并刷新受影响人物索引、重建相关 appearance sessions；GKGuard C2 人物特征检索结果列表保留匹配排序，路线点按事件时间单独排序并通过 `recordIndex` / `eventId` 稳定映射回结果记录；API 规范同步 `time_range.start_time/end_time` 和 `/c1/query/face-image` Query 参数位置。
+- 变更内容：`/api/v1/query/face-image` 在查询图不可解码时返回 400，在上传体积、解码像素数或单边尺寸超限时返回 413，并清理临时上传；同一视频重索引前清理旧事件、人物观测、人脸记录和旧帧目录，并刷新受影响人物索引、重建相关 appearance sessions；GKGuard C2 人物特征搜索结果列表保留匹配排序，路线点按事件时间单独排序并通过 `recordIndex` / `eventId` 稳定映射回结果记录；API 规范同步 `time_range.start_time/end_time` 和 `/c1/query/face-image` Query 参数位置。
 - 验证结果：新增后端和 CampusVision C1 静态/单元测试覆盖；完整验证结果以 `docs/releases/v0.2.1.md` 和对应 PR 为准。
 - 风险与遗留问题：重索引失败后该视频需要重新执行索引；历史 `v0.2.0` 说明保持发布时语境，该条记录完成时以 `v0.2.1` 文档为准。
 - 涉及文件：`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/app/services/video_service.py`、`services/campusvision-c1/tests/test_security_config.py`、`backend/app/services/c1_service.py`、`docs/api_contract.md`、`docs/releases/v0.2.1.md`
@@ -234,7 +234,7 @@
 - 风险与遗留问题：当前实现仍是遍历现有人物和 face records 做向量比对，适合当前本地库规模；后续人物库显著扩大时应引入向量索引或人物 embedding 缓存。事件展示由 GKGuard C2 消费 JSON 完成，CampusVision C1 本次不改 GKGuard C2。
 - 涉及文件：`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/app/services/person_service.py`、`services/campusvision-c1/app/services/search_service.py`、`services/campusvision-c1/tests/test_query_face_preprocessing.py`、`services/campusvision-c1/README_TASK_REPORTS.md`
 
-## 2026-06-24 13:21:40 CST - 人物特征检索大接口设计计划
+## 2026-06-24 13:21:40 CST - 人物特征搜索大接口设计计划
 
 - 版本号：`speng/c1-person-events@2ba9064`
 - 任务目标：规划第二个数据库查询大接口：按时间、摄像头、外观倾向、眼镜状态、上装颜色等条件搜索事件；条件均可为空；返回完全匹配事件或相似事件，并标明每条事件不满足哪些条件。
@@ -248,7 +248,7 @@
 - 风险与遗留问题：当前外观倾向和眼镜是人物/profile 层能力，事件层传播依赖已有 profile 文件；上装颜色目前以事件/appearance session 的 normalized upper color 为准，准确率仍受模型现状影响。
 - 涉及文件计划：`services/campusvision-c1/app/api/routes.py`、`services/campusvision-c1/app/services/person_attribute_query_service.py` 或 `person_service.py`、`services/campusvision-c1/tests/`、`services/campusvision-c1/README_TASK_REPORTS.md`
 
-## 2026-06-24 13:32:39 CST - 人物特征检索大接口实现
+## 2026-06-24 13:32:39 CST - 人物特征搜索大接口实现
 
 - 版本号：`speng/c1-person-events@2ba9064`
 - 任务目标：实现 C1 第二个查询大接口，按时间、摄像头、外观倾向、眼镜状态、上装颜色搜索事件；条件可为空；返回 exact 或 partial，并标出 partial 不满足哪些条件。
@@ -283,7 +283,7 @@
 - 版本号：`speng/c1-person-events@2ba9064`
 - 任务目标：为即将开始的 GKGuard C2 工作提供 CampusVision C1 v1 接口契约文档，避免 GKGuard C2 误读任务报告或直接依赖 CampusVision C1 本地文件路径。
 - 新增文档：`services/campusvision-c1/README_C2_INTEGRATION.md`
-- 文档内容：CampusVision C1 base URL、健康检查、人脸以图搜人接口、人物特征检索接口、media 图片 URL、枚举值、请求/响应示例、GKGuard C2 展示建议、错误处理和 known limitations。
+- 文档内容：CampusVision C1 base URL、健康检查、人脸以图搜人接口、人物特征搜索接口、media 图片 URL、枚举值、请求/响应示例、GKGuard C2 展示建议、错误处理和 known limitations。
 - 对接重点：GKGuard C2 事件主图优先用 `representative_body_crop_url`，现场图用 `representative_frame_url`，人脸小图用 `representative_face_crop_url`；`partial` 搜索结果必须展示 `failed_conditions`；`unknown` 表示无法判断，不等于否定。
 - 风险说明：文档明确上装颜色、外观倾向、眼镜状态来自模型/profile，GKGuard C2 不应当作绝对事实；装束分组当前未完全达到最终指标，但不影响两个查询大接口使用。
 - 验证结果：文档已创建并检查，未改动 GKGuard C2；当前文件仍未提交，PR 前需要将该文档加入 commit。

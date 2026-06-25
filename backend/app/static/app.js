@@ -11,10 +11,10 @@ const elements = {
   uploadHint: document.querySelector("#uploadHint"),
   openQueryFaceModalBtn: document.querySelector("#openQueryFaceModalBtn"),
   startSearchBtn: document.querySelector("#startSearchBtn"),
+  startTime: document.querySelector("#startTime"),
+  endTime: document.querySelector("#endTime"),
   navFaceSearch: document.querySelector("#navFaceSearch"),
   navAttributeSearch: document.querySelector("#navAttributeSearch"),
-  faceSearchTab: document.querySelector("#faceSearchTab"),
-  attributeSearchTab: document.querySelector("#attributeSearchTab"),
   faceSearchPane: document.querySelector("#faceSearchPane"),
   attributeSearchPane: document.querySelector("#attributeSearchPane"),
   startAttributeSearchBtn: document.querySelector("#startAttributeSearchBtn"),
@@ -147,6 +147,7 @@ let activeSource = "mock";
 let candidatePeople = [];
 let toastTimer = null;
 let lastFocusedElement = null;
+let attributeTimeRangeTouched = false;
 const CONFIDENT_QUERY_FACE_SCORE = 0.65;
 const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FRAME_IMAGE_PRELOAD_LIMIT = 24;
@@ -286,18 +287,99 @@ async function c1HttpErrorFromResponse(response, fallbackMessage) {
 
 function sourceLabel() {
   if (activeSource !== "c1") return "本地模拟";
-  return activeResultMode === "attributes" ? "CampusVision C1 · 特征检索" : "CampusVision C1";
+  return activeResultMode === "attributes" ? "CampusVision C1 · 特征搜索" : "CampusVision C1";
 }
 
 function syncResultHeading() {
   if (!elements.resultViewTitle || !elements.resultViewSubtitle) return;
   if (activeResultMode === "attributes") {
-    elements.resultViewTitle.textContent = "人物特征检索结果";
+    elements.resultViewTitle.textContent = "人物特征搜索结果";
     elements.resultViewSubtitle.textContent = "基于人物特征条件，在 CampusVision C1 事件中检索到相关关键帧";
     return;
   }
-  elements.resultViewTitle.textContent = "人脸检索结果";
-  elements.resultViewSubtitle.textContent = "基于上传目标人脸，在历史监控关键帧中检索到相关记录";
+  elements.resultViewTitle.textContent = "人脸以图搜人结果";
+  elements.resultViewSubtitle.textContent = "基于上传目标人脸，在 CampusVision C1 关键帧中检索到相关记录";
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, "0");
+}
+
+function dateTimeInputValue(date, hours, minutes) {
+  return [
+    date.getFullYear(),
+    padDatePart(date.getMonth() + 1),
+    padDatePart(date.getDate()),
+  ].join("-") + `T${padDatePart(hours)}:${padDatePart(minutes)}`;
+}
+
+function clampDateTimeYearValue(value) {
+  const text = String(value || "");
+  return text.replace(/^(\d{4})\d+(?=-)/, "$1");
+}
+
+function dateTimeYearInsertionWouldOverflow(input, data) {
+  const text = String(data || "");
+  if (!input || !/^\d+$/.test(text)) return false;
+  const value = String(input.value || "");
+  const selectionStart = input.selectionStart;
+  if (selectionStart === null || selectionStart === undefined) return false;
+  const selectionEnd = input.selectionEnd ?? selectionStart;
+  const yearEnd = value.search(/[-/T\s:]/);
+  const effectiveYearEnd = yearEnd === -1 ? Math.min(value.length, 4) : yearEnd;
+  if (selectionStart > effectiveYearEnd) return false;
+  const existingDigits = value.slice(0, effectiveYearEnd).replace(/\D/g, "").length;
+  const selectedDigits = value.slice(selectionStart, selectionEnd).replace(/\D/g, "").length;
+  return existingDigits - selectedDigits + text.length > 4;
+}
+
+function enforceDateTimeYearLimit(input) {
+  if (!input || input.dataset.yearLimitBound === "1") return;
+  input.dataset.yearLimitBound = "1";
+  input.max = input.max || "9999-12-31T23:59";
+  input.setAttribute("maxlength", "16");
+  const clampValue = () => {
+    const clamped = clampDateTimeYearValue(input.value);
+    if (clamped !== input.value) input.value = clamped;
+  };
+  input.addEventListener("input", clampValue);
+  input.addEventListener("change", clampValue);
+  input.addEventListener("blur", clampValue);
+  input.addEventListener("paste", () => {
+    window.requestAnimationFrame(clampValue);
+  });
+  input.addEventListener("beforeinput", (event) => {
+    if (dateTimeYearInsertionWouldOverflow(input, event.data)) {
+      event.preventDefault();
+      clampValue();
+    }
+  });
+  input.addEventListener("keydown", (event) => {
+    if (/^\d$/.test(event.key) && dateTimeYearInsertionWouldOverflow(input, event.key)) {
+      event.preventDefault();
+      clampValue();
+    }
+  });
+}
+
+function initializeDateTimeDefaults() {
+  const today = new Date();
+  const startValue = dateTimeInputValue(today, 0, 0);
+  const endValue = dateTimeInputValue(today, 23, 59);
+  [
+    [elements.startTime, startValue],
+    [elements.endTime, endValue],
+    [elements.attributeStartTime, startValue],
+    [elements.attributeEndTime, endValue],
+  ].forEach(([input, value]) => {
+    if (!input) return;
+    enforceDateTimeYearLimit(input);
+    if (!input.value) input.value = value;
+  });
+}
+
+function markAttributeTimeRangeTouched() {
+  attributeTimeRangeTouched = true;
 }
 
 function parseTimeSeconds(value) {
@@ -497,17 +579,149 @@ function recordFrameUrl(record) {
   return safeImageUrl(record?.frameUrl);
 }
 
+function firstDefined(...values) {
+  return values.find((value) => value !== undefined && value !== null && value !== "");
+}
+
+function normalizeOverlayBox(rawBox) {
+  if (Array.isArray(rawBox) && rawBox.length >= 4) {
+    rawBox = {
+      x1: rawBox[0],
+      y1: rawBox[1],
+      x2: rawBox[2],
+      y2: rawBox[3],
+      score: rawBox[4],
+    };
+  }
+  if (!rawBox || typeof rawBox !== "object") return null;
+  if (rawBox.bbox) return normalizeOverlayBox(rawBox.bbox);
+  const leftPct = finiteNumber(rawBox.leftPct ?? rawBox.left_pct);
+  const topPct = finiteNumber(rawBox.topPct ?? rawBox.top_pct);
+  const widthPct = finiteNumber(rawBox.widthPct ?? rawBox.width_pct);
+  const heightPct = finiteNumber(rawBox.heightPct ?? rawBox.height_pct);
+  if ([leftPct, topPct, widthPct, heightPct].every((value) => value !== null)) {
+    return { ...rawBox, leftPct, topPct, widthPct, heightPct };
+  }
+
+  const x1 = finiteNumber(firstDefined(rawBox.x1, rawBox.left, rawBox.x));
+  const y1 = finiteNumber(firstDefined(rawBox.y1, rawBox.top, rawBox.y));
+  const x2 = finiteNumber(firstDefined(rawBox.x2, rawBox.right));
+  const y2 = finiteNumber(firstDefined(rawBox.y2, rawBox.bottom));
+  const width = finiteNumber(firstDefined(rawBox.width, rawBox.w, x1 !== null && x2 !== null ? x2 - x1 : null));
+  const height = finiteNumber(firstDefined(rawBox.height, rawBox.h, y1 !== null && y2 !== null ? y2 - y1 : null));
+  if ([x1, y1, width, height].some((value) => value === null) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { ...rawBox, x1, y1, width, height };
+}
+
+function recordTargetBox(record) {
+  if (activeResultMode === "attributes") {
+    return record?.personBox
+      || record?.person_box
+      || record?.personBbox
+      || record?.person_bbox
+      || record?.bodyBox
+      || record?.body_box
+      || record?.bodyBbox
+      || record?.body_bbox
+      || record?.representativeBodyBox
+      || record?.representative_body_box
+      || record?.representative_body_bbox
+      || record?.representativePersonBox
+      || record?.representative_person_box
+      || record?.representative_person_bbox
+      || record?.targetBox
+      || record?.target_box
+      || record?.faceBox
+      || record?.targetFaceBox
+      || record?.target_face_box
+      || record?.faceBbox
+      || record?.face_bbox
+      || record?.representativeFaceBox
+      || record?.representative_face_box
+      || record?.representative_face_bbox
+      || record?.bbox
+      || record?.box
+      || null;
+  }
+  return record?.targetBox
+    || record?.target_box
+    || record?.faceBox
+    || record?.targetFaceBox
+    || record?.target_face_box
+    || record?.faceBbox
+    || record?.face_bbox
+    || record?.representativeFaceBox
+    || record?.representative_face_box
+    || record?.representative_face_bbox
+    || record?.personBox
+    || record?.person_box
+    || record?.personBbox
+    || record?.person_bbox
+    || record?.bodyBox
+    || record?.body_box
+    || record?.bodyBbox
+    || record?.body_bbox
+    || record?.representativeBodyBox
+    || record?.representative_body_box
+    || record?.representative_body_bbox
+    || record?.representativePersonBox
+    || record?.representative_person_box
+    || record?.representative_person_bbox
+    || record?.bbox
+    || record?.box
+    || null;
+}
+
+function recordTargetBoxKind(record) {
+  if (
+    activeResultMode === "attributes"
+    && (
+      record?.personBox
+      || record?.person_box
+      || record?.personBbox
+      || record?.person_bbox
+      || record?.bodyBox
+      || record?.body_box
+      || record?.bodyBbox
+      || record?.body_bbox
+      || record?.representativeBodyBox
+      || record?.representative_body_box
+      || record?.representative_body_bbox
+      || record?.representativePersonBox
+      || record?.representative_person_box
+      || record?.representative_person_bbox
+    )
+  ) return "person";
+  if (
+    record?.faceBox
+    || record?.targetFaceBox
+    || record?.target_face_box
+    || record?.faceBbox
+    || record?.face_bbox
+    || record?.representativeFaceBox
+    || record?.representative_face_box
+    || record?.representative_face_bbox
+  ) return "face";
+  return "person";
+}
+
 function frameFaceBoxMarkup(record) {
-  const box = record?.faceBox;
+  const box = normalizeOverlayBox(recordTargetBox(record));
   if (!box) return "";
+  const kind = recordTargetBoxKind(record);
   const style = initialFaceBoxStyle(box);
   return `
-    <span class="face-box result-face-box is-pending" data-frame-face-box
+    <span class="face-box result-face-box is-pending ${kind === "person" ? "is-person-box" : ""}" data-frame-face-box
       data-x1="${escapeHtml(box.x1)}" data-y1="${escapeHtml(box.y1)}"
       data-width="${escapeHtml(box.width)}" data-height="${escapeHtml(box.height)}"
+      data-image-width="${escapeHtml(box.imageWidth ?? box.image_width ?? record.imageWidth ?? record.image_width ?? record.frameWidth ?? record.frame_width ?? "")}"
+      data-image-height="${escapeHtml(box.imageHeight ?? box.image_height ?? record.imageHeight ?? record.image_height ?? record.frameHeight ?? record.frame_height ?? "")}"
       data-left-pct="${escapeHtml(box.leftPct ?? "")}" data-top-pct="${escapeHtml(box.topPct ?? "")}"
       data-width-pct="${escapeHtml(box.widthPct ?? "")}" data-height-pct="${escapeHtml(box.heightPct ?? "")}"
-      ${style ? `style="${style}"` : ""}>
+      ${style ? `style="${style}"` : ""}
+      aria-label="${kind === "face" ? "目标人脸位置" : "目标人物位置"}">
       <span class="face-score-label">${escapeHtml(formatPercent(record.similarity))}</span>
     </span>
   `;
@@ -519,7 +733,7 @@ function frameImageMarkup(record, imageClass) {
   return `
     <span class="frame-image-wrap" data-frame-url="${escapeHtml(frameUrl)}" data-record-id="${escapeHtml(record.id ?? record.title ?? "")}">
       <img class="${imageClass}" src="${escapeHtml(frameUrl)}" alt="${escapeHtml(record.title)} 监控关键帧" decoding="async" loading="eager" />
-      <span class="frame-face-layer" aria-label="目标人脸位置">${frameFaceBoxMarkup(record)}</span>
+      <span class="frame-face-layer" aria-label="目标位置">${frameFaceBoxMarkup(record)}</span>
     </span>
   `;
 }
@@ -1161,13 +1375,19 @@ async function applyC1Result(result) {
     await selectQueryFace(selectedQueryFaceIndex, { silent: true });
   }
 
-  candidatePeople = Array.isArray(result?.candidates)
-    ? result.candidates
-    : Array.isArray(result?.people)
-      ? result.people
-      : result?.person
-        ? [result.person]
-        : [];
+  const candidateBuckets = [
+    result?.candidates,
+    result?.candidatePeople,
+    result?.candidate_people,
+    result?.people,
+    result?.nearMisses,
+    result?.near_misses,
+  ].filter(Array.isArray);
+  candidatePeople = candidateBuckets.flat();
+  const resultPersonId = result?.person?.personId || result?.person?.person_id || result?.person?.id;
+  if (result?.person && result?.mode !== "person-attributes" && resultPersonId && !candidatePeople.includes(result.person)) {
+    candidatePeople.push(result.person);
+  }
 
   if (!result?.records?.length) {
     records.splice(0, records.length);
@@ -1216,6 +1436,16 @@ async function applyC1Result(result) {
   if (result.person?.representativeFaceUrl) {
     matchedPersonImageUrl = result.person.representativeFaceUrl;
   }
+  if (!matchedPersonImageUrl && activeResultMode === "attributes") {
+    const firstCandidate = fallbackCandidatePeople()[0];
+    matchedPersonImageUrl = candidateFaceUrl(firstCandidate)
+      || safeImageUrl(records[0]?.faceUrl)
+      || safeImageUrl(records[0]?.thumbnailUrl)
+      || safeImageUrl(records[0]?.bodyCropUrl)
+      || safeImageUrl(records[0]?.body_crop_url)
+      || safeImageUrl(records[0]?.frameUrl)
+      || "";
+  }
   syncPortraits();
 
   activeSource = "c1";
@@ -1260,14 +1490,16 @@ function buildAttributeSearchPayload() {
   const genderPresentation = selectedControlValue(elements.genderPresentationFilter);
   const cameraId = selectedControlValue(elements.attributeCameraFilter);
   const personScope = selectedControlValue(elements.attributePersonScope) || "stable";
-  const timeRange = {
-    start_time: normalizeDateTimeInput(elements.attributeStartTime?.value),
-    end_time: normalizeDateTimeInput(elements.attributeEndTime?.value),
-  };
+  const timeRange = attributeTimeRangeTouched
+    ? {
+      start_time: normalizeDateTimeInput(elements.attributeStartTime?.value),
+      end_time: normalizeDateTimeInput(elements.attributeEndTime?.value),
+    }
+    : null;
   const minScore = numericControlValue(elements.attributeMinScore, 0.45, 0, 1);
   const limit = Math.round(numericControlValue(elements.attributeLimit, 10, 1, 50));
   return {
-    time_range: timeRange.start_time || timeRange.end_time ? timeRange : null,
+    time_range: timeRange && (timeRange.start_time || timeRange.end_time) ? timeRange : null,
     camera_ids: cameraId ? [cameraId] : [],
     gender_presentation: genderPresentation ? [genderPresentation] : [],
     glasses_status: glassesStatus ? [glassesStatus] : [],
@@ -1291,7 +1523,7 @@ async function fetchC1AttributeSearch(signal) {
     signal,
   }, C1_SEARCH_TIMEOUT_MS);
   if (!response.ok) {
-    throw await c1HttpErrorFromResponse(response, `C1 特征检索返回 ${response.status}`);
+    throw await c1HttpErrorFromResponse(response, `CampusVision C1 人物特征搜索返回 ${response.status}`);
   }
   return response.json();
 }
@@ -1361,30 +1593,73 @@ function candidateEventCount(candidate) {
 function candidateFaceUrl(candidate) {
   return safeImageUrl(
     candidate?.representativeFaceUrl
-      || candidate?.representative_face_crop_url
       || candidate?.representative_face_url
+      || candidate?.representative_face_crop_url
+      || candidate?.representativeThumbnailUrl
+      || candidate?.representative_thumbnail_url
+      || candidate?.faceCropUrl
+      || candidate?.face_crop_url
       || candidate?.faceUrl
-      || candidate?.thumbnailUrl,
+      || candidate?.face_url
+      || candidate?.thumbnailUrl
+      || candidate?.thumbnail_url
+      || candidate?.imageUrl
+      || candidate?.image_url
+      || candidate?.bodyCropUrl
+      || candidate?.body_crop_url
+      || candidate?.bodyUrl
+      || candidate?.body_url
+      || candidate?.frameUrl
+      || candidate?.frame_url,
   );
 }
 
+function candidateFromRecord(record, index) {
+  return {
+    personId: record?.personId || record?.person_id || record?.targetPersonId || record?.target_person_id || record?.title || `候选人物 ${index + 1}`,
+    score: record?.similarity,
+    confidence: activeResultMode === "attributes" ? "attribute" : record?.identityStatus || record?.identity_status || "candidate",
+    eventCount: 1,
+    representativeFaceUrl: record?.faceCropUrl || record?.face_crop_url || record?.faceUrl || record?.face_url || record?.representativeFaceUrl || record?.representative_face_crop_url || record?.representative_face_url || record?.thumbnailUrl || record?.thumbnail_url || record?.bodyCropUrl || record?.body_crop_url || record?.bodyUrl || record?.body_url || record?.frameUrl || record?.frame_url,
+    recordIndex: index,
+    candidateSource: "record",
+  };
+}
+
+function candidateDedupeKey(candidate, index) {
+  if (candidate?.candidateSource === "record") {
+    return `record:${candidate.recordIndex ?? index}`;
+  }
+  const id = candidate?.personId || candidate?.person_id || candidate?.id;
+  if (id) return `id:${id}`;
+  const image = candidateFaceUrl(candidate);
+  if (image) return `image:${image}`;
+  return `candidate:${index}`;
+}
+
 function fallbackCandidatePeople() {
-  if (candidatePeople.length) return candidatePeople;
-  if (!records.length) return [];
-  return [{
-    personId: activeResultMode === "attributes" ? "特征候选集合" : "当前候选人物",
-    score: records[0]?.similarity,
-    confidence: records[0]?.similarity >= 0.65 ? "medium" : "low",
-    eventCount: records.length,
-    representativeFaceUrl: matchedPersonImageUrl || selectedQueryFaceImageUrl || records[0]?.faceUrl || records[0]?.thumbnailUrl,
-  }];
+  const explicitCandidates = candidatePeople.filter(Boolean);
+  const combined = (
+    explicitCandidates.length
+      ? explicitCandidates
+      : records.slice(0, 12).map(candidateFromRecord)
+  ).filter(Boolean);
+  const seen = new Set();
+  const deduped = [];
+  combined.forEach((candidate, index) => {
+    const key = candidateDedupeKey(candidate, index);
+    if (seen.has(key)) return;
+    seen.add(key);
+    deduped.push(candidate);
+  });
+  return deduped;
 }
 
 function renderCandidateList() {
   if (!elements.candidateList) return;
   const candidates = fallbackCandidatePeople();
   if (!candidates.length) {
-    elements.candidateList.innerHTML = emptyStateMarkup("暂无候选人物", "请先完成一次人脸或人物特征检索。");
+    elements.candidateList.innerHTML = emptyStateMarkup("暂无候选人物", "请先完成一次人脸以图搜人或人物特征搜索。");
     if (elements.openCandidatesBtn) elements.openCandidatesBtn.disabled = true;
     return;
   }
@@ -1393,8 +1668,10 @@ function renderCandidateList() {
     const faceUrl = candidateFaceUrl(candidate);
     const score = candidateScore(candidate);
     const confidence = candidate?.confidence || candidate?.identityStatus || candidate?.identity_status || "candidate";
+    const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);
+    const clickable = Number.isInteger(recordIndex) && recordIndex >= 0 && recordIndex < records.length;
     return `
-      <article class="candidate-card ${index === 0 ? "is-primary" : ""}">
+      <article class="candidate-card ${index === 0 ? "is-primary" : ""} ${clickable ? "is-clickable" : ""}" ${clickable ? `data-record-index="${escapeHtml(recordIndex)}" role="button" tabindex="0"` : ""}>
         <div class="candidate-thumb">${faceUrl ? `<img src="${escapeHtml(faceUrl)}" alt="${escapeHtml(candidatePersonId(candidate, index))} 候选人脸" />` : '<span class="portrait-art"></span>'}</div>
         <div class="candidate-copy">
           <strong>${escapeHtml(candidatePersonId(candidate, index))}</strong>
@@ -1405,6 +1682,26 @@ function renderCandidateList() {
       </article>
     `;
   }).join("");
+  elements.candidateList.querySelectorAll("[data-record-index]").forEach((card) => {
+    const activate = () => {
+      const index = clampRecordIndex(card.dataset.recordIndex || 0);
+      selectedRecordIndex = index;
+      selectedRouteIndex = routePointIndexForRecord(index);
+      closeCandidateDrawer();
+      renderRecordLists();
+      renderSelectedRecord();
+      renderRouteMap();
+      renderRouteTimeline();
+      window.requestAnimationFrame(() => elements.recordScene?.scrollIntoView({ behavior: "smooth", block: "center" }));
+    };
+    card.addEventListener("click", activate);
+    card.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        activate();
+      }
+    });
+  });
 }
 
 function openCandidateDrawer() {
@@ -1433,8 +1730,27 @@ function eventDetailMetaMarkup(record) {
     ["数据来源", sourceLabel()],
   ];
   return rows.map(([label, value]) => `
-    <div class="event-detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+    <div class="event-detail-row"><span>${escapeHtml(label)}：</span><strong>${escapeHtml(value)}</strong></div>
   `).join("");
+}
+
+function focusRecordInMainView(targetRecord) {
+  if (!targetRecord) return;
+  const targetId = String(targetRecord.id ?? targetRecord.eventId ?? targetRecord.title ?? "");
+  const index = records.findIndex((record) => String(record.id ?? record.eventId ?? record.title ?? "") === targetId);
+  if (index >= 0) {
+    selectedRecordIndex = clampRecordIndex(index);
+    selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
+    renderRecordLists();
+    renderSelectedRecord();
+    renderRouteMap();
+    renderRouteTimeline();
+  }
+  closeEventDetailDrawer();
+  window.requestAnimationFrame(() => {
+    elements.recordScene?.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+  showToast(`已在主视图定位 ${targetRecord.title || "当前记录"} 的现场图。`, { tone: "info", title: "现场图已定位" });
 }
 
 function renderEventDetailDrawer() {
@@ -1457,10 +1773,9 @@ function renderEventDetailDrawer() {
       ${eventDetailMetaMarkup(record)}
       ${recordAttributeInfoMarkup(record)}
     </section>
-    <button id="eventDetailOpenMedia" class="primary-action event-detail-open-media" type="button">查看现场图</button>
+    <button id="eventDetailOpenMedia" class="primary-action event-detail-open-media" type="button">在主视图定位现场图</button>
   `;
-  elements.eventDetailBody.querySelector("#eventDetailOpenMedia")?.addEventListener("click", () => openMediaViewer(record));
-  positionFrameFaceBoxes(elements.eventDetailBody);
+  elements.eventDetailBody.querySelector("#eventDetailOpenMedia")?.addEventListener("click", () => focusRecordInMainView(record));
 }
 
 function openEventDetailDrawer() {
@@ -1470,6 +1785,7 @@ function openEventDetailDrawer() {
   elements.eventDetailDrawer.hidden = false;
   elements.eventDetailDrawer.classList.add("is-visible");
   elements.eventDetailClose?.focus?.();
+  window.requestAnimationFrame(() => positionFrameFaceBoxes(elements.eventDetailBody));
 }
 
 function closeEventDetailDrawer() {
@@ -1481,12 +1797,8 @@ function closeEventDetailDrawer() {
 
 function switchSearchMode(mode) {
   const isAttributes = mode === "attributes";
-  elements.faceSearchTab?.classList.toggle("is-active", !isAttributes);
-  elements.attributeSearchTab?.classList.toggle("is-active", isAttributes);
   elements.navFaceSearch?.classList.toggle("is-active", !isAttributes);
   elements.navAttributeSearch?.classList.toggle("is-active", isAttributes);
-  elements.faceSearchTab?.setAttribute("aria-selected", isAttributes ? "false" : "true");
-  elements.attributeSearchTab?.setAttribute("aria-selected", isAttributes ? "true" : "false");
   elements.navFaceSearch?.setAttribute("aria-current", isAttributes ? "false" : "page");
   elements.navAttributeSearch?.setAttribute("aria-current", isAttributes ? "page" : "false");
   elements.faceSearchPane?.classList.toggle("is-active", !isAttributes);
@@ -2122,12 +2434,12 @@ async function startAttributeSearch() {
   const controller = new AbortController();
   activeSearchController = controller;
   searchInProgress = true;
-  setButtonBusy(elements.startAttributeSearchBtn, true, "检索中...", "开始特征检索");
-  showToast("正在调用 CampusVision C1 人物特征检索服务。", { tone: "loading", title: "特征检索中" });
+  setButtonBusy(elements.startAttributeSearchBtn, true, "检索中...", "开始特征搜索");
+  showToast("正在调用 CampusVision C1 人物特征搜索服务。", { tone: "loading", title: "特征搜索中" });
   let resultToast = null;
   let shouldShowResults = false;
   const watchdog = window.setTimeout(() => {
-    controller.abort(new Error("CampusVision C1 特征检索超时"));
+    controller.abort(new Error("CampusVision C1 人物特征搜索超时"));
   }, SEARCH_WATCHDOG_TIMEOUT_MS);
 
   async function runAttributeFlow() {
@@ -2147,7 +2459,7 @@ async function startAttributeSearch() {
     shouldShowResults = true;
     resultToast = lastC1Notice
       ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选事件。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
-      : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "特征检索完成" } };
+      : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "特征搜索完成" } };
   } catch (error) {
     if (runId !== searchRunId) return;
     if (await connectC1AfterFailure(error)) {
@@ -2161,20 +2473,20 @@ async function startAttributeSearch() {
         shouldShowResults = true;
         resultToast = lastC1Notice
           ? { message: `${lastC1Notice} 已返回 ${records.length} 条候选事件。`, options: { tone: "warning", title: "需要人工确认", timeout: 5600 } }
-          : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "重试检索完成" } };
+          : { message: `CampusVision C1 返回 ${records.length} 条特征匹配事件。`, options: { tone: "success", title: "重试搜索完成" } };
       } catch (retryError) {
         const message = localizedC1Notice(retryError.message) || retryError.message;
-        resultToast = { message: `${message}。未执行特征检索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征检索未完成", timeout: 6200 } };
+        resultToast = { message: `${message}。未执行特征搜索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征搜索未完成", timeout: 6200 } };
       }
     } else {
       const message = localizedC1Notice(error.message) || error.message;
-      resultToast = { message: `${message}。未执行特征检索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征检索未完成", timeout: 6200 } };
+      resultToast = { message: `${message}。未执行特征搜索，请检查 CampusVision C1。`, options: { tone: "error", title: "特征搜索未完成", timeout: 6200 } };
     }
   } finally {
     window.clearTimeout(watchdog);
     if (activeSearchController === controller) activeSearchController = null;
     if (runId === searchRunId) {
-      setButtonBusy(elements.startAttributeSearchBtn, false, "检索中...", "开始特征检索");
+      setButtonBusy(elements.startAttributeSearchBtn, false, "检索中...", "开始特征搜索");
       searchInProgress = false;
       if (shouldShowResults) {
         syncResultHeading();
@@ -2213,9 +2525,11 @@ function bindEvents() {
     switchScreen("search");
     switchSearchMode("attributes");
   });
-  elements.faceSearchTab?.addEventListener("click", () => switchSearchMode("face"));
-  elements.attributeSearchTab?.addEventListener("click", () => switchSearchMode("attributes"));
   elements.startAttributeSearchBtn?.addEventListener("click", startAttributeSearch);
+  [elements.attributeStartTime, elements.attributeEndTime].forEach((input) => {
+    input?.addEventListener("input", markAttributeTimeRangeTouched);
+    input?.addEventListener("change", markAttributeTimeRangeTouched);
+  });
   elements.uploadDrop.addEventListener("click", async (event) => {
     if (event.target.closest("#openQueryFaceModalBtn")) return;
     const faceHit = queryFaceHitFromPoint(event);
@@ -2357,6 +2671,7 @@ function bindEvents() {
 
 syncPortraits();
 syncResultHeading();
+initializeDateTimeDefaults();
 renderRecordLists();
 renderSelectedRecord();
 renderRouteMap();

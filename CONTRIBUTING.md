@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -546,7 +546,7 @@ git push
 11. 先阅读现有代码和文档，沿用仓库已有模式，不要无关重构，不要把不相关改动混入同一个 PR。
 12. 提交前只暂存本次任务相关文件，避免混入无关改动。不要使用破坏性 Git 命令重置用户改动。
 13. 根据改动运行必要检查。文档-only 至少运行 git diff --check；代码或桌面相关改动按 PR 模板运行相应测试，并在 PR 中写明验证结果。
-14. 如果改动涉及 UI、前端重构或视觉方向，必须先阅读 PRODUCT.md、DESIGN.md 和 .github/skills/impeccable/SKILL.md（如存在），保持 `v0.3.0` GKGuard C2 工作台 / Evidence Desk 方向：固定左侧导航、`人脸以图搜人` 与 `人物特征搜索` 两个入口、左侧目标/记录、右侧证据详情、候选人物抽屉和事件详情抽屉。不要引入营销首页、装饰性仪表盘、霓虹监控风、过度渐变或暗色指挥中心风格。
+14. 如果改动涉及 UI、前端重构或视觉方向，必须先阅读 PRODUCT.md、DESIGN.md 和 .github/skills/impeccable/SKILL.md（如存在），保持 `v0.3.x` GKGuard C2 工作台 / Evidence Desk 方向：固定左侧导航、`人脸以图搜人` 与 `人物特征搜索` 两个入口、左侧目标/记录、右侧证据详情、候选人物抽屉和事件详情抽屉。不要引入营销首页、装饰性仪表盘、霓虹监控风、过度渐变或暗色指挥中心风格。
 15. 如果改动涉及 UI，除静态语法检查外，应运行 `npm run test:e2e`；必要时再实际打开页面或桌面端验证布局、图片显示、交互状态和不同窗口尺寸，重点检查人物照片、检索记录、候选人物抽屉、事件详情抽屉、路线页、无横向溢出和中等宽度不重叠。
 
 文档同步：
@@ -1079,7 +1079,7 @@ Implementation and validation:
 11. Read existing code and docs first, follow repository patterns, avoid unrelated refactors, and do not mix unrelated changes into one PR.
 12. Stage only files related to the current task. Avoid mixing unrelated changes. Do not use destructive Git commands to reset user work.
 13. Run the checks relevant to the change. Documentation-only changes should at least run git diff --check. Code or desktop changes should run the checks listed in the PR template and report validation results in the PR.
-14. If a change affects UI, frontend redesign, or visual direction, read PRODUCT.md, DESIGN.md, and .github/skills/impeccable/SKILL.md when present, and preserve the `v0.3.0` GKGuard C2 Workbench / Evidence Desk direction: fixed left navigation, the `人脸以图搜人` and `人物特征搜索` entries, left-side target/records, right-side evidence detail, candidate-person drawer, and event-detail drawer. Do not introduce marketing homepages, decorative dashboards, neon surveillance styling, excessive gradients, or dark command-center aesthetics.
+14. If a change affects UI, frontend redesign, or visual direction, read PRODUCT.md, DESIGN.md, and .github/skills/impeccable/SKILL.md when present, and preserve the `v0.3.x` GKGuard C2 Workbench / Evidence Desk direction: fixed left navigation, the `人脸以图搜人` and `人物特征搜索` entries, left-side target/records, right-side evidence detail, candidate-person drawer, and event-detail drawer. Do not introduce marketing homepages, decorative dashboards, neon surveillance styling, excessive gradients, or dark command-center aesthetics.
 15. If a change affects UI, run `npm run test:e2e`; when needed, also verify the rendered page or desktop app manually, including layout, image display, interaction states, and different window sizes. Specifically check person portraits, result records, candidate-person drawers, event-detail drawers, the route page, no horizontal overflow, and no medium-width overlap.
 
 Documentation synchronization:

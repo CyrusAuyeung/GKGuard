@@ -137,6 +137,16 @@ def _event_glasses_profile(
     return person_profile if isinstance(person_profile, dict) else None
 
 
+def _event_face_bbox(event: dict[str, Any]) -> Any:
+    face_id = event.get("representative_face_id")
+    if not face_id:
+        return None
+    face_record = db.get_face_record(str(face_id))
+    if not isinstance(face_record, dict):
+        return None
+    return face_record.get("bbox")
+
+
 def _event_payload(
     event: dict[str, Any],
     *,
@@ -153,6 +163,26 @@ def _event_payload(
     gender_value = _profile_value(gender_profile, "gender_presentation") or "unknown"
     glasses_value = _profile_value(glasses_profile, "glasses_status") or "unknown"
     glasses_confidence = _profile_value(glasses_profile, "glasses_confidence", "confidence")
+    representative_observation = (
+        event.get("representative_observation")
+        if isinstance(event.get("representative_observation"), dict)
+        else None
+    )
+    person_bbox = (
+        event.get("person_bbox")
+        or event.get("person_box")
+        or event.get("body_bbox")
+        or event.get("body_box")
+        or event.get("representative_person_bbox")
+        or event.get("representative_body_bbox")
+        or (representative_observation or {}).get("person_bbox")
+    )
+    face_bbox = (
+        event.get("face_bbox")
+        or event.get("face_box")
+        or event.get("representative_face_bbox")
+        or event.get("representative_face_box")
+    )
 
     return {
         "event_id": event.get("event_id"),
@@ -178,6 +208,14 @@ def _event_payload(
         "representative_frame_url": event.get("representative_frame_url"),
         "representative_body_crop_url": event.get("representative_body_crop_url"),
         "representative_face_crop_url": event.get("representative_face_crop_url"),
+        "person_bbox": person_bbox,
+        "body_bbox": person_bbox,
+        "representative_person_bbox": person_bbox,
+        "representative_body_bbox": person_bbox,
+        "face_bbox": face_bbox,
+        "face_box": face_bbox,
+        "representative_face_bbox": face_bbox,
+        "representative_face_box": face_bbox,
         "body_visibility": event.get("body_visibility"),
         "upper_color": upper_color,
         "upper_color_confidence": upper_confidence,
@@ -218,13 +256,43 @@ def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
         event = db.get_event(str(event_id))
         if not event:
             continue
+        face_bbox = (
+            event.get("face_bbox")
+            or event.get("face_box")
+            or event.get("representative_face_bbox")
+            or event.get("representative_face_box")
+            or _event_face_bbox(event)
+        )
+        if face_bbox is not None:
+            for field in (
+                "face_bbox",
+                "face_box",
+                "representative_face_bbox",
+                "representative_face_box",
+            ):
+                result[field] = face_bbox
+            nested_event = result.get("event")
+            if isinstance(nested_event, dict):
+                for field in (
+                    "face_bbox",
+                    "face_box",
+                    "representative_face_bbox",
+                    "representative_face_box",
+                ):
+                    nested_event[field] = face_bbox
+
         for field in (
             "representative_frame_url",
             "representative_body_crop_url",
             "representative_face_crop_url",
             "body_visibility",
+            "person_bbox",
+            "body_bbox",
+            "representative_person_bbox",
+            "representative_body_bbox",
         ):
-            result[field] = event.get(field)
+            if event.get(field) is not None:
+                result[field] = event.get(field)
         nested_event = result.get("event")
         if isinstance(nested_event, dict):
             for field in (
@@ -232,8 +300,13 @@ def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
                 "representative_body_crop_url",
                 "representative_face_crop_url",
                 "body_visibility",
+                "person_bbox",
+                "body_bbox",
+                "representative_person_bbox",
+                "representative_body_bbox",
             ):
-                nested_event[field] = event.get(field)
+                if event.get(field) is not None:
+                    nested_event[field] = event.get(field)
 
 
 def _passes_person_scope(event: dict[str, Any], person: dict[str, Any] | None, scope: str) -> bool:

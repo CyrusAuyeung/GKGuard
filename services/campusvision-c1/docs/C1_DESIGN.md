@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -7,7 +7,7 @@
 
 # CampusVision C1 设计说明
 
-CampusVision C1 负责校园历史视频中的人脸检索与轨迹分析，为 GKGuard C2 提供可调用的 AI 能力。当前实现以 FastAPI 暴露接口，以 SQLite 保存元数据和向量，以 InsightFace/ArcFace 生成 512 维人脸 embedding。
+CampusVision C1 负责校园历史视频中的人脸以图搜人与轨迹分析，为 GKGuard C2 提供可调用的 AI 能力。当前实现以 FastAPI 暴露接口，以 SQLite 保存元数据和向量，以 InsightFace/ArcFace 生成 512 维人脸 embedding。
 
 ## 目标
 

@@ -1,15 +1,15 @@
 # GKGuard Icon Prompts
 
-> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.3.0` 前端功能小图标以页面内 SVG sprite 为准，品牌、启动和桌面端打包图标使用仓库中的 PNG/ICO/ICNS 资产。
+> 用途：本文件保留图标资产的生成方向，供后续重生成品牌图标、启动图标或功能图标时参考。当前 `v0.3.1` 前端功能小图标以页面内 SVG sprite 为准，品牌、启动和桌面端打包图标使用仓库中的 PNG/ICO/ICNS 资产。
 >
-> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.3.0`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/desktop packaging icons use repository PNG/ICO/ICNS assets.
+> Purpose: This file preserves icon-generation guidance for future brand, loading, or functional icon refreshes. As of `v0.3.1`, small UI icons are implemented through the embedded SVG sprite, while brand/loading/desktop packaging icons use repository PNG/ICO/ICNS assets.
 
 ## 通用风格 / Shared Style
 
 请所有图标保持同一套视觉语言，不限定输出格式。若生成的是功能小图标，后续接入前应优先提炼为单色或双色矢量符号，避免按钮中出现白底贴图感。
 
 - 画布：正方形图标，透明背景，适合后续导出为常见图片或图标格式。
-- 风格：现代安防系统、AI 人脸检索、校园监控控制台，专业、克制、清晰。
+- 风格：现代安防系统、AI 人脸以图搜人、校园监控控制台，专业、克制、清晰。
 - 形态：简洁、扁平、线性或轻微填充均可，但不要做成复杂插画。
 - 颜色：优先单色或双色；可使用深蓝、科技蓝、低饱和灰蓝作为主色，不要花哨渐变。
 - 构图：居中，留出安全边距，小尺寸按钮内仍然清楚。
@@ -40,7 +40,7 @@ Create a GKGuard app mark: a shield combined with a subtle camera aperture and f
 
 建议命名：`app-mark`
 
-## 2. 人脸检索 / Face Search
+## 2. 人脸以图搜人 / Face Search
 
 用途：搜索页、结果页、路线页标题左侧 `face-icon`。
 

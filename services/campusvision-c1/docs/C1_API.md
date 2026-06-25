@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -221,7 +221,7 @@ http://127.0.0.1:8000/docs
 
 默认只返回稳定人物；需要召回候选碎片人物时显式设置 `include_candidates=true`。当多候选分数接近时，调用方不应只展示 top1，应保留候选列表供人工判断。
 
-## 人物特征检索
+## 人物特征搜索
 
 `POST /api/v1/query/person-attributes`
 
@@ -263,7 +263,7 @@ http://127.0.0.1:8000/docs
 - `results[].glasses_status`
 - `results[].gender_presentation`
 
-`match_type=exact` 表示已填写条件全部满足；`partial` 表示事件相似但存在不满足项，必须结合 `failed_conditions` 人工判断。`unknown` 表示模型无法判断，不等同于否定结果；当调用方显式请求 `unknown` 时，真实 `unknown` 事件会作为满足该条件处理。人物特征检索会先按时间范围、摄像头和人物范围取候选，并优先扫描最新事件，避免大规模索引下只检查最早事件窗口。
+`match_type=exact` 表示已填写条件全部满足；`partial` 表示事件相似但存在不满足项，必须结合 `failed_conditions` 人工判断。`unknown` 表示模型无法判断，不等同于否定结果；当调用方显式请求 `unknown` 时，真实 `unknown` 事件会作为满足该条件处理。人物特征搜索会先按时间范围、摄像头和人物范围取候选，并优先扫描最新事件，避免大规模索引下只检查最早事件窗口。
 
 ## 实时源采集
 

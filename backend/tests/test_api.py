@@ -43,16 +43,16 @@ def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
     assert "GKGuard 智能检索" in response.text
-    assert "人物特征检索" in response.text
-    assert "人脸检索结果" in response.text
+    assert "人物特征搜索" in response.text
+    assert "人脸以图搜人结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
     assert "mediaViewer" in response.text
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.3.0-ui" in response.text
-    assert "/static/app.js?v=v0.3.0-ui" in response.text
+    assert "/static/styles.css?v=v0.3.1-ui" in response.text
+    assert "/static/app.js?v=v0.3.1-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -1572,6 +1572,28 @@ def test_c1_event_record_mapping_does_not_fabricate_body_url(monkeypatch) -> Non
 
     assert record["thumbnailUrl"] == "/c1/media/face/face-1"
     assert "/event/body/" not in record["thumbnailUrl"]
+
+
+def test_c1_attribute_event_record_prefers_body_thumbnail(monkeypatch) -> None:
+    from app.services import c1_service
+
+    monkeypatch.setattr(c1_service, "_selected_base_url", "http://127.0.0.1:18000")
+    record = c1_service._record_from_event(
+        {
+            "event_id": "event-body",
+            "representative_frame_url": "/api/v1/media/event/frame/event-body",
+            "representative_face_crop_url": "/api/v1/media/face/face-body",
+            "representative_body_crop_url": "/api/v1/media/event/body/event-body",
+            "camera_id": "cam02",
+            "start_time": "2026-06-24T10:00:00",
+            "score": 0.82,
+        },
+        1,
+    )
+
+    assert record["faceUrl"] == "/c1/media/face/face-body"
+    assert record["bodyCropUrl"] == "/c1/media/event/body/event-body"
+    assert record["thumbnailUrl"] == "/c1/media/event/body/event-body"
 
 
 def test_c1_attribute_summary_keeps_all_returned_records(monkeypatch) -> None:
