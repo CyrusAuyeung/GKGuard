@@ -22,6 +22,7 @@ export function createManualEditRoutes({
   chatAgentLikelyActive,
   cwd = () => process.cwd(),
   env = () => process.env,
+  setCorsHeaders = () => {},
 } = {}) {
   const projectCwd = () => typeof cwd === 'function' ? cwd() : cwd || process.cwd();
   const currentEnv = () => typeof env === 'function' ? env() : env || process.env;
@@ -40,10 +41,11 @@ export function createManualEditRoutes({
           sendJson(res, 400, { error: 'Invalid JSON' });
           return;
         }
-        if (msg.token !== getToken()) {
+        if (msg.token !== getToken() && url.searchParams.get('token') !== getToken()) {
           sendJson(res, 401, { error: 'Unauthorized' });
           return;
         }
+        setCorsHeaders(req, res);
         const error = validateEvent({ ...msg, type: 'manual_edits' });
         if (error) {
           sendJson(res, 400, { error });
@@ -78,6 +80,7 @@ export function createManualEditRoutes({
     if (p === '/manual-edit-stash' && req.method === 'GET') {
       const token = url.searchParams.get('token');
       if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      setCorsHeaders(req, res);
       const pageUrl = url.searchParams.get('pageUrl') || '';
       const { totalCount, perPage } = countPendingByPage(projectCwd());
       const buffer = readManualEditsBuffer(projectCwd());
@@ -94,6 +97,7 @@ export function createManualEditRoutes({
     if (p === '/manual-edit-commit' && req.method === 'POST') {
       const token = url.searchParams.get('token');
       if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      setCorsHeaders(req, res);
       const pageUrl = url.searchParams.get('pageUrl');
       const asyncMode = /^(1|true|yes)$/i.test(url.searchParams.get('async') || '');
       const repairOnly = /^(1|true|yes)$/i.test(url.searchParams.get('repair') || '');
@@ -288,6 +292,7 @@ export function createManualEditRoutes({
     if (p === '/manual-edit-discard' && req.method === 'POST') {
       const token = url.searchParams.get('token');
       if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return true; }
+      setCorsHeaders(req, res);
       const pageUrl = url.searchParams.get('pageUrl');
       let discarded;
       let discardedEntries = [];
