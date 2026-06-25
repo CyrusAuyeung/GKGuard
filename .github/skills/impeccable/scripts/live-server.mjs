@@ -53,6 +53,7 @@ import {
   applyDeferredSvelteComponentAccepts,
   removeAllSvelteComponentSessions,
 } from './live/svelte-component.mjs';
+import { ensureLiveGitIgnores } from './live-inject.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // PRODUCT.md / DESIGN.md live wherever context.mjs resolves. The generated
@@ -1067,6 +1068,7 @@ if (args.includes('stop')) {
   } catch {
     console.log('No running live server found.');
   }
+  if (!keepInject) removeLiveToken(process.cwd());
   if (!keepInject) {
     const injectPath = path.join(__dirname, 'live-inject.mjs');
     try {
@@ -1160,6 +1162,7 @@ const { detectScript, liveScriptParts } = loadBrowserScripts();
 httpServer = http.createServer(createRequestHandler({ detectScript, liveScriptParts }));
 
 httpServer.listen(state.port, '127.0.0.1', () => {
+  ensureLiveGitIgnores(process.cwd());
   writeLiveToken(process.cwd(), state.token);
   writeLiveServerInfo(process.cwd(), { pid: process.pid, port: state.port, token: state.token });
   const url = `http://localhost:${state.port}`;

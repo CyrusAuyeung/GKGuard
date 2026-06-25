@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { resolveProjectRoot } from '../context.mjs';
 
+const LIVE_TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export const IMPECCABLE_DIR = '.impeccable';
 export const LIVE_DIR = 'live';
 export const CRITIQUE_DIR = 'critique';
@@ -102,17 +104,23 @@ export function writeLiveServerInfo(cwd = process.cwd(), info, options = {}) {
 }
 
 export function readLiveToken(cwd = process.cwd(), options = {}) {
+  const filePath = getLiveTokenPath(cwd, options);
   try {
-    const filePath = getLiveTokenPath(cwd, options);
     const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-    return typeof data?.token === 'string' && data.token ? data.token : null;
+    if (typeof data?.token === 'string' && LIVE_TOKEN_RE.test(data.token)) {
+      return data.token;
+    }
+    try { fs.unlinkSync(filePath); } catch {}
+    return null;
   } catch {
     return null;
   }
 }
 
 export function writeLiveToken(cwd = process.cwd(), token, options = {}) {
-  if (!token) return null;
+  if (!LIVE_TOKEN_RE.test(String(token || ''))) {
+    throw new Error('Invalid live token format');
+  }
   const filePath = getLiveTokenPath(cwd, options);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify({ token }));
