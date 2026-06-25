@@ -147,6 +147,7 @@ let activeSource = "mock";
 let candidatePeople = [];
 let toastTimer = null;
 let lastFocusedElement = null;
+let attributeTimeRangeTouched = false;
 const CONFIDENT_QUERY_FACE_SCORE = 0.65;
 const MIN_VISIBLE_QUERY_FACE_SCORE = 0.45;
 const FRAME_IMAGE_PRELOAD_LIMIT = 24;
@@ -374,6 +375,10 @@ function initializeDateTimeDefaults() {
     enforceDateTimeYearLimit(input);
     if (!input.value) input.value = value;
   });
+}
+
+function markAttributeTimeRangeTouched() {
+  attributeTimeRangeTouched = true;
 }
 
 function parseTimeSeconds(value) {
@@ -610,6 +615,35 @@ function normalizeOverlayBox(rawBox) {
 }
 
 function recordTargetBox(record) {
+  if (activeResultMode === "attributes") {
+    return record?.personBox
+      || record?.person_box
+      || record?.personBbox
+      || record?.person_bbox
+      || record?.bodyBox
+      || record?.body_box
+      || record?.bodyBbox
+      || record?.body_bbox
+      || record?.representativeBodyBox
+      || record?.representative_body_box
+      || record?.representative_body_bbox
+      || record?.representativePersonBox
+      || record?.representative_person_box
+      || record?.representative_person_bbox
+      || record?.targetBox
+      || record?.target_box
+      || record?.faceBox
+      || record?.targetFaceBox
+      || record?.target_face_box
+      || record?.faceBbox
+      || record?.face_bbox
+      || record?.representativeFaceBox
+      || record?.representative_face_box
+      || record?.representative_face_bbox
+      || record?.bbox
+      || record?.box
+      || null;
+  }
   return record?.targetBox
     || record?.target_box
     || record?.faceBox
@@ -640,6 +674,25 @@ function recordTargetBox(record) {
 }
 
 function recordTargetBoxKind(record) {
+  if (
+    activeResultMode === "attributes"
+    && (
+      record?.personBox
+      || record?.person_box
+      || record?.personBbox
+      || record?.person_bbox
+      || record?.bodyBox
+      || record?.body_box
+      || record?.bodyBbox
+      || record?.body_bbox
+      || record?.representativeBodyBox
+      || record?.representative_body_box
+      || record?.representative_body_bbox
+      || record?.representativePersonBox
+      || record?.representative_person_box
+      || record?.representative_person_bbox
+    )
+  ) return "person";
   if (
     record?.faceBox
     || record?.targetFaceBox
@@ -1436,14 +1489,16 @@ function buildAttributeSearchPayload() {
   const genderPresentation = selectedControlValue(elements.genderPresentationFilter);
   const cameraId = selectedControlValue(elements.attributeCameraFilter);
   const personScope = selectedControlValue(elements.attributePersonScope) || "stable";
-  const timeRange = {
-    start_time: normalizeDateTimeInput(elements.attributeStartTime?.value),
-    end_time: normalizeDateTimeInput(elements.attributeEndTime?.value),
-  };
+  const timeRange = attributeTimeRangeTouched
+    ? {
+      start_time: normalizeDateTimeInput(elements.attributeStartTime?.value),
+      end_time: normalizeDateTimeInput(elements.attributeEndTime?.value),
+    }
+    : null;
   const minScore = numericControlValue(elements.attributeMinScore, 0.45, 0, 1);
   const limit = Math.round(numericControlValue(elements.attributeLimit, 10, 1, 50));
   return {
-    time_range: timeRange.start_time || timeRange.end_time ? timeRange : null,
+    time_range: timeRange && (timeRange.start_time || timeRange.end_time) ? timeRange : null,
     camera_ids: cameraId ? [cameraId] : [],
     gender_presentation: genderPresentation ? [genderPresentation] : [],
     glasses_status: glassesStatus ? [glassesStatus] : [],
@@ -1681,7 +1736,8 @@ function focusRecordInMainView(targetRecord) {
   const targetId = String(targetRecord.id ?? targetRecord.eventId ?? targetRecord.title ?? "");
   const index = records.findIndex((record) => String(record.id ?? record.eventId ?? record.title ?? "") === targetId);
   if (index >= 0) {
-    alignSelectedRecordWithRoutePoints(index);
+    selectedRecordIndex = clampRecordIndex(index);
+    selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
     renderRecordLists();
     renderSelectedRecord();
     renderRouteMap();
@@ -2467,6 +2523,10 @@ function bindEvents() {
     switchSearchMode("attributes");
   });
   elements.startAttributeSearchBtn?.addEventListener("click", startAttributeSearch);
+  [elements.attributeStartTime, elements.attributeEndTime].forEach((input) => {
+    input?.addEventListener("input", markAttributeTimeRangeTouched);
+    input?.addEventListener("change", markAttributeTimeRangeTouched);
+  });
   elements.uploadDrop.addEventListener("click", async (event) => {
     if (event.target.closest("#openQueryFaceModalBtn")) return;
     const faceHit = queryFaceHitFromPoint(event);

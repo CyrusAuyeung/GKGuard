@@ -182,7 +182,6 @@ def _event_payload(
         or event.get("face_box")
         or event.get("representative_face_bbox")
         or event.get("representative_face_box")
-        or _event_face_bbox(event)
     )
 
     return {
@@ -257,6 +256,31 @@ def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
         event = db.get_event(str(event_id))
         if not event:
             continue
+        face_bbox = (
+            event.get("face_bbox")
+            or event.get("face_box")
+            or event.get("representative_face_bbox")
+            or event.get("representative_face_box")
+            or _event_face_bbox(event)
+        )
+        if face_bbox is not None:
+            for field in (
+                "face_bbox",
+                "face_box",
+                "representative_face_bbox",
+                "representative_face_box",
+            ):
+                result[field] = face_bbox
+            nested_event = result.get("event")
+            if isinstance(nested_event, dict):
+                for field in (
+                    "face_bbox",
+                    "face_box",
+                    "representative_face_bbox",
+                    "representative_face_box",
+                ):
+                    nested_event[field] = face_bbox
+
         for field in (
             "representative_frame_url",
             "representative_body_crop_url",
@@ -266,10 +290,6 @@ def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
             "body_bbox",
             "representative_person_bbox",
             "representative_body_bbox",
-            "face_bbox",
-            "face_box",
-            "representative_face_bbox",
-            "representative_face_box",
         ):
             if event.get(field) is not None:
                 result[field] = event.get(field)
@@ -284,10 +304,6 @@ def _hydrate_page_media(results: list[dict[str, Any]]) -> None:
                 "body_bbox",
                 "representative_person_bbox",
                 "representative_body_bbox",
-                "face_bbox",
-                "face_box",
-                "representative_face_bbox",
-                "representative_face_box",
             ):
                 if event.get(field) is not None:
                     nested_event[field] = event.get(field)

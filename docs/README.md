@@ -22,7 +22,7 @@
 
 ## 发布与版本
 
-- [releases/v0.3.1.md](releases/v0.3.1.md)：当前最新版本说明，记录 GKGuard C2 工作台回归修复、入口文案统一、结果页标题/更新按钮避让、事件详情和候选人物抽屉修复、人物特征搜索目标框、默认当天时间范围和日期输入限制。
+- [releases/v0.3.1.md](releases/v0.3.1.md)：当前最新版本说明，记录 GKGuard C2 工作台回归修复、入口文案统一、结果页标题/更新按钮避让、事件详情和候选人物抽屉修复、人物特征搜索目标框、当天时间默认显示、显式时间范围提交和日期输入限制。
 - [releases/v0.3.0.md](releases/v0.3.0.md)：GKGuard C2 工作台式 UI 重构、固定导航、证据优先详情布局、候选人物抽屉、事件详情抽屉和响应式布局验证。
 - [releases/v0.2.3.md](releases/v0.2.3.md)：CampusVision C1 重建索引失败恢复、数据库写锁隔离、查询图超限临时文件清理和贡献模板说明同步。
 - [releases/v0.2.2.md](releases/v0.2.2.md)：CampusVision C1 查询图候选接口 Query 参数对齐、4xx 校验错误透传、5xx 服务错误详情脱敏、输入校验失败不触发桌面端重连、重复映射路线点唯一高亮和未映射尾部记录高亮边界修复。
@@ -90,7 +90,7 @@ Use this page to locate maintenance material quickly. The current-state document
 
 ## Releases And Versions
 
-- [releases/v0.3.1.md](releases/v0.3.1.md): latest release notes covering GKGuard C2 workbench regression fixes, unified entry wording, result-heading/update-button spacing, event-detail and candidate-person drawer fixes, target overlays for person-attribute search, today's default time range, and date-input limits.
+- [releases/v0.3.1.md](releases/v0.3.1.md): latest release notes covering GKGuard C2 workbench regression fixes, unified entry wording, result-heading/update-button spacing, event-detail and candidate-person drawer fixes, target overlays for person-attribute search, current-day time display, explicit time-range submission, and date-input limits.
 - [releases/v0.3.0.md](releases/v0.3.0.md): GKGuard C2 workbench UI redesign, fixed navigation, evidence-first detail layout, candidate-person drawer, event-detail drawer, and responsive-layout verification.
 - [releases/v0.2.3.md](releases/v0.2.3.md): CampusVision C1 re-index failure recovery, database write-lock isolation, over-limit query-image temporary-file cleanup, and contribution-template wording alignment.
 - [releases/v0.2.2.md](releases/v0.2.2.md): CampusVision C1 query-image candidate Query-parameter alignment, 4xx validation-error propagation, 5xx service-error detail sanitization, input-validation failures without desktop reconnection, single highlighting for duplicate-mapped route points, and route-highlight boundaries for unmapped trailing records.

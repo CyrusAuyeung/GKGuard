@@ -706,6 +706,7 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(requestPayload.person_scope).toBe("all");
     expect(requestPayload.include_candidates).toBe(true);
     expect(requestPayload.candidate_pool_size).toBe(5000);
+    expect(requestPayload.time_range).toBeNull();
     expect(requestPayload.min_score).toBe(0.4);
     expect(requestPayload.limit).toBe(8);
     await expect(page.locator("#resultViewTitle")).toHaveText("人物特征搜索结果");
@@ -783,10 +784,17 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
     await expect(page.locator("#recordTitle")).toHaveText("记录10");
+    await page.locator("#resultRecordList .record-card").first().click();
+    await expect(page.locator("#recordTitle")).toHaveText("记录1");
+    await page.locator("#openEventDetailBtn").click();
+    await expect(page.locator("#eventDetailDrawer")).toHaveClass(/is-visible/);
+    await page.getByRole("button", { name: "在主视图定位现场图" }).click();
+    await expect(page.locator("#eventDetailDrawer")).toBeHidden();
+    await expect(page.locator("#recordTitle")).toHaveText("记录1");
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
     await expect(page.locator("#routeView")).toHaveClass(/is-active/);
-    await expect(page.locator("#routeCurrentRecord")).toContainText("记录10");
-    await expect(page.locator("#routeTimelineRows .timeline-row").first()).toHaveClass(/is-active/);
+    await expect(page.locator("#routeCurrentRecord")).toContainText("记录1");
+    await expect(page.locator("#routeTimelineRows .timeline-row.is-active")).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
     expect(problems).toEqual([]);
   });

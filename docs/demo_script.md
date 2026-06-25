@@ -35,7 +35,7 @@ GKGuard 不保存、不读取、不记录 SSH 密码。
 当前版本包含的 CampusVision C1 人物特征搜索不需要上传查询图，适合演示“按条件查事件”的入口；该入口位于 GKGuard C2 工作台左侧导航的 `人物特征搜索`，与 `人脸以图搜人` 共用结果页、候选人物抽屉、事件详情抽屉、路线联动和导出模型。
 
 1. 在搜索页切换到 `人物特征搜索`。
-2. 选择上装颜色、眼镜状态、外观倾向、摄像头、时间范围、最低匹配分和返回数量；条件可以留空，留空表示不限制。
+2. 选择上装颜色、眼镜状态、外观倾向、摄像头、最低匹配分和返回数量；时间输入默认显示用户当天 `00:00` 至 `23:59`，只有编辑后才作为筛选条件提交；其他条件可以留空，留空表示不限制。
 3. 点击 `开始检索`。GKGuard C2 会调用 `/c1/query/person-attributes`，后端再代理到 CampusVision C1 的 `/api/v1/query/person-attributes`。
 4. 结果页标题会切换为 `人物特征搜索结果`，记录列表优先展示事件人体图，其次回退事件关键帧或人脸图。
 5. 详情区显示事件关键帧、人体图或人脸图，并在 `相关信息` 中展示上装颜色、眼镜状态、外观倾向、匹配类型、未满足条件和条件评分。
@@ -319,7 +319,7 @@ Expected result without CampusVision C1, after a CampusVision C1 failure, or wit
 The current CampusVision C1 person-attribute search does not require a query image and is suitable for demonstrating event lookup by conditions. The entry sits in the GKGuard C2 workbench's left navigation as `人物特征搜索`, and shares the result page, candidate-person drawer, event-detail drawer, route synchronization, and export model with `人脸以图搜人`.
 
 1. Switch to `人物特征搜索` on the search screen.
-2. Select upper color, glasses status, appearance presentation, camera, time range, minimum match score, and result limit. Any condition can be left empty to mean unrestricted.
+2. Select upper color, glasses status, appearance presentation, camera, minimum match score, and result limit. The time inputs display the user's current day from `00:00` to `23:59` by default and are submitted as filters only after editing; other conditions can be left empty to mean unrestricted.
 3. Click `开始检索`. GKGuard C2 calls `/c1/query/person-attributes`, and the backend proxies it to CampusVision C1 `/api/v1/query/person-attributes`.
 4. The result title changes to `人物特征搜索结果`. The record list prefers event body crops, then falls back to event keyframes or face crops.
 5. The detail panel shows the event keyframe, body crop, or face crop, and `相关信息` shows upper color, glasses status, appearance presentation, match type, failed conditions, and condition scores.
