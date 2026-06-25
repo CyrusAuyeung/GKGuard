@@ -264,6 +264,7 @@ export function createManualEditRoutes({
         }
         const token = payload.token || url.searchParams.get('token');
         if (token !== getToken()) { res.writeHead(401); res.end('Unauthorized'); return; }
+        setCorsHeaders(req, res);
         const pageUrl = payload.pageUrl || url.searchParams.get('pageUrl') || null;
         const action = String(payload.action || url.searchParams.get('action') || '').trim().toLowerCase();
         if (action !== 'rollback') {
