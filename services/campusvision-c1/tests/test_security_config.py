@@ -290,10 +290,13 @@ def test_face_image_query_uses_upload_limit_guard() -> None:
         '@router.post("/query/person-attributes")',
         1,
     )[0]
+    service_call_segment = route_segment.split("person_service.query_face_image_candidates", 1)[1]
 
     assert "_validate_query_upload_count(files)" in route_segment
-    assert "except search_service.QueryImageTooLarge" in route_segment
-    assert "_cleanup_query_uploads(paths, temp_search_id)" in route_segment
+    assert route_segment.count("except search_service.QueryImageTooLarge") >= 2
+    assert route_segment.count("_cleanup_query_uploads(paths, temp_search_id)") >= 2
+    assert "except search_service.QueryImageTooLarge" in service_call_segment
+    assert "_cleanup_query_uploads(paths, temp_search_id)" in service_call_segment
 
 
 def test_manual_live_capture_stamps_recorded_at() -> None:
