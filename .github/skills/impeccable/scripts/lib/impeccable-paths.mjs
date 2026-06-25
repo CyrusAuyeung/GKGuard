@@ -59,6 +59,10 @@ export function getLiveServerPath(cwd = process.cwd(), options = {}) {
   return path.join(getLiveDir(cwd, options), 'server.json');
 }
 
+export function getLiveTokenPath(cwd = process.cwd(), options = {}) {
+  return path.join(getLiveDir(cwd, options), 'token.json');
+}
+
 export function getLegacyLiveServerPath(cwd = process.cwd(), options = {}) {
   return path.join(resolveProjectRoot(cwd, options), '.impeccable-live.json');
 }
@@ -95,6 +99,28 @@ export function writeLiveServerInfo(cwd = process.cwd(), info, options = {}) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(info));
   return filePath;
+}
+
+export function readLiveToken(cwd = process.cwd(), options = {}) {
+  try {
+    const filePath = getLiveTokenPath(cwd, options);
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+    return typeof data?.token === 'string' && data.token ? data.token : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLiveToken(cwd = process.cwd(), token, options = {}) {
+  if (!token) return null;
+  const filePath = getLiveTokenPath(cwd, options);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify({ token }));
+  return filePath;
+}
+
+export function removeLiveToken(cwd = process.cwd(), options = {}) {
+  try { fs.unlinkSync(getLiveTokenPath(cwd, options)); } catch {}
 }
 
 export function removeLiveServerInfo(cwd = process.cwd(), options = {}) {

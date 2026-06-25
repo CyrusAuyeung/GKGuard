@@ -37,8 +37,11 @@ import {
   getLiveDir,
   getLiveAnnotationsDir,
   readLiveServerInfo,
+  readLiveToken,
   removeLiveServerInfo,
+  removeLiveToken,
   resolveDesignSidecarPath,
+  writeLiveToken,
   writeLiveServerInfo,
 } from './lib/impeccable-paths.mjs';
 import { countByPage as countPendingByPage } from './live/manual-edits-buffer.mjs';
@@ -743,6 +746,7 @@ function createRequestHandler({ detectScript, liveScriptParts }) {
     if (p === '/stop') {
       const token = url.searchParams.get('token');
       if (token !== state.token) { res.writeHead(401); res.end('Unauthorized'); return; }
+      if (url.searchParams.get('clearToken') === '1') removeLiveToken(process.cwd());
       res.writeHead(200, { 'Content-Type': 'text/plain' });
       res.end('stopping');
       shutdown();
@@ -1055,7 +1059,10 @@ if (args.includes('stop')) {
   const keepInject = args.includes('--keep-inject');
   try {
     const { info } = readLiveServerInfo(process.cwd()) || {};
-    const res = await fetch(`http://localhost:${info.port}/stop?token=${info.token}`);
+    const stopUrl = new URL(`http://localhost:${info.port}/stop`);
+    stopUrl.searchParams.set('token', info.token);
+    if (!keepInject) stopUrl.searchParams.set('clearToken', '1');
+    const res = await fetch(stopUrl);
     if (res.ok) console.log(`Stopped live server on port ${info.port}.`);
   } catch {
     console.log('No running live server found.');
@@ -1132,7 +1139,7 @@ if (existingRecord?.info) {
   }
 }
 
-state.token = randomUUID();
+state.token = readLiveToken(process.cwd()) || randomUUID();
 state.sessionStore = createLiveSessionStore({ cwd: process.cwd() });
 manualApply.rollbackTransaction({
   reason: 'manual_edit_server_start_recovered_abandoned_transaction',
@@ -1153,6 +1160,7 @@ const { detectScript, liveScriptParts } = loadBrowserScripts();
 httpServer = http.createServer(createRequestHandler({ detectScript, liveScriptParts }));
 
 httpServer.listen(state.port, '127.0.0.1', () => {
+  writeLiveToken(process.cwd(), state.token);
   writeLiveServerInfo(process.cwd(), { pid: process.pid, port: state.port, token: state.token });
   const url = `http://localhost:${state.port}`;
   console.log(`\nImpeccable live server running on ${url}`);
