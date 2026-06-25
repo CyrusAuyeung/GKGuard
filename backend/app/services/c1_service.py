@@ -651,6 +651,37 @@ def _record_from_event(event: dict[str, Any], index: int) -> dict[str, Any]:
     face_url = _absolute_media_url(event.get("representative_face_crop_url"))
     body_url = _absolute_media_url(event.get("representative_body_crop_url"))
     score = _first_number(event.get("score"), event.get("match_score"), event.get("identity_confidence"), 0)
+    image_width = _first_number(
+        event.get("image_width"),
+        event.get("frame_width"),
+        event.get("representative_frame_width"),
+    )
+    image_height = _first_number(
+        event.get("image_height"),
+        event.get("frame_height"),
+        event.get("representative_frame_height"),
+    )
+    face_box = _normalize_bbox(
+        event.get("face_box")
+        or event.get("face_bbox")
+        or event.get("representative_face_box")
+        or event.get("representative_face_bbox")
+        or event.get("bbox"),
+        image_width=image_width,
+        image_height=image_height,
+    )
+    person_box = _normalize_bbox(
+        event.get("person_box")
+        or event.get("person_bbox")
+        or event.get("body_box")
+        or event.get("body_bbox")
+        or event.get("representative_person_box")
+        or event.get("representative_person_bbox")
+        or event.get("representative_body_box")
+        or event.get("representative_body_bbox"),
+        image_width=image_width,
+        image_height=image_height,
+    )
     note_parts = []
     upper_color = event.get("upper_color") or event.get("normalized_upper_color")
     if upper_color and upper_color != "unknown":
@@ -673,12 +704,18 @@ def _record_from_event(event: dict[str, Any], index: int) -> dict[str, Any]:
         "camera": event.get("camera_name") or camera_id,
         "cameraId": camera_id,
         "similarity": float(score or 0),
-        "note": "；".join(note_parts) or "来自 CampusVision C1 的人物特征检索结果",
+        "note": "；".join(note_parts) or "来自 CampusVision C1 的人物特征搜索结果",
         "sceneClass": f"scene-{((index - 1) % 5) + 1}",
         "progress": min(92, max(8, 8 + index * 13)),
         "frameUrl": frame_url,
         "faceUrl": face_url,
-        "thumbnailUrl": body_url or face_url or frame_url,
+        "bodyCropUrl": body_url,
+        "thumbnailUrl": face_url or body_url or frame_url,
+        "faceBox": face_box,
+        "personBox": person_box,
+        "bodyBox": person_box,
+        "frameWidth": image_width,
+        "frameHeight": image_height,
         "eventId": event.get("event_id"),
         "personId": event.get("person_id"),
         "videoId": event.get("video_id"),

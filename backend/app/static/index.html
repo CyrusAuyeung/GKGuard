@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>GKGuard 智能检索</title>
-    <link rel="stylesheet" href="/static/styles.css?v=v0.3.0-ui" />
+    <link rel="stylesheet" href="/static/styles.css?v=v0.3.1-ui" />
   </head>
   <body>
     <svg class="icon-defs" aria-hidden="true" focusable="false">
@@ -94,16 +94,11 @@
             <svg class="ui-icon face-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
             <div>
               <h1>智能检索</h1>
-              <p>支持目标人脸图片检索与人物特征检索，定位 CampusVision C1 关键帧事件</p>
+              <p>支持人脸以图搜人与人物特征搜索，定位 CampusVision C1 关键帧事件</p>
             </div>
           </header>
 
-          <div class="search-mode-tabs" role="tablist" aria-label="检索模式">
-            <button id="faceSearchTab" class="search-mode-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="faceSearchPane">人脸图片检索</button>
-            <button id="attributeSearchTab" class="search-mode-tab" type="button" role="tab" aria-selected="false" aria-controls="attributeSearchPane">人物特征检索</button>
-          </div>
-
-          <div id="faceSearchPane" class="search-mode-pane is-active" role="tabpanel" aria-labelledby="faceSearchTab">
+          <div id="faceSearchPane" class="search-mode-pane is-active">
           <div class="search-layout">
             <section class="upload-panel" aria-label="上传图片">
               <h2>上传图片</h2>
@@ -120,12 +115,12 @@
               <div class="time-row">
                 <label>
                   <span>查询起始时间</span>
-                  <input id="startTime" type="datetime-local" value="2025-05-24T00:00" />
+                  <input id="startTime" type="datetime-local" max="9999-12-31T23:59" />
                 </label>
                 <span class="range-dash" aria-hidden="true"></span>
                 <label>
                   <span>结束时间</span>
-                  <input id="endTime" type="datetime-local" value="2025-05-24T23:59" />
+                  <input id="endTime" type="datetime-local" max="9999-12-31T23:59" />
                 </label>
               </div>
 
@@ -149,16 +144,16 @@
           <footer class="info-banner"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg>检索源：历史监控关键帧，人脸结果将进入记录详情与路线图。</footer>
           </div>
 
-          <div id="attributeSearchPane" class="search-mode-pane" role="tabpanel" aria-labelledby="attributeSearchTab" hidden>
-            <section class="attribute-search-panel" aria-label="人物特征检索">
+          <div id="attributeSearchPane" class="search-mode-pane" hidden>
+            <section class="attribute-search-panel" aria-label="人物特征搜索">
               <div class="attribute-panel-heading">
                 <div>
-                  <h2>人物特征检索</h2>
+                  <h2>人物特征搜索</h2>
                   <p>按上装颜色、眼镜状态、外观倾向、时间范围和摄像头筛选 CampusVision C1 事件。</p>
                 </div>
                 <button id="startAttributeSearchBtn" class="primary-action attribute-search-action" type="button">
                   <svg class="ui-icon search-action-icon" aria-hidden="true"><use href="#icon-search"></use></svg>
-                  开始特征检索
+                  开始特征搜索
                 </button>
               </div>
 
@@ -208,11 +203,11 @@
                 </label>
                 <label>
                   <span>查询起始时间</span>
-                  <input id="attributeStartTime" type="datetime-local" value="2025-05-24T00:00" />
+                  <input id="attributeStartTime" type="datetime-local" max="9999-12-31T23:59" />
                 </label>
                 <label>
                   <span>结束时间</span>
-                  <input id="attributeEndTime" type="datetime-local" value="2025-05-24T23:59" />
+                  <input id="attributeEndTime" type="datetime-local" max="9999-12-31T23:59" />
                 </label>
                 <label>
                   <span>最低匹配分</span>
@@ -224,7 +219,7 @@
                 </label>
               </div>
 
-              <footer class="info-banner attribute-info"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg>特征检索不需要上传图片；结果来自 CampusVision C1 的事件、观测和人物属性分析。</footer>
+              <footer class="info-banner attribute-info"><svg class="ui-icon info-icon" aria-hidden="true"><use href="#icon-info"></use></svg>人物特征搜索不需要上传图片；结果来自 CampusVision C1 的事件、观测和人物属性分析。</footer>
             </section>
           </div>
         </article>
@@ -234,8 +229,8 @@
         <header class="screen-heading">
           <svg class="ui-icon face-icon" aria-hidden="true"><use href="#icon-face-search"></use></svg>
           <div>
-            <h1 id="resultViewTitle">人脸检索结果</h1>
-            <p id="resultViewSubtitle">基于上传目标人脸，在历史监控关键帧中检索到相关记录</p>
+            <h1 id="resultViewTitle">人脸以图搜人结果</h1>
+            <p id="resultViewSubtitle">基于上传目标人脸，在 CampusVision C1 关键帧中检索到相关记录</p>
           </div>
         </header>
 
@@ -442,6 +437,6 @@
         <span id="toastMessage" class="toast-message"></span>
       </span>
     </div>
-    <script src="/static/app.js?v=v0.3.0-ui" defer></script>
+    <script src="/static/app.js?v=v0.3.1-ui" defer></script>
   </body>
 </html>

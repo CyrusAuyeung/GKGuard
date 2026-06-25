@@ -1,4 +1,4 @@
-﻿<p align="right">
+<p align="right">
   <a href="#中文"><kbd>中文</kbd></a>
   <a href="#english"><kbd>English</kbd></a>
 </p>
@@ -185,7 +185,7 @@ npm run dist:linux
 
 ## UI 与前端约束
 
-- 保持 `v0.3.0` GKGuard C2 工作台 / Evidence Desk 视觉方向：固定左侧导航承载 `人脸以图搜人` 与 `人物特征搜索`，结果页以左侧目标人物与检索记录、右侧证据详情为主，候选人物和事件详情使用右侧抽屉保留上下文。
+- 保持 `v0.3.x` GKGuard C2 工作台 / Evidence Desk 视觉方向：固定左侧导航承载 `人脸以图搜人` 与 `人物特征搜索`，结果页以左侧目标人物与检索记录、右侧证据详情为主，候选人物和事件详情使用右侧抽屉保留上下文。
 - 使用 Impeccable 设计约束时，应以 `PRODUCT.md`、`DESIGN.md` 和 `.github/skills/impeccable/` 中的产品定位、设计系统和反模式为准；不要引入营销首页、装饰性仪表盘、霓虹监控风、过度渐变或暗色指挥中心风格。
 - 优先修复可用性、状态反馈、文案一致性、真实数据适配和响应式布局。
 - 结果页记录列表在桌面端位于左侧；移动端可使用横向滑动提示。
@@ -394,7 +394,7 @@ Do not rely on secret scanning as a substitute for manual review.
 
 ## UI And Frontend Constraints
 
-- Keep the `v0.3.0` GKGuard C2 Workbench / Evidence Desk visual direction: fixed left navigation for `人脸以图搜人` and `人物特征搜索`, result pages led by left-side target person plus result records and right-side evidence detail, and right-side drawers for candidate people and event details so context is preserved.
+- Keep the `v0.3.x` GKGuard C2 Workbench / Evidence Desk visual direction: fixed left navigation for `人脸以图搜人` and `人物特征搜索`, result pages led by left-side target person plus result records and right-side evidence detail, and right-side drawers for candidate people and event details so context is preserved.
 - When using Impeccable design constraints, treat `PRODUCT.md`, `DESIGN.md`, and `.github/skills/impeccable/` as the source for product positioning, design-system rules, and anti-patterns. Do not introduce marketing homepages, decorative dashboards, neon surveillance styling, excessive gradients, or dark command-center aesthetics.
 - Prioritize usability, state feedback, copy consistency, real-data adaptation, and responsive layout.
 - On desktop result pages, the record list stays on the left. Mobile views may use horizontal-scroll hints.

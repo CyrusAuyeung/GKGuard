@@ -1012,6 +1012,16 @@ def _event_from_row(
         and data.get("representative_observation_id")
     ):
         representative_observation = get_person_observation(data["representative_observation_id"])
+    data["representative_observation"] = representative_observation
+    representative_person_bbox = (
+        representative_observation.get("person_bbox")
+        if representative_observation and representative_observation.get("person_bbox")
+        else None
+    )
+    data["person_bbox"] = representative_person_bbox
+    data["body_bbox"] = representative_person_bbox
+    data["representative_person_bbox"] = representative_person_bbox
+    data["representative_body_bbox"] = representative_person_bbox
     data["body_visibility"] = (
         representative_observation.get("body_visibility") if representative_observation else None
     )

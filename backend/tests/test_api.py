@@ -43,16 +43,16 @@ def test_demo_page_available() -> None:
     response = client.get("/demo")
     assert response.status_code == 200
     assert "GKGuard 智能检索" in response.text
-    assert "人物特征检索" in response.text
-    assert "人脸检索结果" in response.text
+    assert "人物特征搜索" in response.text
+    assert "人脸以图搜人结果" in response.text
     assert "人物路线图" in response.text
     assert "desktopUpdatePanel" in response.text
     assert "mediaViewer" in response.text
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.3.0-ui" in response.text
-    assert "/static/app.js?v=v0.3.0-ui" in response.text
+    assert "/static/styles.css?v=v0.3.1-ui" in response.text
+    assert "/static/app.js?v=v0.3.1-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:

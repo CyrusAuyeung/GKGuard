@@ -627,7 +627,7 @@ test.describe("GKGuard C2 demo UI", () => {
               frameUrl: "/static/icons/app-mark.png",
               faceUrl: "/static/icons/app-mark.png",
               thumbnailUrl: "/static/icons/app-mark.png",
-              faceBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
+              personBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
               eventId: "later-high-score",
               attributes: {
                 upperColor: "blue",
@@ -672,7 +672,23 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await page.goto("/demo?desktop=1&e2e=attribute-search");
     await expectHealthyPage(page, problems);
-    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await expect(page.locator(".search-mode-tabs")).toHaveCount(0);
+    const defaultRange = await page.evaluate(() => {
+      const pad = (value) => String(value).padStart(2, "0");
+      const today = new Date();
+      const day = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      return { start: `${day}T00:00`, end: `${day}T23:59` };
+    });
+    await expect(page.locator("#startTime")).toHaveValue(defaultRange.start);
+    await expect(page.locator("#endTime")).toHaveValue(defaultRange.end);
+    await expect(page.locator("#attributeStartTime")).toHaveValue(defaultRange.start);
+    await expect(page.locator("#attributeEndTime")).toHaveValue(defaultRange.end);
+    await page.locator("#endTime").evaluate((input) => {
+      input.value = "202500-01-31T06:52";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await expect(page.locator("#endTime")).toHaveValue("2025-01-31T06:52");
+    await page.getByRole("button", { name: "人物特征搜索" }).click();
     await page.locator("#upperColorFilter").selectOption("blue");
     await page.locator("#glassesStatusFilter").selectOption("glasses");
     await page.locator("#genderPresentationFilter").selectOption("masculine");
@@ -692,12 +708,22 @@ test.describe("GKGuard C2 demo UI", () => {
     expect(requestPayload.candidate_pool_size).toBe(5000);
     expect(requestPayload.min_score).toBe(0.4);
     expect(requestPayload.limit).toBe(8);
-    await expect(page.locator("#resultViewTitle")).toHaveText("人物特征检索结果");
-    await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1 · 特征检索");
+    await expect(page.locator("#resultViewTitle")).toHaveText("人物特征搜索结果");
+    await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1 · 特征搜索");
     await expect(page.locator("#recordTitle")).toHaveText("记录1");
     await expect(page.locator("#recordInfo")).toContainText("上衣颜色");
     await expect(page.locator("#recordInfo")).toContainText("佩戴眼镜");
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
+    await expect(page.locator("#recordScene .result-face-box")).toBeVisible();
+    await page.locator("#openCandidatesBtn").click();
+    await expect(page.locator("#candidateDrawer")).toHaveClass(/is-visible/);
+    await expect(page.locator("#candidateList .candidate-card")).toHaveCount(3);
+    await page.locator("#candidateDrawerClose").click();
+    await page.locator("#openEventDetailBtn").click();
+    await expect(page.locator("#eventDetailDrawer")).toHaveClass(/is-visible/);
+    await expect(page.locator("#eventDetailDrawer .event-detail-row").first()).toContainText("出现时间：");
+    await page.getByRole("button", { name: "在主视图定位现场图" }).click();
+    await expect(page.locator("#eventDetailDrawer")).toBeHidden();
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
     await expect(page.locator("#routeView")).toHaveClass(/is-active/);
     await page.locator("#routeTimelineRows .timeline-row").first().click();
@@ -751,7 +777,7 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await page.goto("/demo?desktop=1&e2e=attribute-route-gap");
     await expectHealthyPage(page, problems);
-    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.getByRole("button", { name: "人物特征搜索" }).click();
     await page.locator("#upperColorFilter").selectOption("blue");
     await page.locator("#startAttributeSearchBtn").click();
 
@@ -1484,7 +1510,7 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await page.goto("/demo?desktop=1&e2e=attribute-validation-error");
     await expectHealthyPage(page, problems);
-    await page.getByRole("tab", { name: "人物特征检索" }).click();
+    await page.getByRole("button", { name: "人物特征搜索" }).click();
     await page.locator("#upperColorFilter").selectOption("blue");
     await page.locator("#startAttributeSearchBtn").click();
 
