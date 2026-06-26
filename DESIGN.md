@@ -83,7 +83,7 @@ The visual system is restrained and task-oriented. It uses cool neutral surfaces
 
 - Fixed left navigation with two primary entries.
 - Evidence imagery and route context are the main visual material.
-- Candidate comparison and event details use right-side drawers to preserve context.
+- Candidate comparison uses a right-side drawer to preserve context; concrete event evidence remains in the main result detail area.
 - Status labels are concise and model-aware.
 - Responsive behavior reorganizes panels instead of shrinking text.
 
@@ -190,7 +190,7 @@ Keyframes, body crops, face crops, and query images preserve aspect ratio. Overl
 
 ### Drawers
 
-Candidate-person and event-detail drawers slide from the right, cover part of the current workspace, and preserve the underlying context. They must include close controls, focus-visible states, and recoverable loading/error states.
+Candidate-person drawers slide from the right, cover part of the current workspace, and preserve the underlying context while grouping matches by person identity. They must include close controls, focus-visible states, and recoverable loading/error states. Event evidence stays in the main detail surface unless a future workflow adds genuinely new event data.
 
 ## 6. Do's and Don'ts
 
@@ -201,7 +201,7 @@ Candidate-person and event-detail drawers slide from the right, cover part of th
 - **Do** show "无法判断" for unknown attributes.
 - **Do** separate "完全匹配" and "相似结果" visibly in person-attribute search.
 - **Do** keep low-confidence or partial-match states available for human review.
-- **Do** use drawers for candidate switching and event detail when context should remain visible.
+- **Do** use drawers for candidate switching when context should remain visible; keep event evidence in the main detail surface unless a future workflow adds genuinely new event data.
 - **Do** test desktop, medium-width, and mobile/narrow viewports.
 
 ### Don't:

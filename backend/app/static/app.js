@@ -63,7 +63,6 @@ const elements = {
   newSearchBtn: document.querySelector("#newSearchBtn"),
   routeNewSearchBtn: document.querySelector("#routeNewSearchBtn"),
   openCandidatesBtn: document.querySelector("#openCandidatesBtn"),
-  openEventDetailBtn: document.querySelector("#openEventDetailBtn"),
   toast: document.querySelector("#toast"),
   toastTitle: document.querySelector("#toastTitle"),
   toastMessage: document.querySelector("#toastMessage"),
@@ -89,11 +88,6 @@ const elements = {
   candidateDrawer: document.querySelector("#candidateDrawer"),
   candidateDrawerClose: document.querySelector("#candidateDrawerClose"),
   candidateList: document.querySelector("#candidateList"),
-  eventDetailDrawer: document.querySelector("#eventDetailDrawer"),
-  eventDetailClose: document.querySelector("#eventDetailClose"),
-  eventDetailTitle: document.querySelector("#eventDetailTitle"),
-  eventDetailSubtitle: document.querySelector("#eventDetailSubtitle"),
-  eventDetailBody: document.querySelector("#eventDetailBody"),
 };
 
 const records = [
@@ -145,6 +139,7 @@ let queryFaceModalBaseScale = 1;
 let lastC1Notice = "";
 let activeSource = "mock";
 let candidatePeople = [];
+let selectedCandidateKey = "";
 let toastTimer = null;
 let lastFocusedElement = null;
 let attributeTimeRangeTouched = false;
@@ -563,12 +558,15 @@ function renderUploadPortrait(target) {
 
 function renderTargetPortrait(target) {
   target.textContent = "";
-  const portraitUrl = selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl;
+  const selectedRecord = records[selectedRecordIndex];
+  const portraitUrl = activeResultMode === "attributes" && selectedRecord
+    ? (recordPortraitUrl(selectedRecord) || matchedPersonImageUrl || uploadedImageUrl)
+    : (selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl);
   appendPortraitImage(target, portraitUrl, "目标人物照片");
 }
 
 function recordThumbMarkup(record) {
-  const thumbUrl = record.thumbnailUrl || record.faceUrl || record.frameUrl;
+  const thumbUrl = recordFaceUrl(record) || safeImageUrl(record.thumbnailUrl || record.thumbnail_url || record.frameUrl || record.frame_url);
   if (thumbUrl) {
     return `<span class="mini-face has-thumb"><img src="${escapeHtml(thumbUrl)}" alt="${escapeHtml(record.title)} 缩略图" /></span>`;
   }
@@ -576,7 +574,79 @@ function recordThumbMarkup(record) {
 }
 
 function recordFrameUrl(record) {
-  return safeImageUrl(record?.frameUrl);
+  return safeImageUrl(record?.frameUrl || record?.frame_url);
+}
+
+function recordPersonId(record) {
+  return firstDefined(
+    record?.personId,
+    record?.person_id,
+    record?.targetPersonId,
+    record?.target_person_id,
+    record?.identityId,
+    record?.identity_id,
+    record?.person?.personId,
+    record?.person?.person_id,
+    record?.person?.id,
+    record?.targetPerson?.personId,
+    record?.targetPerson?.person_id,
+    record?.target_person?.personId,
+    record?.target_person?.person_id,
+    record?.identity?.personId,
+    record?.identity?.person_id,
+    record?.identity?.id,
+    record?.rawEvent?.personId,
+    record?.rawEvent?.person_id,
+    record?.raw_event?.personId,
+    record?.raw_event?.person_id,
+    record?.event?.personId,
+    record?.event?.person_id,
+    record?.appearance?.personId,
+    record?.appearance?.person_id,
+    record?.match?.personId,
+    record?.match?.person_id,
+    record?.candidate?.personId,
+    record?.candidate?.person_id,
+  );
+}
+
+function recordFaceUrl(record) {
+  return safeImageUrl(firstDefined(
+    record?.faceCropUrl,
+    record?.face_crop_url,
+    record?.targetFaceCropUrl,
+    record?.target_face_crop_url,
+    record?.representativeFaceUrl,
+    record?.representative_face_url,
+    record?.representativeFaceCropUrl,
+    record?.representative_face_crop_url,
+    record?.faceUrl,
+    record?.face_url,
+    record?.thumbnailUrl,
+    record?.thumbnail_url,
+  ));
+}
+
+function recordPortraitUrl(record) {
+  return recordFaceUrl(record)
+    || safeImageUrl(firstDefined(
+      record?.bodyCropUrl,
+      record?.body_crop_url,
+      record?.bodyUrl,
+      record?.body_url,
+      record?.frameUrl,
+      record?.frame_url,
+    ));
+}
+
+function recordIdentityKey(record, index = 0) {
+  const personId = recordPersonId(record);
+  if (personId) return `id:${personId}`;
+  return `record:${index}`;
+}
+
+function recordEventKey(record, index = 0) {
+  return String(firstDefined(record?.eventId, record?.event_id, record?.id, index));
 }
 
 function firstDefined(...values) {
@@ -617,7 +687,17 @@ function normalizeOverlayBox(rawBox) {
 
 function recordTargetBox(record) {
   if (activeResultMode === "attributes") {
-    return record?.personBox
+    return record?.faceBox
+      || record?.targetFaceBox
+      || record?.target_face_box
+      || record?.faceBbox
+      || record?.face_bbox
+      || record?.representativeFaceBox
+      || record?.representative_face_box
+      || record?.representative_face_bbox
+      || record?.targetBox
+      || record?.target_box
+      || record?.personBox
       || record?.person_box
       || record?.personBbox
       || record?.person_bbox
@@ -631,16 +711,6 @@ function recordTargetBox(record) {
       || record?.representativePersonBox
       || record?.representative_person_box
       || record?.representative_person_bbox
-      || record?.targetBox
-      || record?.target_box
-      || record?.faceBox
-      || record?.targetFaceBox
-      || record?.target_face_box
-      || record?.faceBbox
-      || record?.face_bbox
-      || record?.representativeFaceBox
-      || record?.representative_face_box
-      || record?.representative_face_bbox
       || record?.bbox
       || record?.box
       || null;
@@ -676,6 +746,16 @@ function recordTargetBox(record) {
 
 function recordTargetBoxKind(record) {
   if (
+    record?.faceBox
+    || record?.targetFaceBox
+    || record?.target_face_box
+    || record?.faceBbox
+    || record?.face_bbox
+    || record?.representativeFaceBox
+    || record?.representative_face_box
+    || record?.representative_face_bbox
+  ) return "face";
+  if (
     activeResultMode === "attributes"
     && (
       record?.personBox
@@ -694,16 +774,6 @@ function recordTargetBoxKind(record) {
       || record?.representative_person_bbox
     )
   ) return "person";
-  if (
-    record?.faceBox
-    || record?.targetFaceBox
-    || record?.target_face_box
-    || record?.faceBbox
-    || record?.face_bbox
-    || record?.representativeFaceBox
-    || record?.representative_face_box
-    || record?.representative_face_bbox
-  ) return "face";
   return "person";
 }
 
@@ -1332,6 +1402,7 @@ function resetToMockData() {
   records.splice(0, records.length, ...mockRecords.map((record) => ({ ...record })));
   routePoints.splice(0, routePoints.length, ...mockRoutePoints.map((point) => ({ ...point })));
   candidatePeople = [];
+  selectedCandidateKey = "";
   activeSource = "mock";
   activeResultMode = "face";
   lastC1Notice = "";
@@ -1350,7 +1421,6 @@ function resetSearchInput() {
   if (elements.uploadHint) elements.uploadHint.textContent = "支持 JPG / PNG，建议上传清晰正脸照片";
   resetToMockData();
   closeCandidateDrawer();
-  closeEventDetailDrawer();
   syncPortraits();
   renderRecordLists();
   renderSelectedRecord();
@@ -1384,6 +1454,7 @@ async function applyC1Result(result) {
     result?.near_misses,
   ].filter(Array.isArray);
   candidatePeople = candidateBuckets.flat();
+  selectedCandidateKey = "";
   const resultPersonId = result?.person?.personId || result?.person?.person_id || result?.person?.id;
   if (result?.person && result?.mode !== "person-attributes" && resultPersonId && !candidatePeople.includes(result.person)) {
     candidatePeople.push(result.person);
@@ -1438,9 +1509,8 @@ async function applyC1Result(result) {
   }
   if (!matchedPersonImageUrl && activeResultMode === "attributes") {
     const firstCandidate = fallbackCandidatePeople()[0];
-    matchedPersonImageUrl = candidateFaceUrl(firstCandidate)
-      || safeImageUrl(records[0]?.faceUrl)
-      || safeImageUrl(records[0]?.thumbnailUrl)
+    matchedPersonImageUrl = recordPortraitUrl(records[0])
+      || candidateFaceUrl(firstCandidate)
       || safeImageUrl(records[0]?.bodyCropUrl)
       || safeImageUrl(records[0]?.body_crop_url)
       || safeImageUrl(records[0]?.frameUrl)
@@ -1579,7 +1649,27 @@ function recordAttributeInfoMarkup(record) {
 }
 
 function candidatePersonId(candidate, index) {
-  return candidate?.personId || candidate?.person_id || candidate?.id || `候选人物 ${index + 1}`;
+  return candidate?.displayName
+    || candidate?.display_name
+    || candidate?.name
+    || candidate?.personId
+    || candidate?.person_id
+    || candidate?.identityId
+    || candidate?.identity_id
+    || candidate?.person?.displayName
+    || candidate?.person?.display_name
+    || candidate?.person?.name
+    || candidate?.person?.personId
+    || candidate?.person?.person_id
+    || candidate?.person?.id
+    || candidate?.identity?.displayName
+    || candidate?.identity?.display_name
+    || candidate?.identity?.name
+    || candidate?.identity?.personId
+    || candidate?.identity?.person_id
+    || candidate?.identity?.id
+    || candidate?.id
+    || `候选人物 ${index + 1}`;
 }
 
 function candidateScore(candidate) {
@@ -1605,6 +1695,18 @@ function candidateFaceUrl(candidate) {
       || candidate?.thumbnail_url
       || candidate?.imageUrl
       || candidate?.image_url
+      || candidate?.person?.representativeFaceUrl
+      || candidate?.person?.representative_face_url
+      || candidate?.person?.faceCropUrl
+      || candidate?.person?.face_crop_url
+      || candidate?.person?.faceUrl
+      || candidate?.person?.face_url
+      || candidate?.identity?.representativeFaceUrl
+      || candidate?.identity?.representative_face_url
+      || candidate?.identity?.faceCropUrl
+      || candidate?.identity?.face_crop_url
+      || candidate?.identity?.faceUrl
+      || candidate?.identity?.face_url
       || candidate?.bodyCropUrl
       || candidate?.body_crop_url
       || candidate?.bodyUrl
@@ -1614,45 +1716,171 @@ function candidateFaceUrl(candidate) {
   );
 }
 
+function candidateIdentityKey(candidate, index) {
+  if (candidate?.identityKey) return String(candidate.identityKey);
+  const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);
+  if (Number.isInteger(recordIndex) && recordIndex >= 0 && recordIndex < records.length) {
+    return recordIdentityKey(records[recordIndex], recordIndex);
+  }
+  const id = firstDefined(
+    candidate?.personId,
+    candidate?.person_id,
+    candidate?.identityId,
+    candidate?.identity_id,
+    candidate?.person?.personId,
+    candidate?.person?.person_id,
+    candidate?.person?.id,
+    candidate?.identity?.personId,
+    candidate?.identity?.person_id,
+    candidate?.identity?.id,
+    candidate?.raw?.personId,
+    candidate?.raw?.person_id,
+    candidate?.rawEvent?.personId,
+    candidate?.rawEvent?.person_id,
+    candidate?.raw_event?.personId,
+    candidate?.raw_event?.person_id,
+    candidate?.event?.personId,
+    candidate?.event?.person_id,
+    candidate?.id,
+  );
+  if (id) return `id:${id}`;
+  return `candidate:${index}`;
+}
+
+function recordIndexFromEventId(eventId) {
+  if (!eventId) return null;
+  const index = records.findIndex((record) => String(recordEventKey(record)) === String(eventId));
+  return index >= 0 ? index : null;
+}
+
+function addCandidateRecordIndex(indices, value) {
+  const index = Number(value);
+  if (Number.isInteger(index) && index >= 0 && index < records.length) {
+    indices.add(index);
+  }
+}
+
+function candidateRecordIndices(candidate, identityKey = "") {
+  const indices = new Set();
+  addCandidateRecordIndex(indices, candidate?.recordIndex ?? candidate?.record_index);
+  if (Array.isArray(candidate?.recordIndices)) {
+    candidate.recordIndices.forEach((index) => addCandidateRecordIndex(indices, index));
+  }
+  if (Array.isArray(candidate?.record_indices)) {
+    candidate.record_indices.forEach((index) => addCandidateRecordIndex(indices, index));
+  }
+
+  [candidate?.records, candidate?.events, candidate?.matches].filter(Array.isArray).flat().forEach((item) => {
+    addCandidateRecordIndex(indices, item?.recordIndex ?? item?.record_index);
+    const eventIndex = recordIndexFromEventId(item?.eventId || item?.event_id || item?.id);
+    addCandidateRecordIndex(indices, eventIndex);
+    const nestedId = firstDefined(
+      item?.personId,
+      item?.person_id,
+      item?.identityId,
+      item?.identity_id,
+      item?.person?.personId,
+      item?.person?.person_id,
+      item?.person?.id,
+    );
+    if (nestedId) {
+      records.forEach((record, index) => {
+        if (recordIdentityKey(record, index) === `id:${nestedId}`) indices.add(index);
+      });
+    }
+  });
+
+  if (identityKey && !identityKey.startsWith("candidate:")) {
+    records.forEach((record, index) => {
+      if (recordIdentityKey(record, index) === identityKey) indices.add(index);
+    });
+  }
+
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
 function candidateFromRecord(record, index) {
+  const identityKey = recordIdentityKey(record, index);
+  const personId = recordPersonId(record);
   return {
-    personId: record?.personId || record?.person_id || record?.targetPersonId || record?.target_person_id || record?.title || `候选人物 ${index + 1}`,
+    identityKey,
+    personId: personId || record?.title || `候选人物 ${index + 1}`,
     score: record?.similarity,
     confidence: activeResultMode === "attributes" ? "attribute" : record?.identityStatus || record?.identity_status || "candidate",
     eventCount: 1,
-    representativeFaceUrl: record?.faceCropUrl || record?.face_crop_url || record?.faceUrl || record?.face_url || record?.representativeFaceUrl || record?.representative_face_crop_url || record?.representative_face_url || record?.thumbnailUrl || record?.thumbnail_url || record?.bodyCropUrl || record?.body_crop_url || record?.bodyUrl || record?.body_url || record?.frameUrl || record?.frame_url,
+    representativeFaceUrl: recordPortraitUrl(record),
     recordIndex: index,
+    recordIndices: [index],
     candidateSource: "record",
   };
 }
 
-function candidateDedupeKey(candidate, index) {
-  if (candidate?.candidateSource === "record") {
-    return `record:${candidate.recordIndex ?? index}`;
-  }
-  const id = candidate?.personId || candidate?.person_id || candidate?.id;
-  if (id) return `id:${id}`;
-  const image = candidateFaceUrl(candidate);
-  if (image) return `image:${image}`;
-  return `candidate:${index}`;
+function fallbackCandidatePeople() {
+  const groups = new Map();
+  const explicitCandidateCount = candidatePeople.filter(Boolean).length;
+  const pushCandidate = (candidate, index) => {
+    if (!candidate) return;
+    const identityKey = candidateIdentityKey(candidate, index);
+    const recordIndices = candidateRecordIndices(candidate, identityKey);
+    const eventKeys = new Set(recordIndices.map((recordIndex) => recordEventKey(records[recordIndex], recordIndex)));
+    let group = groups.get(identityKey);
+    if (!group) {
+      group = {
+        ...candidate,
+        identityKey,
+        score: null,
+        eventCount: 0,
+        representativeFaceUrl: candidateFaceUrl(candidate),
+        recordIndices: [],
+        _eventKeys: new Set(),
+      };
+      groups.set(identityKey, group);
+    }
+    const score = candidateScore(candidate);
+    if (score !== null && (group.score === null || score > group.score)) group.score = score;
+    if (!candidateFaceUrl(group)) group.representativeFaceUrl = candidateFaceUrl(candidate);
+    if (!group.confidence && (candidate?.confidence || candidate?.identityStatus || candidate?.identity_status)) {
+      group.confidence = candidate.confidence || candidate.identityStatus || candidate.identity_status;
+    }
+    recordIndices.forEach((recordIndex) => {
+      if (!group.recordIndices.includes(recordIndex)) group.recordIndices.push(recordIndex);
+    });
+    eventKeys.forEach((eventKey) => group._eventKeys.add(eventKey));
+    const explicitEventCount = candidateEventCount(candidate);
+    if (explicitEventCount > group.eventCount) group.eventCount = explicitEventCount;
+  };
+
+  candidatePeople.filter(Boolean).forEach(pushCandidate);
+  records.forEach((record, index) => {
+    if (explicitCandidateCount > 0 && !recordPersonId(record)) return;
+    pushCandidate(candidateFromRecord(record, index), explicitCandidateCount + index);
+  });
+
+  return Array.from(groups.values()).map((group, index) => {
+    group.recordIndices.sort((a, b) => a - b);
+    group.recordIndex = group.recordIndices[0] ?? group.recordIndex ?? 0;
+    group.eventCount = Math.max(group.eventCount, group._eventKeys.size, group.recordIndices.length);
+    group.displayName = candidatePersonId(group, index);
+    delete group._eventKeys;
+    return group;
+  }).sort((a, b) => {
+    const scoreA = candidateScore(a) ?? -1;
+    const scoreB = candidateScore(b) ?? -1;
+    return scoreB - scoreA || (b.eventCount || 0) - (a.eventCount || 0) || String(a.displayName).localeCompare(String(b.displayName));
+  });
 }
 
-function fallbackCandidatePeople() {
-  const explicitCandidates = candidatePeople.filter(Boolean);
-  const combined = (
-    explicitCandidates.length
-      ? explicitCandidates
-      : records.slice(0, 12).map(candidateFromRecord)
-  ).filter(Boolean);
-  const seen = new Set();
-  const deduped = [];
-  combined.forEach((candidate, index) => {
-    const key = candidateDedupeKey(candidate, index);
-    if (seen.has(key)) return;
-    seen.add(key);
-    deduped.push(candidate);
+function selectedCandidateRecordIndices() {
+  if (!selectedCandidateKey) return [];
+  const candidate = fallbackCandidatePeople().find((item, index) => {
+    const identityKey = item.identityKey || candidateIdentityKey(item, index);
+    return identityKey === selectedCandidateKey;
   });
-  return deduped;
+  if (!candidate) return [];
+  const recordIndices = Array.isArray(candidate.recordIndices)
+    ? candidate.recordIndices
+    : candidateRecordIndices(candidate, selectedCandidateKey);
+  return recordIndices.filter((index) => Number.isInteger(index) && index >= 0 && index < records.length);
 }
 
 function renderCandidateList() {
@@ -1664,34 +1892,50 @@ function renderCandidateList() {
     return;
   }
   if (elements.openCandidatesBtn) elements.openCandidatesBtn.disabled = false;
-  elements.candidateList.innerHTML = candidates.map((candidate, index) => {
+  const filterControls = selectedCandidateKey
+    ? '<button class="candidate-filter-clear" type="button" data-clear-candidate-filter>显示全部检索记录</button>'
+    : "";
+  elements.candidateList.innerHTML = filterControls + candidates.map((candidate, index) => {
     const faceUrl = candidateFaceUrl(candidate);
     const score = candidateScore(candidate);
     const confidence = candidate?.confidence || candidate?.identityStatus || candidate?.identity_status || "candidate";
-    const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);
-    const clickable = Number.isInteger(recordIndex) && recordIndex >= 0 && recordIndex < records.length;
+    const identityKey = candidate.identityKey || candidateIdentityKey(candidate, index);
+    const recordIndices = Array.isArray(candidate.recordIndices) ? candidate.recordIndices : candidateRecordIndices(candidate, identityKey);
+    const clickable = recordIndices.length > 0;
+    const active = selectedCandidateKey === identityKey || (!selectedCandidateKey && recordIndices.includes(selectedRecordIndex));
     return `
-      <article class="candidate-card ${index === 0 ? "is-primary" : ""} ${clickable ? "is-clickable" : ""}" ${clickable ? `data-record-index="${escapeHtml(recordIndex)}" role="button" tabindex="0"` : ""}>
+      <article class="candidate-card ${active ? "is-primary" : ""} ${clickable ? "is-clickable" : ""}" ${clickable ? `data-candidate-key="${escapeHtml(identityKey)}" role="button" tabindex="0"` : ""}>
         <div class="candidate-thumb">${faceUrl ? `<img src="${escapeHtml(faceUrl)}" alt="${escapeHtml(candidatePersonId(candidate, index))} 候选人脸" />` : '<span class="portrait-art"></span>'}</div>
         <div class="candidate-copy">
           <strong>${escapeHtml(candidatePersonId(candidate, index))}</strong>
           <span>相似度：${escapeHtml(formatPercent(score))}</span>
-          <span>事件数：${escapeHtml(String(candidateEventCount(candidate) || records.length || "--"))}</span>
+          <span>出现次数：${escapeHtml(String(candidateEventCount(candidate) || recordIndices.length || "--"))}</span>
           <span>状态：${escapeHtml(confidence)}</span>
         </div>
       </article>
     `;
   }).join("");
-  elements.candidateList.querySelectorAll("[data-record-index]").forEach((card) => {
+  elements.candidateList.querySelector("[data-clear-candidate-filter]")?.addEventListener("click", () => {
+    selectedCandidateKey = "";
+    renderRecordLists();
+    renderSelectedRecord();
+    renderRouteMap();
+    renderRouteTimeline();
+    renderCandidateList();
+  });
+  elements.candidateList.querySelectorAll("[data-candidate-key]").forEach((card) => {
     const activate = () => {
-      const index = clampRecordIndex(card.dataset.recordIndex || 0);
-      selectedRecordIndex = index;
-      selectedRouteIndex = routePointIndexForRecord(index);
+      selectedCandidateKey = card.dataset.candidateKey || "";
+      const candidate = candidates.find((item, index) => (item.identityKey || candidateIdentityKey(item, index)) === selectedCandidateKey);
+      const index = candidate?.recordIndices?.[0] ?? 0;
+      selectedRecordIndex = clampRecordIndex(index);
+      selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
       closeCandidateDrawer();
       renderRecordLists();
       renderSelectedRecord();
       renderRouteMap();
       renderRouteTimeline();
+      syncPortraits();
       window.requestAnimationFrame(() => elements.recordScene?.scrollIntoView({ behavior: "smooth", block: "center" }));
     };
     card.addEventListener("click", activate);
@@ -1720,79 +1964,28 @@ function closeCandidateDrawer() {
   lastFocusedElement?.focus?.();
 }
 
-function eventDetailMetaMarkup(record) {
-  const rows = [
-    ["出现时间", record?.fullTime || record?.time || "--"],
-    ["摄像头", record?.camera || record?.cameraId || "--"],
-    ["位置", record?.location || "--"],
-    ["相似度", formatPercent(record?.similarity)],
-    ["说明", record?.note || "--"],
-    ["数据来源", sourceLabel()],
-  ];
-  return rows.map(([label, value]) => `
-    <div class="event-detail-row"><span>${escapeHtml(label)}：</span><strong>${escapeHtml(value)}</strong></div>
-  `).join("");
+function visibleRecordEntries() {
+  const entries = records.map((record, index) => ({ record, index }));
+  if (!selectedCandidateKey) return entries;
+  const selectedRecordIndices = new Set(selectedCandidateRecordIndices());
+  if (selectedRecordIndices.size > 0) {
+    return entries.filter(({ index }) => selectedRecordIndices.has(index));
+  }
+  return entries.filter(({ record, index }) => recordIdentityKey(record, index) === selectedCandidateKey);
 }
 
-function focusRecordInMainView(targetRecord) {
-  if (!targetRecord) return;
-  const targetId = String(targetRecord.id ?? targetRecord.eventId ?? targetRecord.title ?? "");
-  const index = records.findIndex((record) => String(record.id ?? record.eventId ?? record.title ?? "") === targetId);
-  if (index >= 0) {
-    selectedRecordIndex = clampRecordIndex(index);
+function normalizeRecordFilterSelection() {
+  if (!selectedCandidateKey) return visibleRecordEntries();
+  let entries = visibleRecordEntries();
+  if (!entries.length) {
+    selectedCandidateKey = "";
+    return visibleRecordEntries();
+  }
+  if (!entries.some(({ index }) => index === selectedRecordIndex)) {
+    selectedRecordIndex = entries[0].index;
     selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
-    renderRecordLists();
-    renderSelectedRecord();
-    renderRouteMap();
-    renderRouteTimeline();
   }
-  closeEventDetailDrawer();
-  window.requestAnimationFrame(() => {
-    elements.recordScene?.scrollIntoView({ behavior: "smooth", block: "center" });
-  });
-  showToast(`已在主视图定位 ${targetRecord.title || "当前记录"} 的现场图。`, { tone: "info", title: "现场图已定位" });
-}
-
-function renderEventDetailDrawer() {
-  if (!elements.eventDetailBody) return;
-  const record = records[selectedRecordIndex];
-  if (!record) {
-    elements.eventDetailTitle.textContent = "事件详情";
-    elements.eventDetailSubtitle.textContent = "当前没有可展示的检索记录";
-    elements.eventDetailBody.innerHTML = emptyStateMarkup("暂无事件详情", "请先完成检索并选择一条记录。");
-    return;
-  }
-  elements.eventDetailTitle.textContent = `${record.title} 事件详情`;
-  elements.eventDetailSubtitle.textContent = `${record.fullTime || record.time || "--"} · ${record.cameraId || record.camera || "--"}`;
-  const frame = recordFrameUrl(record)
-    ? `<div class="event-detail-frame">${frameImageMarkup(record, "event-detail-image")}</div>`
-    : `<div class="event-detail-frame is-empty">${emptyStateMarkup("暂无现场图", "CampusVision C1 未返回该事件现场图。")}</div>`;
-  elements.eventDetailBody.innerHTML = `
-    ${frame}
-    <section class="event-detail-meta" aria-label="事件字段">
-      ${eventDetailMetaMarkup(record)}
-      ${recordAttributeInfoMarkup(record)}
-    </section>
-    <button id="eventDetailOpenMedia" class="primary-action event-detail-open-media" type="button">在主视图定位现场图</button>
-  `;
-  elements.eventDetailBody.querySelector("#eventDetailOpenMedia")?.addEventListener("click", () => focusRecordInMainView(record));
-}
-
-function openEventDetailDrawer() {
-  renderEventDetailDrawer();
-  if (!elements.eventDetailDrawer) return;
-  lastFocusedElement = document.activeElement;
-  elements.eventDetailDrawer.hidden = false;
-  elements.eventDetailDrawer.classList.add("is-visible");
-  elements.eventDetailClose?.focus?.();
-  window.requestAnimationFrame(() => positionFrameFaceBoxes(elements.eventDetailBody));
-}
-
-function closeEventDetailDrawer() {
-  if (!elements.eventDetailDrawer) return;
-  elements.eventDetailDrawer.classList.remove("is-visible");
-  elements.eventDetailDrawer.hidden = true;
-  lastFocusedElement?.focus?.();
+  return entries;
 }
 
 function switchSearchMode(mode) {
@@ -1845,7 +2038,8 @@ function renderRecordLists() {
     return;
   }
 
-  const html = records.map((record, index) => `
+  const visibleEntries = normalizeRecordFilterSelection();
+  const html = visibleEntries.map(({ record, index }) => `
     <button class="record-card ${index === selectedRecordIndex ? "is-active" : ""}" type="button" data-index="${index}" aria-pressed="${index === selectedRecordIndex ? "true" : "false"}">
       ${recordThumbMarkup(record)}
       <span>
@@ -1858,7 +2052,11 @@ function renderRecordLists() {
   elements.resultRecordList.innerHTML = html;
   elements.routeRecordList.innerHTML = html;
   if (elements.resultSourceBadge) elements.resultSourceBadge.textContent = sourceLabel();
-  if (elements.resultCountBadge) elements.resultCountBadge.textContent = `${records.length} 条`;
+  if (elements.resultCountBadge) {
+    elements.resultCountBadge.textContent = selectedCandidateKey
+      ? `${visibleEntries.length} / ${records.length} 条`
+      : `${records.length} 条`;
+  }
   renderCandidateList();
   bindRecordThumbnailFallbacks();
 
@@ -1867,12 +2065,11 @@ function renderRecordLists() {
       selectedRecordIndex = clampRecordIndex(button.dataset.index || 0);
       selectedRouteIndex = routePointIndexForRecord(selectedRecordIndex);
       syncRecordActiveStates();
+      syncPortraits();
+      renderCandidateList();
       renderSelectedRecord();
       renderRouteMap();
       renderRouteTimeline();
-      if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
-        renderEventDetailDrawer();
-      }
     });
   });
 }
@@ -2005,11 +2202,9 @@ function renderSelectedRecord() {
     elements.timeBubble.style.left = "0%";
     elements.recordInfo.innerHTML = emptyStateMarkup("暂无相关信息", "请重新检索或检查 CampusVision C1 返回内容。");
     renderRouteCurrentSummary();
-    if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
-      renderEventDetailDrawer();
-    }
     return;
   }
+  syncPortraits();
   elements.recordTitle.textContent = record.title;
   renderSelectedRecordFrame(record);
   elements.recordScene.querySelector(".scene-time").textContent = String(record.fullTime || "--").replace(" ", "  ");
@@ -2029,9 +2224,6 @@ function renderSelectedRecord() {
     ${recordAttributeInfoMarkup(record)}
   `;
   renderRouteCurrentSummary();
-  if (elements.eventDetailDrawer?.classList.contains("is-visible")) {
-    renderEventDetailDrawer();
-  }
 }
 
 function renderSelectedRecordFrame(record) {
@@ -2607,11 +2799,6 @@ function bindEvents() {
   elements.candidateDrawer?.addEventListener("click", (event) => {
     if (event.target === elements.candidateDrawer) closeCandidateDrawer();
   });
-  elements.openEventDetailBtn?.addEventListener("click", openEventDetailDrawer);
-  elements.eventDetailClose?.addEventListener("click", closeEventDetailDrawer);
-  elements.eventDetailDrawer?.addEventListener("click", (event) => {
-    if (event.target === elements.eventDetailDrawer) closeEventDetailDrawer();
-  });
   elements.newSearchBtn?.addEventListener("click", resetSearchInput);
   elements.routeNewSearchBtn?.addEventListener("click", resetSearchInput);
   document.querySelector("#openRouteBtn").addEventListener("click", () => { switchScreen("route"); showToast("已打开人物路线图。", { tone: "info", title: "已切换视图" }); });
@@ -2646,9 +2833,6 @@ function bindEvents() {
     }
     if (event.key === "Escape" && elements.candidateDrawer?.classList.contains("is-visible")) {
       closeCandidateDrawer();
-    }
-    if (event.key === "Escape" && elements.eventDetailDrawer?.classList.contains("is-visible")) {
-      closeEventDetailDrawer();
     }
   });
   window.addEventListener("resize", () => {

@@ -76,7 +76,7 @@
 - `diagnostics`：CampusVision C1 查询图预处理和检测重试诊断信息，包括原图尺寸、检测变体和每次尝试检测到的人脸数，用于排障。
 - `selectedQueryFace`：当前实际用于检索的查询图人脸；单人自动选择或多人手动选择后生成。
 - `person`：当前 UI 选中的候选人物。
-- `candidates` / `people`：CampusVision C1 返回或 GKGuard C2 归一化后的候选人物集合，用于 `v0.3.1` 候选人物抽屉。GKGuard C2 前端会读取 `personId`、`personName`、`score`、`faceUrl`、`eventCount` 和 `raw` 等字段；缺失时会从 `person` 和 `records` 中生成回退候选，避免抽屉为空。
+- `candidates` / `people`：CampusVision C1 返回或 GKGuard C2 归一化后的候选人物集合，用于 `v0.3.2` 候选人物抽屉。GKGuard C2 前端会读取 `personId`、`personName`、`score`、`faceUrl`、`eventCount`、`recordIndices` 和 `raw` 等字段；缺失时会从 `person` 和 `records` 中生成回退候选，避免抽屉为空。候选人物展示按人物身份聚合，同一人物在多个场景中出现时只展示一个候选项，并用事件数说明覆盖记录数量。
 - `records`：GKGuard C2 结果页使用的关键帧记录；当 CampusVision C1 返回空列表时，GKGuard C2 前端保持在上传页并提示无匹配，不进入结果页。
 - `routePoints`：GKGuard C2 路线页使用的地图轨迹点；人物特征搜索路线点可携带 `recordIndex` / `eventId`，用于从时间排序后的路线点回到对应结果记录。
 - `appearanceEvents`：CampusVision C1 连续出现事件，保留给后续更丰富时间线。
@@ -109,13 +109,13 @@
 - `similarity`：CampusVision C1 归一化分数。
 - `note`：GKGuard C2 展示说明。
 - `frameUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/frame/{face_id}` 或 `/c1/media/event/frame/{event_id}`，用于详情关键帧。
-- `faceUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图。
+- `faceUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/face/{face_id}`，用于结果列表缩略图和人物特征搜索切换记录时的目标人物照片。
 - `bodyUrl`：GKGuard C2 代理媒体 URL，通常为 `/c1/media/event/body/{event_id}` 或 `/c1/media/observation/body/{observation_id}`，用于人物特征搜索结果的人体图或事件主图。
 - `frameUrl` 和 `faceUrl` 的字段语义不随缓存变化；GKGuard C2 可能从按 CampusVision C1 响应地址、API key、候选配置和连接代次隔离的进程内短期缓存返回已成功读取的媒体字节，并受条目数、总字节和单项字节上限约束，以减少连续切换记录时的重复下载。
 - `faceId`：CampusVision C1 face record ID。
 - `eventId`：CampusVision C1 event ID；人物特征查询和事件搜索代理使用它定位事件关键帧、人体图和观测明细。
 - `observationId`：CampusVision C1 observation ID；可用于读取 observation 级关键帧或人体图。
-- `personId`：CampusVision C1 person ID；可用于读取该人物的事件列表。
+- `personId`：CampusVision C1 person ID；可用于读取该人物的事件列表，也是人物特征搜索候选人物按身份去重和筛选记录的主键。
 - `matchType`：人物特征查询命中类型，`exact` 表示已填写条件全部满足，`partial` 表示相似但存在不满足项。
 - `attributes`：事件或人物的展示属性，当前包含 `upperColor`、`genderPresentation`、`glassesStatus` 和原始置信信息。
 - `failedConditions`：人物特征查询中 `partial` 结果的不满足条件列表，用于提示“相似但不完全满足”。
@@ -287,7 +287,7 @@ Sensitive in real deployments: face image, body image, plate image, person link,
 - `diagnostics`: CampusVision C1 query-image preprocessing and detection retry diagnostics, including original image size, detection variants, and face counts per attempt, for troubleshooting.
 - `selectedQueryFace`: query face actually used for this search, produced by single-face auto-selection or manual multi-face selection.
 - `person`: selected candidate person for the current UI.
-- `candidates` / `people`: candidate-person collection returned by CampusVision C1 or normalized by GKGuard C2 for the `v0.3.1` candidate-person drawer. The GKGuard C2 frontend reads fields such as `personId`, `personName`, `score`, `faceUrl`, `eventCount`, and `raw`; when missing, it falls back from `person` and `records` so the drawer is not empty.
+- `candidates` / `people`: candidate-person collection returned by CampusVision C1 or normalized by GKGuard C2 for the `v0.3.2` candidate-person drawer. The GKGuard C2 frontend reads fields such as `personId`, `personName`, `score`, `faceUrl`, `eventCount`, `recordIndices`, and `raw`; when missing, it falls back from `person` and `records` so the drawer is not empty. Candidate people are grouped by person identity, so the same person appearing in multiple scenes is shown once with an event count.
 - `records`: keyframe records used by the GKGuard C2 result screen; when CampusVision C1 returns an empty list, the frontend stays on the upload screen with a no-match warning instead of entering results.
 - `routePoints`: map-ready route points used by the GKGuard C2 route screen. Person-attribute route points may carry `recordIndex` / `eventId` so time-sorted route points can select the matching result record.
 - `appearanceEvents`: CampusVision C1 appearance events retained for a richer future timeline.
@@ -320,13 +320,13 @@ Sensitive in real deployments: query image, face-box position, detection confide
 - `similarity`: normalized CampusVision C1 score.
 - `note`: GKGuard C2 display note.
 - `frameUrl`: GKGuard C2 proxy media URL, usually `/c1/media/frame/{face_id}` or `/c1/media/event/frame/{event_id}`, used by the detail keyframe.
-- `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails.
+- `faceUrl`: GKGuard C2 proxy media URL, usually `/c1/media/face/{face_id}`, used by result-list thumbnails and by the target portrait when switching records in person-attribute search.
 - `bodyUrl`: GKGuard C2 proxy media URL, usually `/c1/media/event/body/{event_id}` or `/c1/media/observation/body/{observation_id}`, used for the body image or event main image in person-attribute search results.
 - The semantics of `frameUrl` and `faceUrl` do not change with caching. GKGuard C2 may return successfully fetched media bytes from a short-lived in-process cache scoped by CampusVision C1 responding address, API key, candidate configuration, and connection generation, with item-count, total-byte, and per-item byte limits to reduce repeated downloads during consecutive record switching.
 - `faceId`: CampusVision C1 face record ID.
 - `eventId`: CampusVision C1 event ID; person-attribute queries and event proxies use it to locate event keyframes, body crops, and observation details.
 - `observationId`: CampusVision C1 observation ID; can be used to fetch observation-level keyframes or body crops.
-- `personId`: CampusVision C1 person ID; can be used to fetch the person's event list.
+- `personId`: CampusVision C1 person ID; can be used to fetch the person's event list and is also the primary key for deduplicating person-attribute candidates and filtering records.
 - `matchType`: person-attribute query hit type; `exact` means all filled conditions match, and `partial` means the event is similar but has failed conditions.
 - `attributes`: display attributes for an event or person, currently including `upperColor`, `genderPresentation`, `glassesStatus`, and raw confidence information.
 - `failedConditions`: failed condition list for `partial` person-attribute query results, used to explain "similar but not an exact match".

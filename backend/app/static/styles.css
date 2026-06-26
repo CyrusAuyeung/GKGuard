@@ -1851,8 +1851,7 @@ select {
 .result-summary div,
 .route-stats div,
 .info-grid .info-item,
-.route-current-grid div,
-.event-detail-row {
+.route-current-grid div {
   min-width: 0;
   background: var(--workbench-soft);
 }
@@ -2013,21 +2012,18 @@ select {
 }
 
 .info-item,
-.route-current-grid div,
-.event-detail-row {
+.route-current-grid div {
   padding: 10px 12px;
   border-radius: 7px;
 }
 
 .info-item span,
-.route-current-grid span,
-.event-detail-row span {
+.route-current-grid span {
   color: var(--workbench-muted);
 }
 
 .info-item strong,
-.route-current-grid strong,
-.event-detail-row strong {
+.route-current-grid strong {
   color: var(--workbench-ink);
 }
 
@@ -2138,15 +2134,28 @@ select {
   line-height: 1.45;
 }
 
-.candidate-list,
-.event-detail-body {
+.candidate-list {
   min-height: 0;
   overflow: auto;
-}
-
-.candidate-list {
   display: grid;
   gap: 10px;
+}
+
+.candidate-filter-clear {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #cfe0ff;
+  border-radius: 8px;
+  color: #245fc0;
+  background: #f6faff;
+  font-weight: 800;
+}
+
+.candidate-filter-clear:hover,
+.candidate-filter-clear:focus-visible {
+  border-color: #8ab6ff;
+  background: #eef5ff;
+  outline: none;
 }
 
 .candidate-card {
@@ -2208,27 +2217,6 @@ select {
   font-size: 12px;
 }
 
-.event-detail-frame {
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--workbench-evidence);
-}
-
-.event-detail-frame .frame-image-wrap {
-  height: 280px;
-}
-
-.event-detail-meta {
-  display: grid;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.event-detail-open-media {
-  width: 100%;
-  margin-top: 14px;
-}
-
 .workbench-shell .screen-heading {
   justify-content: flex-start;
   padding-right: 220px;
@@ -2253,34 +2241,6 @@ select {
   height: 100%;
   object-fit: contain;
   object-position: center;
-}
-
-.event-detail-frame {
-  display: grid;
-  min-height: 280px;
-}
-
-.event-detail-frame .frame-image-wrap {
-  width: 100%;
-  height: 280px;
-}
-
-.event-detail-frame .event-detail-image {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center;
-}
-
-.event-detail-row {
-  display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 6px;
-  align-items: baseline;
-}
-
-.event-detail-row strong {
-  overflow-wrap: anywhere;
 }
 
 .media-viewer {
@@ -2481,7 +2441,7 @@ select {
   }
 }
 
-/* v0.3.1 regression guards: keep evidence media visible and text regions non-overlapping. */
+/* Result-workbench guards: keep evidence media visible and text regions non-overlapping. */
 .workbench-shell .screen-heading {
   min-width: 0;
   padding-right: min(260px, 32vw);
@@ -2526,40 +2486,11 @@ select {
 }
 
 .candidate-thumb,
-.mini-face.has-thumb,
-.event-detail-frame,
-.event-detail-frame .frame-image-wrap {
+.mini-face.has-thumb {
   position: relative;
   overflow: hidden;
 }
 
-.event-detail-frame {
-  display: block;
-  min-height: 0;
-}
-
-.event-detail-frame .frame-image-wrap {
-  width: 100%;
-  height: clamp(240px, 42vh, 420px);
-  background: var(--workbench-evidence);
-}
-
-.event-detail-frame .event-detail-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  object-position: center center;
-}
-
-.event-detail-row {
-  grid-template-columns: max-content minmax(0, 1fr);
-  column-gap: 10px;
-}
-
-.event-detail-row span,
-.event-detail-row strong,
 .result-summary dt,
 .result-summary dd {
   min-width: 0;
