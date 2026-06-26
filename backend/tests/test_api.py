@@ -51,8 +51,8 @@ def test_demo_page_available() -> None:
     assert "newSearchBtn" in response.text
     assert "routeNewSearchBtn" in response.text
     assert "重新上传" in response.text
-    assert "/static/styles.css?v=v0.3.1-ui" in response.text
-    assert "/static/app.js?v=v0.3.1-ui" in response.text
+    assert "/static/styles.css?v=v0.3.2-ui" in response.text
+    assert "/static/app.js?v=v0.3.2-ui" in response.text
 
 
 def test_static_assets_render_real_thumbnails() -> None:
@@ -61,8 +61,24 @@ def test_static_assets_render_real_thumbnails() -> None:
     script = script_response.text
     assert "function recordThumbMarkup" in script
     assert "mini-face has-thumb" in script
-    assert "record.thumbnailUrl || record.faceUrl || record.frameUrl" in script
-    assert "record.frameUrl" in script
+    assert "function recordFaceUrl" in script
+    assert "function recordPortraitUrl" in script
+    assert "function recordTargetBox" in script
+    assert "recordFaceUrl(record)" in script
+    assert "recordFrameUrl(record)" in script
+    assert "record?.face_box" in script
+    assert "function visibleRoutePointEntries" in script
+    assert "const routeEntries = visibleRoutePointEntries();" in script
+    assert "当前候选人物没有可用轨迹点" in script
+    assert "preloadFrameImage(recordFrameUrl(record)).catch(() => {});" in script
+    assert "if (recordFrameUrl(record))" in script
+    assert 'if (value === undefined || value === null || value === "") return;' in script
+    candidate_identity = script[
+        script.index("function candidateIdentityKey") : script.index("function recordIndexFromEventId")
+    ]
+    assert candidate_identity.index("const id = firstDefined(") < candidate_identity.index(
+        "const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);"
+    )
     assert "matchedPersonImageUrl" in script
     assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
     assert "function prepareQueryFaces" in script

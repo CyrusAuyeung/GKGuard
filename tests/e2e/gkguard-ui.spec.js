@@ -618,6 +618,10 @@ test.describe("GKGuard C2 demo UI", () => {
     const problems = collectBrowserProblems(page);
     let requestPayload = null;
 
+    await page.route("**/e2e-assets/*.png", async (route) => {
+      await route.fulfill({ contentType: "image/png", body: PNG_BUFFER });
+    });
+
     await page.route("**/c1/query/person-attributes", async (route) => {
       requestPayload = route.request().postDataJSON();
       await route.fulfill({
@@ -629,11 +633,38 @@ test.describe("GKGuard C2 demo UI", () => {
           warning: null,
           person: {
             confidence: "attribute",
-            representativeFaceUrl: "/static/icons/app-mark.png",
+            representativeFaceUrl: "/e2e-assets/face-blue-1.png",
           },
+          candidates: [
+            {
+              personId: "person-blue",
+              displayName: "蓝衣眼镜候选",
+              score: 0.93,
+              representativeFaceUrl: "/e2e-assets/face-blue-1.png",
+              events: [{ eventId: "blue-later" }, { eventId: "blue-earlier" }],
+              confidence: "attribute",
+            },
+            {
+              personId: "person-blue",
+              displayName: "蓝衣眼镜候选重复",
+              score: 0.88,
+              representativeFaceUrl: "/e2e-assets/face-blue-2.png",
+              events: [{ eventId: "blue-earlier" }],
+              confidence: "attribute",
+            },
+            {
+              personId: "person-red",
+              displayName: "红衣候选",
+              score: 0.7,
+              representativeFaceUrl: "/e2e-assets/face-red.png",
+              events: [{ eventId: "red-mid" }],
+              confidence: "attribute",
+            },
+          ],
           records: [
             {
               id: 1,
+              personId: "person-blue",
               title: "记录1",
               time: "11:20:30",
               fullTime: "2026-06-18 11:20:30",
@@ -644,11 +675,11 @@ test.describe("GKGuard C2 demo UI", () => {
               note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
               sceneClass: "scene-1",
               progress: 48,
-              frameUrl: "/static/icons/app-mark.png",
-              faceUrl: "/static/icons/app-mark.png",
-              thumbnailUrl: "/static/icons/app-mark.png",
-              personBox: { x1: 0.2, y1: 0.2, width: 0.34, height: 0.42 },
-              eventId: "later-high-score",
+              frameUrl: "/e2e-assets/frame-blue-1.png",
+              faceUrl: "/e2e-assets/face-blue-1.png",
+              thumbnailUrl: "/e2e-assets/face-blue-1.png",
+              faceBox: { x1: 0.3, y1: 0.22, width: 0.2, height: 0.28 },
+              eventId: "blue-later",
               attributes: {
                 upperColor: "blue",
                 glassesStatus: "glasses",
@@ -658,6 +689,7 @@ test.describe("GKGuard C2 demo UI", () => {
             },
             {
               id: 2,
+              personId: "person-blue",
               title: "记录2",
               time: "08:15:00",
               fullTime: "2026-06-18 08:15:00",
@@ -668,11 +700,11 @@ test.describe("GKGuard C2 demo UI", () => {
               note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
               sceneClass: "scene-2",
               progress: 22,
-              frameUrl: "/static/icons/app-mark.png",
-              faceUrl: "/static/icons/app-mark.png",
-              thumbnailUrl: "/static/icons/app-mark.png",
-              faceBox: { x1: 0.18, y1: 0.18, width: 0.32, height: 0.4 },
-              eventId: "earlier-low-score",
+              frame_url: "/e2e-assets/frame-blue-2.png",
+              faceUrl: "/e2e-assets/face-blue-2.png",
+              thumbnailUrl: "/e2e-assets/face-blue-2.png",
+              face_box: { x1: 0.24, y1: 0.2, width: 0.2, height: 0.3 },
+              eventId: "blue-earlier",
               attributes: {
                 upperColor: "blue",
                 glassesStatus: "glasses",
@@ -680,10 +712,36 @@ test.describe("GKGuard C2 demo UI", () => {
                 bodyVisibility: "upper",
               },
             },
+            {
+              id: 3,
+              personId: "person-red",
+              title: "记录3",
+              time: "09:10:00",
+              fullTime: "2026-06-18 09:10:00",
+              location: "南门走廊",
+              camera: "C1-ATTR-03 南门摄像机",
+              cameraId: "C1-ATTR-03",
+              similarity: 0.7,
+              note: "上衣颜色：red；眼镜状态：佩戴眼镜",
+              sceneClass: "scene-3",
+              progress: 36,
+              frameUrl: "/e2e-assets/frame-red.png",
+              faceUrl: "/e2e-assets/face-red.png",
+              thumbnailUrl: "/e2e-assets/face-red.png",
+              faceBox: { x1: 0.52, y1: 0.24, width: 0.2, height: 0.3 },
+              eventId: "red-mid",
+              attributes: {
+                upperColor: "red",
+                glassesStatus: "glasses",
+                genderPresentation: "feminine",
+                bodyVisibility: "upper",
+              },
+            },
           ],
           routePoints: [
-            { id: 1, time: "08:15:00", location: "教学楼入口", x: 36, y: 58, kind: "start", recordIndex: 1, eventId: "earlier-low-score" },
-            { id: 2, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "end", recordIndex: 0, eventId: "later-high-score" },
+            { id: 1, time: "08:15:00", location: "教学楼入口", x: 36, y: 58, kind: "start", recordIndex: 1, eventId: "blue-earlier" },
+            { id: 2, time: "09:10:00", location: "南门走廊", x: 44, y: 50, recordIndex: 2, eventId: "red-mid" },
+            { id: 3, time: "11:20:30", location: "图书馆大厅", x: 52, y: 33, kind: "end", recordIndex: 0, eventId: "blue-later" },
           ],
           raw: {},
         }),
@@ -749,22 +807,42 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultViewTitle")).toHaveText("人物特征搜索结果");
     await expect(page.locator("#resultSourceBadge")).toHaveText("CampusVision C1 · 特征搜索");
     await expect(page.locator("#recordTitle")).toHaveText("记录1");
+    await expect(page.locator("#resultRecordList .record-card")).toHaveCount(3);
+    await expect(page.locator("#resultCountBadge")).toHaveText("3 条");
+    await expect(page.locator("#openEventDetailBtn")).toHaveCount(0);
     await expect(page.locator("#recordInfo")).toContainText("上衣颜色");
     await expect(page.locator("#recordInfo")).toContainText("佩戴眼镜");
     await expect(page.locator("#recordScene.has-frame .scene-frame")).toBeVisible();
     await expect(page.locator("#recordScene .result-face-box")).toBeVisible();
+    await expectResultFaceBoxAwayFromOrigin(page);
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /face-blue-1\.png/);
+    await page.locator("#resultRecordList .record-card").nth(1).click();
+    await expect(page.locator("#recordTitle")).toHaveText("记录2");
+    await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /face-blue-2\.png/);
+    await expect(page.locator("#recordScene.has-frame .scene-frame")).toHaveAttribute("src", /frame-blue-2\.png/);
+    await expect(page.locator("#recordScene .result-face-box")).toBeVisible();
+    await page.locator("#recordScene").click();
+    await expect(page.locator("#mediaViewer")).toBeVisible();
+    await expect(page.locator("#mediaViewer img")).toHaveAttribute("src", /frame-blue-2\.png/);
+    await expect(page.locator("#mediaViewer .result-face-box")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#mediaViewer")).toBeHidden();
     await page.locator("#openCandidatesBtn").click();
     await expect(page.locator("#candidateDrawer")).toHaveClass(/is-visible/);
     await expect(page.locator("#candidateList .candidate-card")).toHaveCount(2);
+    await expect(page.locator("#candidateList .candidate-card").first()).toContainText("出现次数：2");
     await expect(page.locator("#candidateList")).not.toContainText("记录3");
-    await page.locator("#candidateDrawerClose").click();
-    await page.locator("#openEventDetailBtn").click();
-    await expect(page.locator("#eventDetailDrawer")).toHaveClass(/is-visible/);
-    await expect(page.locator("#eventDetailDrawer .event-detail-row").first()).toContainText("出现时间：");
-    await page.getByRole("button", { name: "在主视图定位现场图" }).click();
-    await expect(page.locator("#eventDetailDrawer")).toBeHidden();
+    await page.locator("#candidateList .candidate-card").first().click();
+    await expect(page.locator("#candidateDrawer")).toBeHidden();
+    await expect(page.locator("#resultRecordList .record-card")).toHaveCount(2);
+    await expect(page.locator("#resultCountBadge")).toHaveText("2 / 3 条");
+    await expect(page.locator("#resultRecordList")).not.toContainText("记录3");
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
     await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await expect(page.locator("#routeTimelineRows .timeline-row")).toHaveCount(2);
+    await expect(page.locator("#campusRouteMap .map-point")).toHaveCount(2);
+    await expect(page.locator("#routePointCount")).toHaveText("2");
+    await expect(page.locator("#routeTimelineRows")).not.toContainText("南门走廊");
     await page.locator("#routeTimelineRows .timeline-row").first().click();
     await expect(page.locator("#routeCurrentRecord")).toContainText("记录2");
     await expect(page.locator("#routeCurrentLocation")).toContainText("教学楼入口");
@@ -822,12 +900,9 @@ test.describe("GKGuard C2 demo UI", () => {
 
     await expect(page.locator("#resultView")).toHaveClass(/is-active/);
     await expect(page.locator("#recordTitle")).toHaveText("记录10");
+    await expect(page.locator("#openEventDetailBtn")).toHaveCount(0);
     await page.locator("#resultRecordList .record-card").first().click();
     await expect(page.locator("#recordTitle")).toHaveText("记录1");
-    await page.locator("#openEventDetailBtn").click();
-    await expect(page.locator("#eventDetailDrawer")).toHaveClass(/is-visible/);
-    await page.getByRole("button", { name: "在主视图定位现场图" }).click();
-    await expect(page.locator("#eventDetailDrawer")).toBeHidden();
     await expect(page.locator("#recordTitle")).toHaveText("记录1");
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
     await expect(page.locator("#routeView")).toHaveClass(/is-active/);
