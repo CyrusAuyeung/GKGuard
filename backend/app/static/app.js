@@ -1978,6 +1978,23 @@ function visibleRecordEntries() {
   return entries.filter(({ record, index }) => recordIdentityKey(record, index) === selectedCandidateKey);
 }
 
+function visibleRoutePointEntries() {
+  const entries = routePoints.map((point, index) => ({ point, index }));
+  if (!selectedCandidateKey) return entries;
+  const selectedRecordIndices = new Set(selectedCandidateRecordIndices());
+  if (selectedRecordIndices.size > 0) {
+    return entries.filter(({ point, index }) => {
+      const stableIndex = routePointStableRecordIndex(point);
+      const recordIndex = stableIndex === null ? routePointIndexOrNull(index) : stableIndex;
+      return recordIndex !== null && selectedRecordIndices.has(recordIndex);
+    });
+  }
+  return entries.filter(({ point }) => {
+    const recordIndex = routePointStableRecordIndex(point);
+    return recordIndex !== null && recordIdentityKey(records[recordIndex], recordIndex) === selectedCandidateKey;
+  });
+}
+
 function normalizeRecordFilterSelection() {
   if (!selectedCandidateKey) return visibleRecordEntries();
   let entries = visibleRecordEntries();
@@ -2355,10 +2372,15 @@ function routePointRecordIndex(point, fallbackIndex = 0) {
 function routePointIndexForRecord(recordIndex) {
   if (!routePoints.length) return null;
   const normalizedIndex = clampRecordIndex(recordIndex);
-  const mappedRouteIndex = routePoints.findIndex((point) => routePointStableRecordIndex(point) === normalizedIndex);
-  if (mappedRouteIndex >= 0) return mappedRouteIndex;
-  const hasStableRouteMapping = routePoints.some((point) => routePointStableRecordIndex(point) !== null);
-  return hasStableRouteMapping ? null : routePointIndexOrNull(normalizedIndex);
+  const routeEntries = visibleRoutePointEntries();
+  if (!routeEntries.length) return null;
+  const mappedRouteEntry = routeEntries.find(({ point }) => routePointStableRecordIndex(point) === normalizedIndex);
+  if (mappedRouteEntry) return mappedRouteEntry.index;
+  const hasStableRouteMapping = routeEntries.some(({ point }) => routePointStableRecordIndex(point) !== null);
+  if (hasStableRouteMapping) return null;
+  const fallbackRouteEntry = routeEntries.find(({ index }) => index === normalizedIndex);
+  if (fallbackRouteEntry) return fallbackRouteEntry.index;
+  return selectedCandidateKey ? null : routePointIndexOrNull(normalizedIndex);
 }
 
 function alignSelectedRecordWithRoutePoints(preferredIndex = selectedRecordIndex) {
@@ -2374,8 +2396,13 @@ function alignSelectedRecordWithRoutePoints(preferredIndex = selectedRecordIndex
     return;
   }
   if (selectedRouteIndex === null) {
-    selectedRouteIndex = 0;
-    selectedRecordIndex = routePointRecordIndex(routePoints[0], 0);
+    const routeEntries = visibleRoutePointEntries();
+    if (!routeEntries.length) {
+      selectedRouteIndex = null;
+      return;
+    }
+    selectedRouteIndex = routeEntries[0].index;
+    selectedRecordIndex = routePointRecordIndex(routeEntries[0].point, routeEntries[0].index);
   }
 }
 
@@ -2411,7 +2438,12 @@ function renderRouteMap() {
     elements.campusRouteMap.innerHTML = emptyStateMarkup("暂无路线", "当前检索结果没有可用轨迹点。");
     return;
   }
-  const linePoints = routePoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const routeEntries = visibleRoutePointEntries();
+  if (!routeEntries.length) {
+    elements.campusRouteMap.innerHTML = emptyStateMarkup("暂无路线", "当前候选人物没有可用轨迹点。");
+    return;
+  }
+  const linePoints = routeEntries.map(({ point }) => `${point.x},${point.y}`).join(" ");
   const mapLabelClass = (point) => [
     "map-label",
     point.x >= 74 ? "is-near-right" : "",
@@ -2425,7 +2457,7 @@ function renderRouteMap() {
       <polyline points="${linePoints}" fill="none" stroke="rgba(36,111,245,.16)" stroke-width="5.8" stroke-linecap="round" stroke-linejoin="round"></polyline>
       <polyline points="${linePoints}" fill="none" stroke="#246ff5" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></polyline>
     </svg>
-    ${routePoints.map((point, index) => `
+    ${routeEntries.map(({ point, index }) => `
       <button class="map-point ${point.kind || ""} ${isRoutePointActive(point, index) ? "is-active" : ""}" type="button" data-route-index="${index}" style="left:${point.x}%;top:${point.y}%" aria-label="定位到${escapeHtml(point.location)}">${point.kind === "start" ? "起" : point.kind === "end" ? "终" : point.id}</button>
       <span class="${mapLabelClass(point)}" style="left:${point.x}%;top:${point.y}%">${escapeHtml(point.location)}</span>
     `).join("")}
@@ -2440,32 +2472,34 @@ function renderRouteMap() {
 }
 
 function renderRouteTimeline() {
-  elements.routeTimelineRows.innerHTML = routePoints.length ? routePoints.map((point, index) => `
+  const routeEntries = visibleRoutePointEntries();
+  elements.routeTimelineRows.innerHTML = routeEntries.length ? routeEntries.map(({ point, index }) => `
     <button class="timeline-row ${isRoutePointActive(point, index) ? "is-active" : ""}" type="button" data-route-index="${index}">
       <b>${point.id}</b>
       <span>${escapeHtml(point.time)}</span>
       <strong>${escapeHtml(point.location)}</strong>
     </button>
-  `).join("") : emptyStateMarkup("暂无时间线", "当前检索结果没有可用轨迹点。");
+  `).join("") : emptyStateMarkup("暂无时间线", selectedCandidateKey ? "当前候选人物没有可用轨迹点。" : "当前检索结果没有可用轨迹点。");
   bindRoutePointInteractions();
 
-  const startPoint = routePoints[0];
-  const endPoint = routePoints[routePoints.length - 1];
-  const cameras = new Set(records.map((record) => record.cameraId || record.camera).filter(Boolean));
-  const sortedSeconds = routePoints.map((point) => parseTimeSeconds(point.time)).filter((value) => value !== null).sort((left, right) => left - right);
+  const visibleRecords = normalizeRecordFilterSelection();
+  const startPoint = routeEntries[0]?.point;
+  const endPoint = routeEntries[routeEntries.length - 1]?.point;
+  const cameras = new Set(visibleRecords.map(({ record }) => record.cameraId || record.camera).filter(Boolean));
+  const sortedSeconds = routeEntries.map(({ point }) => parseTimeSeconds(point.time)).filter((value) => value !== null).sort((left, right) => left - right);
   const duration = sortedSeconds.length > 1 ? sortedSeconds[sortedSeconds.length - 1] - sortedSeconds[0] : null;
   const durationLabel = formatDuration(duration);
-  elements.routePointCount.textContent = String(routePoints.length);
+  elements.routePointCount.textContent = String(routeEntries.length);
   elements.routeStart.textContent = startPoint?.location || "--";
   elements.routeEnd.textContent = endPoint?.location || "--";
-  elements.routeOverviewPointCount.textContent = String(routePoints.length);
+  elements.routeOverviewPointCount.textContent = String(routeEntries.length);
   elements.routeOverviewStart.textContent = startPoint?.location || "--";
   elements.routeOverviewEnd.textContent = endPoint?.location || "--";
   elements.routeOverviewDuration.textContent = durationLabel;
   elements.summaryDuration.textContent = durationLabel;
   elements.summaryCameraCount.textContent = `${Math.max(cameras.size, 1)}路`;
-  elements.summaryFrameCount.textContent = String(records.length);
-  elements.summaryFinalSimilarity.textContent = formatPercent(records[0]?.similarity);
+  elements.summaryFrameCount.textContent = String(visibleRecords.length || records.length);
+  elements.summaryFinalSimilarity.textContent = formatPercent(visibleRecords[0]?.record?.similarity ?? records[0]?.similarity);
 }
 
 function openMediaViewer(record = records[selectedRecordIndex]) {

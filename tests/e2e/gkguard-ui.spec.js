@@ -839,6 +839,10 @@ test.describe("GKGuard C2 demo UI", () => {
     await expect(page.locator("#resultRecordList")).not.toContainText("记录3");
     await page.getByRole("button", { name: /查看人物路线图/ }).click();
     await expect(page.locator("#routeView")).toHaveClass(/is-active/);
+    await expect(page.locator("#routeTimelineRows .timeline-row")).toHaveCount(2);
+    await expect(page.locator("#campusRouteMap .map-point")).toHaveCount(2);
+    await expect(page.locator("#routePointCount")).toHaveText("2");
+    await expect(page.locator("#routeTimelineRows")).not.toContainText("南门走廊");
     await page.locator("#routeTimelineRows .timeline-row").first().click();
     await expect(page.locator("#routeCurrentRecord")).toContainText("记录2");
     await expect(page.locator("#routeCurrentLocation")).toContainText("教学楼入口");

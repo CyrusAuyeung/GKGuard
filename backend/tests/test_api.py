@@ -67,6 +67,9 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "recordFaceUrl(record)" in script
     assert "recordFrameUrl(record)" in script
     assert "record?.face_box" in script
+    assert "function visibleRoutePointEntries" in script
+    assert "const routeEntries = visibleRoutePointEntries();" in script
+    assert "当前候选人物没有可用轨迹点" in script
     assert "preloadFrameImage(recordFrameUrl(record)).catch(() => {});" in script
     assert "if (recordFrameUrl(record))" in script
     assert 'if (value === undefined || value === null || value === "") return;' in script
