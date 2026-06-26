@@ -688,6 +688,7 @@ function normalizeOverlayBox(rawBox) {
 function recordTargetBox(record) {
   if (activeResultMode === "attributes") {
     return record?.faceBox
+      || record?.face_box
       || record?.targetFaceBox
       || record?.target_face_box
       || record?.faceBbox
@@ -718,6 +719,7 @@ function recordTargetBox(record) {
   return record?.targetBox
     || record?.target_box
     || record?.faceBox
+    || record?.face_box
     || record?.targetFaceBox
     || record?.target_face_box
     || record?.faceBbox
@@ -747,6 +749,7 @@ function recordTargetBox(record) {
 function recordTargetBoxKind(record) {
   if (
     record?.faceBox
+    || record?.face_box
     || record?.targetFaceBox
     || record?.target_face_box
     || record?.faceBbox
@@ -1016,7 +1019,7 @@ function warmFrameImages(startIndex = selectedRecordIndex) {
     .slice(0, 8);
   prioritized.forEach(({ record }, offset) => {
     window.setTimeout(() => {
-      preloadFrameImage(record.frameUrl).catch(() => {});
+      preloadFrameImage(recordFrameUrl(record)).catch(() => {});
     }, offset * 80);
   });
 }
@@ -1718,10 +1721,6 @@ function candidateFaceUrl(candidate) {
 
 function candidateIdentityKey(candidate, index) {
   if (candidate?.identityKey) return String(candidate.identityKey);
-  const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);
-  if (Number.isInteger(recordIndex) && recordIndex >= 0 && recordIndex < records.length) {
-    return recordIdentityKey(records[recordIndex], recordIndex);
-  }
   const id = firstDefined(
     candidate?.personId,
     candidate?.person_id,
@@ -1744,6 +1743,10 @@ function candidateIdentityKey(candidate, index) {
     candidate?.id,
   );
   if (id) return `id:${id}`;
+  const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);
+  if (Number.isInteger(recordIndex) && recordIndex >= 0 && recordIndex < records.length) {
+    return recordIdentityKey(records[recordIndex], recordIndex);
+  }
   return `candidate:${index}`;
 }
 
@@ -1754,6 +1757,7 @@ function recordIndexFromEventId(eventId) {
 }
 
 function addCandidateRecordIndex(indices, value) {
+  if (value === undefined || value === null || value === "") return;
   const index = Number(value);
   if (Number.isInteger(index) && index >= 0 && index < records.length) {
     indices.add(index);
@@ -2473,7 +2477,7 @@ function openMediaViewer(record = records[selectedRecordIndex]) {
   elements.mediaViewerLocation.textContent = record.location || "--";
   elements.mediaViewerCamera.textContent = record.camera || record.cameraId || "--";
   elements.mediaViewerSimilarity.textContent = formatPercent(record.similarity);
-  if (record.frameUrl) {
+  if (recordFrameUrl(record)) {
     elements.mediaViewerFrame.innerHTML = frameImageMarkup(record, "media-frame-image");
   } else {
     elements.mediaViewerFrame.innerHTML = `

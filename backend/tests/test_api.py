@@ -66,6 +66,16 @@ def test_static_assets_render_real_thumbnails() -> None:
     assert "function recordTargetBox" in script
     assert "recordFaceUrl(record)" in script
     assert "recordFrameUrl(record)" in script
+    assert "record?.face_box" in script
+    assert "preloadFrameImage(recordFrameUrl(record)).catch(() => {});" in script
+    assert "if (recordFrameUrl(record))" in script
+    assert 'if (value === undefined || value === null || value === "") return;' in script
+    candidate_identity = script[
+        script.index("function candidateIdentityKey") : script.index("function recordIndexFromEventId")
+    ]
+    assert candidate_identity.index("const id = firstDefined(") < candidate_identity.index(
+        "const recordIndex = Number(candidate?.recordIndex ?? candidate?.record_index);"
+    )
     assert "matchedPersonImageUrl" in script
     assert "selectedQueryFaceImageUrl || matchedPersonImageUrl || uploadedImageUrl" in script
     assert "function prepareQueryFaces" in script

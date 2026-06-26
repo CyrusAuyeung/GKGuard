@@ -700,10 +700,10 @@ test.describe("GKGuard C2 demo UI", () => {
               note: "上衣颜色：blue；眼镜状态：佩戴眼镜",
               sceneClass: "scene-2",
               progress: 22,
-              frameUrl: "/e2e-assets/frame-blue-2.png",
+              frame_url: "/e2e-assets/frame-blue-2.png",
               faceUrl: "/e2e-assets/face-blue-2.png",
               thumbnailUrl: "/e2e-assets/face-blue-2.png",
-              faceBox: { x1: 0.24, y1: 0.2, width: 0.2, height: 0.3 },
+              face_box: { x1: 0.24, y1: 0.2, width: 0.2, height: 0.3 },
               eventId: "blue-earlier",
               attributes: {
                 upperColor: "blue",
@@ -819,6 +819,14 @@ test.describe("GKGuard C2 demo UI", () => {
     await page.locator("#resultRecordList .record-card").nth(1).click();
     await expect(page.locator("#recordTitle")).toHaveText("记录2");
     await expect(page.locator("#resultPortrait img")).toHaveAttribute("src", /face-blue-2\.png/);
+    await expect(page.locator("#recordScene.has-frame .scene-frame")).toHaveAttribute("src", /frame-blue-2\.png/);
+    await expect(page.locator("#recordScene .result-face-box")).toBeVisible();
+    await page.locator("#recordScene").click();
+    await expect(page.locator("#mediaViewer")).toBeVisible();
+    await expect(page.locator("#mediaViewer img")).toHaveAttribute("src", /frame-blue-2\.png/);
+    await expect(page.locator("#mediaViewer .result-face-box")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator("#mediaViewer")).toBeHidden();
     await page.locator("#openCandidatesBtn").click();
     await expect(page.locator("#candidateDrawer")).toHaveClass(/is-visible/);
     await expect(page.locator("#candidateList .candidate-card")).toHaveCount(2);
