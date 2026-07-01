@@ -437,3 +437,17 @@
 - 服务状态：已用 `/home/speng/miniforge3/envs/campusvision-c1/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` 启动 C1，PID `98074`；`GET /health` 返回 `status=ok`；日志为 `data/logs/c1_uvicorn_20260701_130746_realtime6.log`。
 - 当前限制：这是基于 ChokePoint 单个 25s 样例视频的 6 路并发验证，尚未完成多视频混合、2-4 小时长跑、真实学校摄像头 API/H.265 数据验证；因此暂不宣称最终商业化容量，只作为 C1 v1 实时候选热路径。
 - 影响范围：仅改动 CampusVision C1；未上传或删除 `testdata` 下视频；未改动 GKGuard C2、A/B 相关代码；人工 check 数据没有进入训练或线上逻辑。
+
+## 2026-07-01 13:18:28 CST - C1 多源 6 路混合实时压测
+
+- 版本号：`main@e2cf7d1`
+- 任务目标：补齐上一轮单视频克隆压测的证据不足，验证 6 路并发不是只对同一个 mp4 重复输入成立，而是在多个不同摄像头视频源上也能满足实时热路径。
+- 工具改动：`scripts/benchmark_api_processing.py` 新增 `--video-ids`，支持多个源视频按路分配或循环复用；报告 schema 更新为 `c1_api_processing_benchmark_v2`，新增 `source_videos`、`route_realtime_factor`、`max_route_realtime_factor`、`passes_realtime_all_routes` 等多源指标，同时保留旧的 wall realtime 字段。
+- 验证视频：使用 P2E_S5 三个视角和 P2L_S5 三个视角，共 6 个不同源视频：`P2E_S5_C1/C2/C3_30fps.mp4`、`P2L_S5_C1/C2/C3_30fps.mp4`。视频时长分别约 `26.866667s` 和 `25.166667s`。
+- 验证配置：`EVENT_PERSISTENCE_MODE=async`、`UPPER_COLOR_BACKEND=hsv`、`INSIGHTFACE_DET_SIZE=960`、`INSIGHTFACE_ENGINE_POOL_SIZE=1`、`INSIGHTFACE_MAX_CONCURRENT_INFERENCES=1`、`BODY_DETECTION_FRAME_STRIDE=2`、`CLOTHING_ANALYSIS_FRAME_STRIDE=2`、`BODY_DETECTION_BACKEND=opencv_hog`。
+- 多源 6 路结果：warmup 1 次、measured 3 次，`max_processing_sec=16.957331s`，`max_wall_realtime_factor=0.631166`，`mean_wall_realtime_factor=0.626615`，`max_route_realtime_factor=0.671537`，`passes_realtime_all_routes=true`，`mean_effective_realtime_streams=9.575258`。
+- 单路兼容烟测：同一脚本旧用法仍可运行；`P2L_S5_C2_30fps.mp4` 单路 `max_processing_sec=4.853662s`，`max_route_realtime_factor=0.192861`，`passes_realtime_all_routes=true`。
+- 验证测试：`python -m py_compile scripts/benchmark_api_processing.py` 通过；`pytest tests/test_video_service.py tests/test_live_service.py tests/test_observation_service.py tests/test_event_service.py tests/test_security_config.py -q` 通过，42 passed。
+- 产物文件：`data/evals/runtime/c1_api_processing_benchmark_v2_mixed6_p2e_p2l_3runs.json`、`data/evals/runtime/c1_api_processing_benchmark_v2_single_smoke.json`。
+- 当前判断：C1 在 ChokePoint P2E/P2L 多源 6 路输入上已满足 3090 单卡实时热路径；剩余需要补的是更长时间长跑、更多视频组合和真实学校摄像头 API/H.265 接入验证。
+- 影响范围：仅增强 C1 benchmark 工具并追加报告；未改动业务推理链路、数据库生产数据、`testdata` 视频、GKGuard C2 或 A/B 代码；人工 check 数据没有进入训练或线上逻辑。
