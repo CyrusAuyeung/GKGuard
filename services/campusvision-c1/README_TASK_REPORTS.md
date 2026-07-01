@@ -451,3 +451,15 @@
 - 产物文件：`data/evals/runtime/c1_api_processing_benchmark_v2_mixed6_p2e_p2l_3runs.json`、`data/evals/runtime/c1_api_processing_benchmark_v2_single_smoke.json`。
 - 当前判断：C1 在 ChokePoint P2E/P2L 多源 6 路输入上已满足 3090 单卡实时热路径；剩余需要补的是更长时间长跑、更多视频组合和真实学校摄像头 API/H.265 接入验证。
 - 影响范围：仅增强 C1 benchmark 工具并追加报告；未改动业务推理链路、数据库生产数据、`testdata` 视频、GKGuard C2 或 A/B 代码；人工 check 数据没有进入训练或线上逻辑。
+
+## 2026-07-01 13:23:56 CST - C1 多源 6 路 10 次重复稳定性验证
+
+- 版本号：`main@6eebf15`
+- 任务目标：在 3 次 mixed benchmark 通过后，继续用同一组 P2E_S5/P2L_S5 六个不同源视频做更长一点的重复验证，观察是否出现偶发 CUDA/ONNXRuntime 错误、失败路由或超过实时阈值的尾部延迟。
+- 验证配置：沿用 6 路候选热路径：`EVENT_PERSISTENCE_MODE=async`、`UPPER_COLOR_BACKEND=hsv`、`INSIGHTFACE_DET_SIZE=960`、`INSIGHTFACE_ENGINE_POOL_SIZE=1`、`INSIGHTFACE_MAX_CONCURRENT_INFERENCES=1`、`BODY_DETECTION_BACKEND=opencv_hog`、`BODY_DETECTION_FRAME_STRIDE=2`、`CLOTHING_ANALYSIS_FRAME_STRIDE=2`。
+- 运行方式：warmup 1 次、measured 10 次，`concurrent_routes=6`，每次同时处理 P2E_S5 三视角和 P2L_S5 三视角；benchmark 使用临时 DB 副本，不写生产数据库。
+- 结果摘要：10 次 measured 无失败路由，未出现 CUDA/ONNXRuntime 报错；`max_processing_sec=17.742060s`、`mean_processing_sec=16.204369s`、`max_wall_realtime_factor=0.660374`、`mean_wall_realtime_factor=0.603140`、`max_route_realtime_factor=0.690314`、`mean_route_realtime_factor=0.578283`、`passes_realtime_all_routes=true`、`mean_effective_realtime_streams=9.947934`。
+- measured wall time 列表：`[17.418480, 16.808566, 16.786363, 17.100249, 15.116969, 16.040952, 15.305643, 14.750841, 17.742060, 14.973568]`。
+- 产物文件：`data/evals/runtime/c1_api_processing_benchmark_v2_mixed6_p2e_p2l_10runs.json`。
+- 当前判断：在 ChokePoint P2E/P2L 混合视频上，C1 6 路实时热路径已具备较强证据；仍未替代后续真实摄像头 API/H.265 接入验证和 2-4 小时以上服务长跑。
+- 影响范围：仅追加验证报告和 benchmark 输出文件；未改动业务代码、生产数据库、`testdata` 视频、GKGuard C2 或 A/B 代码；人工 check 数据没有进入训练或线上逻辑。
