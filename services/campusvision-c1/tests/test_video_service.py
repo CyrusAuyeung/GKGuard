@@ -82,3 +82,26 @@ def test_index_performance_profile_is_opt_in():
     assert summary["counts"]["items"] == 2
     assert summary["stages"]["visible"]["calls"] == 1
     assert summary["stages"]["visible"]["elapsed_sec"] >= 0.0
+
+
+def test_event_persistence_mode_respects_global_disable(monkeypatch):
+    monkeypatch.setattr(video_service._settings(), "enable_event_persistence", False)
+    monkeypatch.setattr(video_service._settings(), "event_persistence_mode", "async")
+
+    assert video_service._event_persistence_mode() == "disabled"
+
+
+def test_event_persistence_mode_accepts_sync_async_and_disabled(monkeypatch):
+    monkeypatch.setattr(video_service._settings(), "enable_event_persistence", True)
+
+    for mode in ("sync", "async", "disabled"):
+        monkeypatch.setattr(video_service._settings(), "event_persistence_mode", mode)
+        assert video_service._event_persistence_mode() == mode
+
+
+def test_event_persistence_mode_rejects_unknown_value(monkeypatch):
+    monkeypatch.setattr(video_service._settings(), "enable_event_persistence", True)
+    monkeypatch.setattr(video_service._settings(), "event_persistence_mode", "parallel_everything")
+
+    with pytest.raises(ValueError, match="EVENT_PERSISTENCE_MODE"):
+        video_service._event_persistence_mode()

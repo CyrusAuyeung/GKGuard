@@ -6,6 +6,7 @@ import subprocess
 import sys
 import threading
 import uuid
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,10 @@ _workers: dict[str, "_LiveMonitorWorker"] = {}
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def _live_analysis_context():
+    return _analysis_lock if settings.serialize_live_analysis else nullcontext()
 
 
 def _iso_from_dt(value: datetime) -> str:
@@ -253,7 +258,7 @@ def capture_live_source(
     indexed_faces = None
     status = video["status"]
     if index:
-        with _analysis_lock:
+        with _live_analysis_context():
             result = video_service.index_video(video_id, frame_interval_sec=frame_interval_sec)
         indexed_faces = result["indexed_faces"]
         status = result["status"]

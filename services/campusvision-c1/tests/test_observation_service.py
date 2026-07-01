@@ -204,6 +204,34 @@ def test_body_only_observations_skip_expensive_upper_backend_by_default(monkeypa
     assert observations[0].get("upper_color_probs") is None
 
 
+def test_frame_observations_can_skip_clothing_analysis(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 180, 3), dtype=np.uint8)
+
+    def analyze_clothing(*_args, **_kwargs):
+        raise AssertionError("clothing analysis should be skipped")
+
+    monkeypatch.setattr(observation_service.person_analysis, "analyze_clothing", analyze_clothing)
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[],
+        bodies=[{"x1": 10, "y1": 10, "x2": 70, "y2": 190, "score": 0.9}],
+        analyze_clothing=False,
+    )
+
+    assert len(observations) == 1
+    assert observations[0]["person_bbox"] is not None
+    assert observations[0]["upper_color"] == "unknown"
+    assert observations[0]["upper_visible"] is False
+
+
 def test_upper_color_temporal_cache_reuses_overlapping_body(monkeypatch):
     observations = _capture_observations(monkeypatch)
     image = np.zeros((220, 180, 3), dtype=np.uint8)

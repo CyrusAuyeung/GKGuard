@@ -278,6 +278,10 @@ def run_benchmark(
                 frame_interval_sec,
                 collect_profile=collect_profile,
             )
+        if (settings.event_persistence_mode or "sync").strip().lower() == "async":
+            from app.services import event_build_queue
+
+            event_build_queue.wait_for_idle(timeout=600.0)
         if index < warmup_runs:
             warmup_results.append(result)
         else:

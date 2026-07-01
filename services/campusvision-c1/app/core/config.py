@@ -172,6 +172,7 @@ class Settings:
         "ENABLE_UPPER_COLOR_BACKEND_FOR_BODY_ONLY",
         False,
     )
+    clothing_analysis_frame_stride: int = _env_int("CLOTHING_ANALYSIS_FRAME_STRIDE", 1)
     upper_color_schp_root: Path = _path_from_env(
         "UPPER_COLOR_SCHP_ROOT",
         "data/models/schp/Self-Correction-Human-Parsing",
@@ -198,6 +199,9 @@ class Settings:
         os.getenv("UPPER_COLOR_TEMPORAL_CACHE_FACE_SIMILARITY_THRESHOLD", "0.62")
     )
     enable_event_persistence: bool = _bool_from_env("ENABLE_EVENT_PERSISTENCE", True)
+    event_persistence_mode: str = os.getenv("EVENT_PERSISTENCE_MODE", "sync").strip().lower()
+    event_build_worker_count: int = _env_int("EVENT_BUILD_WORKER_COUNT", 1)
+    serialize_live_analysis: bool = _bool_from_env("SERIALIZE_LIVE_ANALYSIS", False)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")
     appearance_session_max_gap_sec: float = float(os.getenv("APPEARANCE_SESSION_MAX_GAP_SEC", "14400"))

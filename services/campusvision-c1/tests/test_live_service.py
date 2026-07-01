@@ -84,3 +84,17 @@ def test_cleanup_retention_refreshes_people_when_index_update_is_disabled(monkey
 
     assert result["refreshed_person_index"]["refreshed"] == 1
     assert result["rebuilt_appearance_sessions"]["sessions"] == 1
+
+
+def test_live_analysis_context_is_unlocked_by_default(monkeypatch):
+    monkeypatch.setattr(live_service.settings, "serialize_live_analysis", False)
+
+    with live_service._analysis_lock:
+        with live_service._live_analysis_context():
+            assert True
+
+
+def test_live_analysis_context_can_serialize_when_configured(monkeypatch):
+    monkeypatch.setattr(live_service.settings, "serialize_live_analysis", True)
+
+    assert live_service._live_analysis_context() is live_service._analysis_lock

@@ -11,7 +11,7 @@ from typing import BinaryIO
 import cv2
 
 from app.core import config
-from app.services import event_service, observation_service, person_service
+from app.services import event_build_queue, event_service, observation_service, person_service
 from app.services.upload_limits import copy_upload_with_limit
 from app.storage import db
 from app.vision.body_detector import get_body_detector
@@ -142,6 +142,16 @@ def _detect_faces_and_embeddings(engine, frame) -> tuple[list[dict], list[list[f
     return boxes, embeddings
 
 
+def _event_persistence_mode() -> str:
+    settings = _settings()
+    if not settings.enable_event_persistence:
+        return "disabled"
+    mode = (settings.event_persistence_mode or "sync").strip().lower()
+    if mode not in {"sync", "async", "disabled"}:
+        raise ValueError("EVENT_PERSISTENCE_MODE must be one of: sync, async, disabled")
+    return mode
+
+
 def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
     affected_person_ids = set(db.list_person_ids_for_video_faces(video_id))
     affected_person_ids.update(db.delete_events_for_video(video_id))
@@ -225,6 +235,8 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
         else None
     )
     body_detection_frame_stride = max(1, int(settings.body_detection_frame_stride or 1))
+    clothing_analysis_frame_stride = max(1, int(settings.clothing_analysis_frame_stride or 1))
+    event_persistence_mode = _event_persistence_mode()
 
     try:
         staging_frame_dir.mkdir(parents=True, exist_ok=True)
@@ -294,6 +306,9 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                 raise RuntimeError(f"Failed to read staged frame: {staging_frame_file.name}")
 
             captured_at = _captured_at(video.get("recorded_at"), timestamp_sec)
+            analyze_clothing = frame_index % clothing_analysis_frame_stride == 0
+            if not analyze_clothing:
+                profile.count("clothing_analysis_skipped_by_stride")
             face_items = []
             face_records = []
             for box, embedding in zip(sampled_item["boxes"], sampled_item["embeddings"]):
@@ -324,6 +339,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                     faces=face_items,
                     bodies=sampled_item["bodies"],
                     upper_color_cache=upper_color_cache,
+                    analyze_clothing=analyze_clothing,
                 )
             sampled_item["face_records"] = face_records
             sampled_item["observation_payloads"] = observation_payloads
@@ -359,7 +375,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                     observed += len(observations)
                     profile.count("observations_written", len(observations))
 
-                if settings.enable_event_persistence:
+                if event_persistence_mode == "sync":
                     with profile.stage("commit_event_rebuild"):
                         event_result = event_service.rebuild_events_for_video(video_id)
                     if event_result:
@@ -414,6 +430,10 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                 shutil.rmtree(backup_frame_dir)
             if db_backup.exists() and can_remove_backups:
                 db_backup.unlink()
+
+    if commit_succeeded and event_persistence_mode == "async":
+        with profile.stage("event_rebuild_queue"):
+            event_result = event_build_queue.enqueue_video_event_rebuild(video_id)
 
     processing_duration = time.perf_counter() - processing_started
     performance_profile = profile.summary(processing_duration_sec=processing_duration)

@@ -235,18 +235,22 @@ def _body_observation_payload(
     face: dict | None,
     upper_prediction: person_analysis.RegionResult | None = None,
     allow_upper_backend: bool = True,
+    analyze_clothing: bool = True,
 ) -> dict[str, Any]:
     visibility = person_analysis.classify_body_visibility(frame, body, face)
-    try:
-        clothing = person_analysis.analyze_clothing(
-            frame,
-            body,
-            visibility,
-            upper_prediction=upper_prediction,
-            allow_upper_backend=allow_upper_backend,
-        )
-    except Exception:
+    if not analyze_clothing:
         clothing = _unknown_clothing()
+    else:
+        try:
+            clothing = person_analysis.analyze_clothing(
+                frame,
+                body,
+                visibility,
+                upper_prediction=upper_prediction,
+                allow_upper_backend=allow_upper_backend,
+            )
+        except Exception:
+            clothing = _unknown_clothing()
     return {
         "body_visibility": visibility,
         "person_bbox": body,
@@ -336,6 +340,7 @@ def build_frame_observation_payloads(
     bodies: list[dict],
     live_source_id: str | None = None,
     upper_color_cache: UpperColorTemporalCache | None = None,
+    analyze_clothing: bool = True,
 ) -> list[dict]:
     match_result = person_analysis.match_faces_to_bodies(faces, bodies)
     estimated_body_by_face_index: dict[int, dict] = {}
@@ -360,12 +365,16 @@ def build_frame_observation_payloads(
                 face_embedding_by_body_id[id(estimated_body)] = embedding
     for body_index in match_result["unmatched_body_indices"]:
         upper_prediction_bodies.append(bodies[body_index])
-    upper_predictions = _batch_upper_predictions(
-        frame,
-        upper_prediction_bodies,
-        timestamp_sec=video_timestamp_sec,
-        cache=upper_color_cache,
-        face_embedding_by_body_id=face_embedding_by_body_id,
+    upper_predictions = (
+        _batch_upper_predictions(
+            frame,
+            upper_prediction_bodies,
+            timestamp_sec=video_timestamp_sec,
+            cache=upper_color_cache,
+            face_embedding_by_body_id=face_embedding_by_body_id,
+        )
+        if analyze_clothing
+        else {}
     )
     observations = []
 
@@ -378,6 +387,7 @@ def build_frame_observation_payloads(
             face=face,
             upper_prediction=upper_predictions.get(id(body)),
             allow_upper_backend=_should_use_upper_backend_for_body(body, has_face_context=True),
+            analyze_clothing=analyze_clothing,
         )
         observation = {
             "observation_id": "obs_" + uuid.uuid4().hex,
@@ -414,6 +424,7 @@ def build_frame_observation_payloads(
                     estimated_body,
                     has_face_context=True,
                 ),
+                analyze_clothing=analyze_clothing,
             )
             body_model_version = ESTIMATED_BODY_MODEL_VERSION
             observation_type = "face_and_body"
@@ -454,6 +465,7 @@ def build_frame_observation_payloads(
             face=None,
             upper_prediction=upper_predictions.get(id(body)),
             allow_upper_backend=_should_use_upper_backend_for_body(body, has_face_context=False),
+            analyze_clothing=analyze_clothing,
         )
         observation = {
             "observation_id": "obs_" + uuid.uuid4().hex,
@@ -494,6 +506,7 @@ def create_frame_observations(
     bodies: list[dict],
     live_source_id: str | None = None,
     upper_color_cache: UpperColorTemporalCache | None = None,
+    analyze_clothing: bool = True,
 ) -> list[dict]:
     return persist_frame_observations(
         build_frame_observation_payloads(
@@ -508,5 +521,6 @@ def create_frame_observations(
             bodies=bodies,
             live_source_id=live_source_id,
             upper_color_cache=upper_color_cache,
+            analyze_clothing=analyze_clothing,
         )
     )
