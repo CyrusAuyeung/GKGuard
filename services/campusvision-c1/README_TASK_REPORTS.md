@@ -463,3 +463,18 @@
 - 产物文件：`data/evals/runtime/c1_api_processing_benchmark_v2_mixed6_p2e_p2l_10runs.json`。
 - 当前判断：在 ChokePoint P2E/P2L 混合视频上，C1 6 路实时热路径已具备较强证据；仍未替代后续真实摄像头 API/H.265 接入验证和 2-4 小时以上服务长跑。
 - 影响范围：仅追加验证报告和 benchmark 输出文件；未改动业务代码、生产数据库、`testdata` 视频、GKGuard C2 或 A/B 代码；人工 check 数据没有进入训练或线上逻辑。
+
+## 2026-07-01 13:46:29 CST - C1 长跑稳定性脚本与内存清理保护
+
+- 版本号：`main@94ee06c`
+- 任务目标：继续补齐 6 路实时分析的长期稳定性证据，增加可复用的 6 路混合循环稳定性脚本，并针对 RSS 持续上涨增加 post-index 内存清理保护。
+- 备份分支：在改动生产热路径前已推送 `backup/c1-before-post-index-memory-trim-20260701-133358`。
+- 工具改动：新增 `scripts/stability_realtime_mixed.py`，可循环调用多源 6 路 benchmark，记录每轮 `max_processing_sec`、单路 realtime factor、失败路由、当前进程 RSS、GPU compute app 显存，并将每轮详细报告和总报告写入 `data/evals/runtime`。
+- benchmark 修正：`scripts/benchmark_api_processing.py` 现在在每次 `run_benchmark()` 后恢复原始 `settings.data_dir/db_path`，便于同一 Python 进程内循环调用，不把进程留在临时 DB。
+- 内存保护：新增 `ENABLE_POST_INDEX_MEMORY_CLEANUP` 和 `POST_INDEX_MEMORY_CLEANUP_INTERVAL`；在 `index_video()` 写库、异步事件入队后释放大型工作集，并按间隔触发 `gc.collect()` 与 Linux `malloc_trim(0)`。本机 `.env` 已启用，当前候选值为每 6 个 indexed videos 清理一次。
+- 验证测试：`python -m py_compile app/core/config.py app/services/video_service.py scripts/benchmark_api_processing.py scripts/stability_realtime_mixed.py` 通过；`pytest tests/test_video_service.py tests/test_live_service.py tests/test_observation_service.py tests/test_event_service.py tests/test_security_config.py -q` 通过，44 passed。
+- 10 轮无清理基线：`c1_realtime_mixed6_stability_10cycles.json`，10 cycles、0 failed routes、`max_processing_sec=16.889067s`、`max_wall_realtime_factor=0.628625`、`max_route_realtime_factor=0.658628`、GPU 显存稳定 `1222MB`，但 RSS 从 `2755.121MB` 增至 `3669.141MB`，增长 `914.020MB`。
+- 10 轮 interval=6 清理：`c1_realtime_mixed6_stability_10cycles_trim.json`，10 cycles、0 failed routes、`max_processing_sec=17.627060s`、`max_wall_realtime_factor=0.656094`、`max_route_realtime_factor=0.696602`、GPU 显存稳定 `1210MB`，RSS 从 `2218.477MB` 增至 `2908.156MB`，增长 `689.679MB`。
+- 5 轮 interval=1 清理复核：`c1_realtime_mixed6_stability_5cycles_trim1_release.json`，5 cycles、0 failed routes、`max_processing_sec=16.799693s`、`max_wall_realtime_factor=0.625299`、`max_route_realtime_factor=0.665304`、GPU 显存稳定 `1210MB`，RSS 从 `2201.129MB` 增至 `2618.449MB`，增长 `417.320MB`。
+- 当前判断：吞吐和 GPU 稳定性继续满足 6 路实时热路径；RSS 增长有所缓解但未完全消除，推测主要来自底层库/allocator arena 保留而不是 Python 工作集引用。该保护可降低风险，但还不能替代 2-4 小时真实长跑；若真实长跑仍线性增长，下一步应做进程级 worker recycle 或服务级 max-requests 策略。
+- 影响范围：仅改动 CampusVision C1；未上传或删除 `testdata` 下视频；未改动 GKGuard C2、A/B 相关代码；人工 check 数据没有进入训练或线上逻辑。
