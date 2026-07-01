@@ -271,6 +271,52 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
             )
             frame_index += 1
 
+        for sampled_item in sampled_items:
+            timestamp_sec = sampled_item["timestamp_sec"]
+            frame_index = sampled_item["frame_index"]
+            staging_frame_file = sampled_item["staging_frame_file"]
+            final_frame_file = video_frame_dir / staging_frame_file.name
+            with profile.stage("observation_frame_read"):
+                frame = cv2.imread(str(staging_frame_file))
+            if frame is None:
+                raise RuntimeError(f"Failed to read staged frame: {staging_frame_file.name}")
+
+            captured_at = _captured_at(video.get("recorded_at"), timestamp_sec)
+            face_items = []
+            face_records = []
+            for box, embedding in zip(sampled_item["boxes"], sampled_item["embeddings"]):
+                face_id = uuid.uuid4().hex
+                face_records.append(
+                    {
+                        "face_id": face_id,
+                        "video_id": video_id,
+                        "camera_id": video["camera_id"],
+                        "frame_path": str(final_frame_file),
+                        "video_timestamp_sec": float(timestamp_sec),
+                        "captured_at": captured_at,
+                        "bbox": box,
+                        "embedding": embedding,
+                    }
+                )
+                face_items.append({"face_id": face_id, "embedding": embedding, **box})
+
+            with profile.stage("observation_payload_build"):
+                observation_payloads = observation_service.build_frame_observation_payloads(
+                    frame=frame,
+                    video_id=video_id,
+                    camera_id=video["camera_id"],
+                    frame_path=str(final_frame_file),
+                    video_timestamp_sec=float(timestamp_sec),
+                    captured_at=captured_at,
+                    frame_index=frame_index,
+                    faces=face_items,
+                    bodies=sampled_item["bodies"],
+                    upper_color_cache=upper_color_cache,
+                )
+            sampled_item["face_records"] = face_records
+            sampled_item["observation_payloads"] = observation_payloads
+            profile.count("observation_payloads_built", len(observation_payloads))
+
         with profile.stage("commit_total"):
             with db.write_lock():
                 if settings.db_path.exists():
@@ -289,47 +335,15 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                     shutil.move(str(staging_frame_dir), str(video_frame_dir))
 
                 for sampled_item in sampled_items:
-                    timestamp_sec = sampled_item["timestamp_sec"]
-                    frame_index = sampled_item["frame_index"]
-                    frame_file = video_frame_dir / sampled_item["staging_frame_file"].name
-                    with profile.stage("commit_frame_read"):
-                        frame = cv2.imread(str(frame_file))
-                    if frame is None:
-                        raise RuntimeError(f"Failed to read staged frame: {frame_file.name}")
-
-                    face_items = []
-                    for box, embedding in zip(sampled_item["boxes"], sampled_item["embeddings"]):
-                        face_id = uuid.uuid4().hex
-                        captured_at = _captured_at(video.get("recorded_at"), timestamp_sec)
+                    for face_record in sampled_item["face_records"]:
                         with profile.stage("commit_face_record_write"):
-                            db.add_face_record(
-                                {
-                                    "face_id": face_id,
-                                    "video_id": video_id,
-                                    "camera_id": video["camera_id"],
-                                    "frame_path": str(frame_file),
-                                    "video_timestamp_sec": float(timestamp_sec),
-                                    "captured_at": captured_at,
-                                    "bbox": box,
-                                    "embedding": embedding,
-                                }
-                            )
-                        face_items.append({"face_id": face_id, "embedding": embedding, **box})
+                            db.add_face_record(face_record)
                         indexed += 1
                         profile.count("face_records_written")
 
-                    with profile.stage("commit_observation_create"):
-                        observations = observation_service.create_frame_observations(
-                            frame=frame,
-                            video_id=video_id,
-                            camera_id=video["camera_id"],
-                            frame_path=str(frame_file),
-                            video_timestamp_sec=float(timestamp_sec),
-                            captured_at=_captured_at(video.get("recorded_at"), timestamp_sec),
-                            frame_index=frame_index,
-                            faces=face_items,
-                            bodies=sampled_item["bodies"],
-                            upper_color_cache=upper_color_cache,
+                    with profile.stage("commit_observation_write"):
+                        observations = observation_service.persist_frame_observations(
+                            sampled_item["observation_payloads"]
                         )
                     observed += len(observations)
                     profile.count("observations_written", len(observations))

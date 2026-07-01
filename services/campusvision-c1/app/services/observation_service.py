@@ -316,7 +316,7 @@ def _batch_upper_predictions(
     return results
 
 
-def create_frame_observations(
+def build_frame_observation_payloads(
     *,
     frame: np.ndarray,
     video_id: str,
@@ -371,26 +371,23 @@ def create_frame_observations(
             face=face,
             upper_prediction=upper_predictions.get(id(body)),
         )
-        observation = db.add_person_observation(
-            {
-                "observation_id": "obs_" + uuid.uuid4().hex,
-                "camera_id": camera_id,
-                "video_id": video_id,
-                "live_source_id": live_source_id,
-                "frame_index": frame_index,
-                "video_timestamp_sec": video_timestamp_sec,
-                "captured_at": captured_at,
-                "frame_path": frame_path,
-                "track_id": None,
-                "observation_type": "face_and_body",
-                "face_record_id": face["face_id"],
-                "person_id": None,
-                "clothing_model_version": settings.clothing_model_version,
-                "body_model_version": settings.body_model_version,
-                **body_payload,
-            }
-        )
-        db.update_face_record_observation(face["face_id"], observation["observation_id"])
+        observation = {
+            "observation_id": "obs_" + uuid.uuid4().hex,
+            "camera_id": camera_id,
+            "video_id": video_id,
+            "live_source_id": live_source_id,
+            "frame_index": frame_index,
+            "video_timestamp_sec": video_timestamp_sec,
+            "captured_at": captured_at,
+            "frame_path": frame_path,
+            "track_id": None,
+            "observation_type": "face_and_body",
+            "face_record_id": face["face_id"],
+            "person_id": None,
+            "clothing_model_version": settings.clothing_model_version,
+            "body_model_version": settings.body_model_version,
+            **body_payload,
+        }
         observations.append(observation)
 
     for face_index in match_result["unmatched_face_indices"]:
@@ -409,35 +406,32 @@ def create_frame_observations(
             body_model_version = ESTIMATED_BODY_MODEL_VERSION
             observation_type = "face_and_body"
 
-        observation = db.add_person_observation(
-            {
-                "observation_id": "obs_" + uuid.uuid4().hex,
-                "camera_id": camera_id,
-                "video_id": video_id,
-                "live_source_id": live_source_id,
-                "frame_index": frame_index,
-                "video_timestamp_sec": video_timestamp_sec,
-                "captured_at": captured_at,
-                "frame_path": frame_path,
-                "track_id": None,
-                "observation_type": observation_type,
-                "face_record_id": face["face_id"],
-                "person_id": None,
-                "clothing_model_version": settings.clothing_model_version,
-                "body_model_version": body_model_version,
-                **(
-                    body_payload
-                    if body_payload is not None
-                    else {
-                        "body_visibility": "face_only",
-                        "person_bbox": None,
-                        "person_detection_confidence": None,
-                        **_unknown_clothing(),
-                    }
-                ),
-            }
-        )
-        db.update_face_record_observation(face["face_id"], observation["observation_id"])
+        observation = {
+            "observation_id": "obs_" + uuid.uuid4().hex,
+            "camera_id": camera_id,
+            "video_id": video_id,
+            "live_source_id": live_source_id,
+            "frame_index": frame_index,
+            "video_timestamp_sec": video_timestamp_sec,
+            "captured_at": captured_at,
+            "frame_path": frame_path,
+            "track_id": None,
+            "observation_type": observation_type,
+            "face_record_id": face["face_id"],
+            "person_id": None,
+            "clothing_model_version": settings.clothing_model_version,
+            "body_model_version": body_model_version,
+            **(
+                body_payload
+                if body_payload is not None
+                else {
+                    "body_visibility": "face_only",
+                    "person_bbox": None,
+                    "person_detection_confidence": None,
+                    **_unknown_clothing(),
+                }
+            ),
+        }
         observations.append(observation)
 
     for body_index in match_result["unmatched_body_indices"]:
@@ -448,25 +442,64 @@ def create_frame_observations(
             face=None,
             upper_prediction=upper_predictions.get(id(body)),
         )
-        observation = db.add_person_observation(
-            {
-                "observation_id": "obs_" + uuid.uuid4().hex,
-                "camera_id": camera_id,
-                "video_id": video_id,
-                "live_source_id": live_source_id,
-                "frame_index": frame_index,
-                "video_timestamp_sec": video_timestamp_sec,
-                "captured_at": captured_at,
-                "frame_path": frame_path,
-                "track_id": None,
-                "observation_type": "body_only",
-                "face_record_id": None,
-                "person_id": None,
-                "clothing_model_version": settings.clothing_model_version,
-                "body_model_version": settings.body_model_version,
-                **body_payload,
-            }
-        )
+        observation = {
+            "observation_id": "obs_" + uuid.uuid4().hex,
+            "camera_id": camera_id,
+            "video_id": video_id,
+            "live_source_id": live_source_id,
+            "frame_index": frame_index,
+            "video_timestamp_sec": video_timestamp_sec,
+            "captured_at": captured_at,
+            "frame_path": frame_path,
+            "track_id": None,
+            "observation_type": "body_only",
+            "face_record_id": None,
+            "person_id": None,
+            "clothing_model_version": settings.clothing_model_version,
+            "body_model_version": settings.body_model_version,
+            **body_payload,
+        }
         observations.append(observation)
 
     return observations
+
+
+def persist_frame_observations(observation_payloads: list[dict]) -> list[dict]:
+    observations = []
+    for payload in observation_payloads:
+        observation = db.add_person_observation(payload)
+        if observation.get("face_record_id"):
+            db.update_face_record_observation(observation["face_record_id"], observation["observation_id"])
+        observations.append(observation)
+    return observations
+
+
+def create_frame_observations(
+    *,
+    frame: np.ndarray,
+    video_id: str,
+    camera_id: str,
+    frame_path: str,
+    video_timestamp_sec: float,
+    captured_at: str | None,
+    frame_index: int | None,
+    faces: list[dict],
+    bodies: list[dict],
+    live_source_id: str | None = None,
+    upper_color_cache: UpperColorTemporalCache | None = None,
+) -> list[dict]:
+    return persist_frame_observations(
+        build_frame_observation_payloads(
+            frame=frame,
+            video_id=video_id,
+            camera_id=camera_id,
+            frame_path=frame_path,
+            video_timestamp_sec=video_timestamp_sec,
+            captured_at=captured_at,
+            frame_index=frame_index,
+            faces=faces,
+            bodies=bodies,
+            live_source_id=live_source_id,
+            upper_color_cache=upper_color_cache,
+        )
+    )

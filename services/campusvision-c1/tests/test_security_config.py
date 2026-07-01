@@ -378,7 +378,10 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     assert "shutil.copy2(db_backup, settings.db_path)" in service_source
     assert "with db.write_lock():" in index_segment
     assert '"frame": frame' not in index_segment
-    assert "frame = cv2.imread(str(frame_file))" in index_segment
+    assert 'with profile.stage("observation_frame_read"):' in index_segment
+    assert "frame = cv2.imread(str(staging_frame_file))" in index_segment
+    assert 'with profile.stage("commit_observation_write"):' in index_segment
+    assert "observation_service.persist_frame_observations" in index_segment
     assert "if commit_started:" in index_segment
     assert "can_remove_backups = commit_succeeded or restore_succeeded or not commit_started" in index_segment
     assert "_clear_previous_video_index(video_id, video_frame_dir)" in index_segment
@@ -401,14 +404,17 @@ def test_video_reindex_clears_previous_artifacts() -> None:
     assert delete_faces_index < refresh_index < rebuild_sessions_index
 
     sample_index = index_segment.index("sampled_items.append")
+    payload_build_index = index_segment.index("observation_service.build_frame_observation_payloads")
     lock_index = index_segment.index("with db.write_lock():")
     db_backup_index = index_segment.index("shutil.copy2(settings.db_path, db_backup)")
     commit_index = index_segment.index("commit_started = True")
     clear_index = index_segment.index("_clear_previous_video_index(video_id, video_frame_dir)")
     move_index = index_segment.index("shutil.move(str(staging_frame_dir), str(video_frame_dir))")
-    read_index = index_segment.index("frame = cv2.imread(str(frame_file))")
-    persist_index = index_segment.index("db.add_face_record")
-    assert sample_index < lock_index < db_backup_index < commit_index < clear_index < move_index < read_index < persist_index
+    face_persist_index = index_segment.index("db.add_face_record")
+    observation_persist_index = index_segment.index("observation_service.persist_frame_observations")
+    assert sample_index < payload_build_index < lock_index
+    assert lock_index < db_backup_index < commit_index < clear_index < move_index
+    assert move_index < face_persist_index < observation_persist_index
 
 
 def test_video_reindex_failure_preserves_previous_index(monkeypatch, tmp_path: Path) -> None:
