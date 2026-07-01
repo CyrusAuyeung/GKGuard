@@ -7,7 +7,7 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from typing import Any
 
-from app.core.config import settings
+from app.core import config
 
 _DB_WRITE_LOCK = threading.RLock()
 
@@ -20,6 +20,7 @@ def write_lock():
 
 @contextmanager
 def get_conn(*, write: bool = False):
+    settings = config.settings
     settings.ensure_dirs()
     lock = _DB_WRITE_LOCK if write else nullcontext()
     with lock:
@@ -654,8 +655,18 @@ def purge_live_videos(camera_id: str, before_created_at: str) -> dict[str, Any]:
 
 
 def add_face_record(record: dict[str, Any]) -> dict[str, Any]:
+    add_face_records([record])
+    result = get_face_record(record["face_id"])
+    assert result is not None
+    return result
+
+
+def add_face_records(records: list[dict[str, Any]]) -> int:
+    if not records:
+        return 0
+    ts = now_iso()
     with get_conn(write=True) as conn:
-        conn.execute(
+        conn.executemany(
             """
             INSERT INTO face_records(
                 face_id, video_id, camera_id, frame_path, video_timestamp_sec,
@@ -663,22 +674,23 @@ def add_face_record(record: dict[str, Any]) -> dict[str, Any]:
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                record["face_id"],
-                record["video_id"],
-                record["camera_id"],
-                record["frame_path"],
-                float(record["video_timestamp_sec"]),
-                record.get("captured_at"),
-                json.dumps(record["bbox"], ensure_ascii=False),
-                json.dumps(record["embedding"]),
-                record.get("observation_id"),
-                now_iso(),
-            ),
+            [
+                (
+                    record["face_id"],
+                    record["video_id"],
+                    record["camera_id"],
+                    record["frame_path"],
+                    float(record["video_timestamp_sec"]),
+                    record.get("captured_at"),
+                    json.dumps(record["bbox"], ensure_ascii=False),
+                    json.dumps(record["embedding"]),
+                    record.get("observation_id"),
+                    ts,
+                )
+                for record in records
+            ],
         )
-    result = get_face_record(record["face_id"])
-    assert result is not None
-    return result
+    return len(records)
 
 
 def list_person_ids_for_video_faces(video_id: str) -> set[str]:
@@ -792,9 +804,17 @@ def _observation_from_row(row: sqlite3.Row | None) -> dict[str, Any] | None:
 
 
 def add_person_observation(observation: dict[str, Any]) -> dict[str, Any]:
+    observations = add_person_observations([observation])
+    assert observations
+    return observations[0]
+
+
+def add_person_observations(observations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not observations:
+        return []
     ts = now_iso()
     with get_conn(write=True) as conn:
-        conn.execute(
+        conn.executemany(
             """
             INSERT OR REPLACE INTO person_observations(
                 observation_id, camera_id, video_id, live_source_id, frame_index,
@@ -808,42 +828,61 @@ def add_person_observation(observation: dict[str, Any]) -> dict[str, Any]:
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                observation["observation_id"],
-                observation["camera_id"],
-                observation.get("video_id"),
-                observation.get("live_source_id"),
-                observation.get("frame_index"),
-                observation.get("video_timestamp_sec"),
-                observation.get("captured_at"),
-                observation["frame_path"],
-                observation.get("track_id"),
-                observation["observation_type"],
-                observation.get("body_visibility") or "unknown_body",
-                json.dumps(observation.get("person_bbox"), ensure_ascii=False)
-                if observation.get("person_bbox") is not None
-                else None,
-                observation.get("person_detection_confidence"),
-                observation.get("face_record_id"),
-                observation.get("person_id"),
-                observation.get("upper_color"),
-                observation.get("upper_color_confidence"),
-                1 if observation.get("upper_visible") else 0,
-                observation.get("upper_valid_pixel_ratio"),
-                _json_or_none(observation.get("upper_color_probs")),
-                observation.get("lower_color"),
-                observation.get("lower_color_confidence"),
-                1 if observation.get("lower_visible") else 0,
-                observation.get("lower_valid_pixel_ratio"),
-                observation.get("clothing_model_version"),
-                observation.get("body_model_version"),
-                observation.get("created_at") or ts,
-                ts,
-            ),
+            [
+                (
+                    observation["observation_id"],
+                    observation["camera_id"],
+                    observation.get("video_id"),
+                    observation.get("live_source_id"),
+                    observation.get("frame_index"),
+                    observation.get("video_timestamp_sec"),
+                    observation.get("captured_at"),
+                    observation["frame_path"],
+                    observation.get("track_id"),
+                    observation["observation_type"],
+                    observation.get("body_visibility") or "unknown_body",
+                    json.dumps(observation.get("person_bbox"), ensure_ascii=False)
+                    if observation.get("person_bbox") is not None
+                    else None,
+                    observation.get("person_detection_confidence"),
+                    observation.get("face_record_id"),
+                    observation.get("person_id"),
+                    observation.get("upper_color"),
+                    observation.get("upper_color_confidence"),
+                    1 if observation.get("upper_visible") else 0,
+                    observation.get("upper_valid_pixel_ratio"),
+                    _json_or_none(observation.get("upper_color_probs")),
+                    observation.get("lower_color"),
+                    observation.get("lower_color_confidence"),
+                    1 if observation.get("lower_visible") else 0,
+                    observation.get("lower_valid_pixel_ratio"),
+                    observation.get("clothing_model_version"),
+                    observation.get("body_model_version"),
+                    observation.get("created_at") or ts,
+                    ts,
+                )
+                for observation in observations
+            ],
         )
-    result = get_person_observation(observation["observation_id"])
-    assert result is not None
-    return result
+        face_links = [
+            (observation["observation_id"], observation.get("face_record_id"))
+            for observation in observations
+            if observation.get("face_record_id")
+        ]
+        if face_links:
+            conn.executemany(
+                "UPDATE face_records SET observation_id = ? WHERE face_id = ?",
+                face_links,
+            )
+        loaded = _load_observations_by_ids(
+            conn,
+            [observation["observation_id"] for observation in observations],
+        )
+    return [
+        loaded[observation["observation_id"]]
+        for observation in observations
+        if observation["observation_id"] in loaded
+    ]
 
 
 def get_person_observation(observation_id: str) -> dict[str, Any] | None:

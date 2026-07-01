@@ -10,7 +10,7 @@ from typing import BinaryIO
 
 import cv2
 
-from app.core.config import settings
+from app.core import config
 from app.services import event_service, observation_service, person_service
 from app.services.upload_limits import copy_upload_with_limit
 from app.storage import db
@@ -70,6 +70,10 @@ class _IndexPerformanceProfile:
         }
 
 
+def _settings():
+    return config.settings
+
+
 def _safe_suffix(filename: str) -> str:
     suffix = Path(filename).suffix.lower()
     return suffix if suffix else ".mp4"
@@ -82,6 +86,7 @@ def save_uploaded_video(
     recorded_at: str | None,
     frame_interval_sec: float | None,
 ) -> dict:
+    settings = _settings()
     settings.ensure_dirs()
 
     if not db.get_camera(camera_id):
@@ -150,6 +155,7 @@ def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
 
 
 def _restore_previous_video_index(db_backup: Path | None, frame_dir: Path, frame_backup_dir: Path | None) -> bool:
+    settings = _settings()
     restored = False
     if frame_dir.exists():
         shutil.rmtree(frame_dir)
@@ -179,6 +185,7 @@ def _video_has_index_artifacts(video_id: str, frame_dir: Path) -> bool:
 
 
 def index_video(video_id: str, frame_interval_sec: float | None = None, *, collect_profile: bool = False) -> dict:
+    settings = _settings()
     profile = _IndexPerformanceProfile(collect_profile)
     with profile.stage("db_get_video"):
         video = db.get_video(video_id)
@@ -335,11 +342,10 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                     shutil.move(str(staging_frame_dir), str(video_frame_dir))
 
                 for sampled_item in sampled_items:
-                    for face_record in sampled_item["face_records"]:
-                        with profile.stage("commit_face_record_write"):
-                            db.add_face_record(face_record)
-                        indexed += 1
-                        profile.count("face_records_written")
+                    with profile.stage("commit_face_record_write"):
+                        written_faces = db.add_face_records(sampled_item["face_records"])
+                    indexed += written_faces
+                    profile.count("face_records_written", written_faces)
 
                     with profile.stage("commit_observation_write"):
                         observations = observation_service.persist_frame_observations(

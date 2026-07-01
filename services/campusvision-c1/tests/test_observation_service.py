@@ -17,7 +17,12 @@ def _capture_observations(monkeypatch):
         observations.append(payload)
         return payload
 
+    def add_person_observations(payloads):
+        observations.extend(payloads)
+        return payloads
+
     monkeypatch.setattr(observation_service.db, "add_person_observation", add_person_observation)
+    monkeypatch.setattr(observation_service.db, "add_person_observations", add_person_observations)
     monkeypatch.setattr(observation_service.db, "update_face_record_observation", lambda *_args, **_kwargs: None)
     return observations
 

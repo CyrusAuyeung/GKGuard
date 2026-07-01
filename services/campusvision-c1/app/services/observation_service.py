@@ -465,13 +465,7 @@ def build_frame_observation_payloads(
 
 
 def persist_frame_observations(observation_payloads: list[dict]) -> list[dict]:
-    observations = []
-    for payload in observation_payloads:
-        observation = db.add_person_observation(payload)
-        if observation.get("face_record_id"):
-            db.update_face_record_observation(observation["face_record_id"], observation["observation_id"])
-        observations.append(observation)
-    return observations
+    return db.add_person_observations(observation_payloads)
 
 
 def create_frame_observations(
