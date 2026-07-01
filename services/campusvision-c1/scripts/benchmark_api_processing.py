@@ -57,6 +57,26 @@ def _fetch_video(db_path: Path, video_id: str) -> dict[str, Any]:
     return dict(row)
 
 
+def _parse_video_ids(raw: str | None, fallback: str) -> list[str]:
+    if not raw:
+        return [fallback]
+    video_ids = [item.strip() for item in raw.split(",") if item.strip()]
+    if not video_ids:
+        raise ValueError("--video-ids must contain at least one video id")
+    return video_ids
+
+
+def _video_summary(video: dict[str, Any]) -> dict[str, Any]:
+    duration = _video_duration_sec(video.get("path"))
+    return {
+        "video_id": video.get("video_id"),
+        "filename": video.get("filename"),
+        "camera_id": video.get("camera_id"),
+        "video_path": video.get("path"),
+        "duration_sec": round(duration, 6) if duration else None,
+    }
+
+
 def _clean_video_records(db_path: Path, video_id: str) -> None:
     conn = sqlite3.connect(db_path)
     try:
@@ -89,55 +109,71 @@ def _clean_video_records(db_path: Path, video_id: str) -> None:
         conn.close()
 
 
-def _prepare_route_videos(db_path: Path, source_video: dict[str, Any], route_count: int) -> list[str]:
+def _prepare_route_videos(
+    db_path: Path,
+    source_videos: list[dict[str, Any]],
+    route_count: int,
+) -> list[dict[str, Any]]:
     route_count = max(1, int(route_count))
-    if route_count == 1:
-        return [str(source_video["video_id"])]
+    if not source_videos:
+        raise ValueError("at least one source video is required")
 
-    route_ids = []
+    route_specs = []
     conn = sqlite3.connect(db_path)
     try:
         ts = _utc_now()
         for index in range(route_count):
+            source_video = source_videos[index % len(source_videos)]
             video_id = (
                 str(source_video["video_id"])
-                if index == 0
+                if index < len(source_videos)
                 else f"{source_video['video_id']}_bench_route_{index + 1:02d}"
             )
-            camera_id = f"{source_video.get('camera_id') or 'camera'}_bench_route_{index + 1:02d}"
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO cameras(camera_id, name, location, lat, lng, created_at, updated_at)
-                VALUES (?, ?, NULL, NULL, NULL, ?, ?)
-                """,
-                (camera_id, camera_id, ts, ts),
-            )
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO videos(
-                    video_id, filename, camera_id, recorded_at, path, status,
-                    frame_interval_sec, created_at, updated_at,
-                    processing_started_at, processing_finished_at,
-                    processing_duration_sec, processing_error
+            if index >= len(source_videos):
+                camera_id = f"{source_video.get('camera_id') or 'camera'}_bench_route_{index + 1:02d}"
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO cameras(camera_id, name, location, lat, lng, created_at, updated_at)
+                    VALUES (?, ?, NULL, NULL, NULL, ?, ?)
+                    """,
+                    (camera_id, camera_id, ts, ts),
                 )
-                VALUES (?, ?, ?, ?, ?, 'uploaded', ?, ?, ?, NULL, NULL, NULL, NULL)
-                """,
-                (
-                    video_id,
-                    source_video.get("filename") or f"route_{index + 1}.mp4",
-                    camera_id,
-                    source_video.get("recorded_at"),
-                    source_video["path"],
-                    source_video.get("frame_interval_sec"),
-                    ts,
-                    ts,
-                ),
+                conn.execute(
+                    """
+                    INSERT OR REPLACE INTO videos(
+                        video_id, filename, camera_id, recorded_at, path, status,
+                        frame_interval_sec, created_at, updated_at,
+                        processing_started_at, processing_finished_at,
+                        processing_duration_sec, processing_error
+                    )
+                    VALUES (?, ?, ?, ?, ?, 'uploaded', ?, ?, ?, NULL, NULL, NULL, NULL)
+                    """,
+                    (
+                        video_id,
+                        source_video.get("filename") or f"route_{index + 1}.mp4",
+                        camera_id,
+                        source_video.get("recorded_at"),
+                        source_video["path"],
+                        source_video.get("frame_interval_sec"),
+                        ts,
+                        ts,
+                    ),
+                )
+            source_duration = _video_duration_sec(source_video.get("path"))
+            route_specs.append(
+                {
+                    "route_index": index + 1,
+                    "video_id": video_id,
+                    "source_video_id": source_video.get("video_id"),
+                    "source_filename": source_video.get("filename"),
+                    "source_camera_id": source_video.get("camera_id"),
+                    "source_duration_sec": round(source_duration, 6) if source_duration else None,
+                }
             )
-            route_ids.append(video_id)
         conn.commit()
     finally:
         conn.close()
-    return route_ids
+    return route_specs
 
 
 def _set_temp_data_dir(data_dir: Path) -> None:
@@ -178,8 +214,24 @@ def _run_once(video_id: str, frame_interval_sec: float | None, *, collect_profil
     }
 
 
+def _enrich_route_result(route_spec: dict[str, Any], result: dict[str, Any]) -> dict[str, Any]:
+    route_processing_sec = float(result.get("processing_duration_sec") or result.get("elapsed_sec") or 0.0)
+    duration = route_spec.get("source_duration_sec")
+    realtime_factor = (
+        round(route_processing_sec / float(duration), 6)
+        if duration and float(duration) > 0.0
+        else None
+    )
+    return {
+        **route_spec,
+        **result,
+        "route_processing_sec": round(route_processing_sec, 6),
+        "route_realtime_factor": realtime_factor,
+    }
+
+
 def _run_concurrent(
-    video_ids: list[str],
+    route_specs: list[dict[str, Any]],
     frame_interval_sec: float | None,
     *,
     collect_profile: bool,
@@ -194,32 +246,37 @@ def _run_concurrent(
 
     started = time.perf_counter()
     route_results: list[dict[str, Any]] = []
-    with ThreadPoolExecutor(max_workers=len(video_ids)) as executor:
+    with ThreadPoolExecutor(max_workers=len(route_specs)) as executor:
         futures = {
             executor.submit(
                 _run_once,
-                video_id,
+                str(route_spec["video_id"]),
                 frame_interval_sec,
                 collect_profile=collect_profile,
-            ): video_id
-            for video_id in video_ids
+            ): route_spec
+            for route_spec in route_specs
         }
         for future in as_completed(futures):
-            video_id = futures[future]
+            route_spec = futures[future]
             try:
-                route_results.append({"video_id": video_id, **future.result()})
+                route_results.append(_enrich_route_result(route_spec, future.result()))
             except Exception as exc:
                 route_results.append(
                     {
-                        "video_id": video_id,
+                        **route_spec,
                         "error": f"{type(exc).__name__}: {exc}",
                     }
                 )
     elapsed = time.perf_counter() - started
-    route_results.sort(key=lambda item: item["video_id"])
+    route_results.sort(key=lambda item: int(item.get("route_index") or 0))
+    route_realtime_values = [
+        float(item["route_realtime_factor"])
+        for item in route_results
+        if item.get("route_realtime_factor") is not None and not item.get("error")
+    ]
     return {
         "elapsed_sec": round(elapsed, 6),
-        "route_count": len(video_ids),
+        "route_count": len(route_specs),
         "routes": route_results,
         "failed_routes": sum(1 for item in route_results if item.get("error")),
         "mean_route_processing_sec": round(
@@ -232,12 +289,24 @@ def _run_concurrent(
         )
         if any(not item.get("error") for item in route_results)
         else None,
+        "mean_route_realtime_factor": round(mean(route_realtime_values), 6)
+        if route_realtime_values
+        else None,
+        "max_route_realtime_factor": round(max(route_realtime_values), 6)
+        if route_realtime_values
+        else None,
+        "passes_realtime_all_routes": (
+            bool(route_realtime_values)
+            and len(route_realtime_values) == len(route_specs)
+            and max(route_realtime_values) <= 1.0
+        ),
     }
 
 
 def run_benchmark(
     *,
     video_id: str,
+    video_ids: list[str] | None = None,
     frame_interval_sec: float | None,
     warmup_runs: int,
     runs: int,
@@ -247,8 +316,17 @@ def run_benchmark(
 ) -> dict[str, Any]:
     source_db = settings.db_path
     source_data_dir = settings.data_dir
-    video = _fetch_video(source_db, video_id)
-    video_duration = _video_duration_sec(video.get("path"))
+    source_video_ids = video_ids or [video_id]
+    source_videos = [_fetch_video(source_db, item) for item in source_video_ids]
+    video = source_videos[0]
+    source_summaries = [_video_summary(item) for item in source_videos]
+    source_durations = [
+        float(item["duration_sec"])
+        for item in source_summaries
+        if item.get("duration_sec") is not None
+    ]
+    video_duration = source_durations[0] if source_durations else None
+    benchmark_duration = max(source_durations) if source_durations else video_duration
 
     bench_root = (
         source_data_dir
@@ -267,14 +345,19 @@ def run_benchmark(
     measured_results = []
     for index in range(max(0, warmup_runs) + max(1, runs)):
         shutil.copyfile(source_copy, settings.db_path)
-        route_video_ids = _prepare_route_videos(settings.db_path, video, concurrent_routes)
-        for route_video_id in route_video_ids:
-            _clean_video_records(settings.db_path, route_video_id)
+        route_specs = _prepare_route_videos(settings.db_path, source_videos, concurrent_routes)
+        for route_spec in route_specs:
+            _clean_video_records(settings.db_path, str(route_spec["video_id"]))
         if concurrent_routes <= 1:
-            result = _run_once(video_id, frame_interval_sec, collect_profile=collect_profile)
+            result = _run_once(
+                str(route_specs[0]["video_id"]),
+                frame_interval_sec,
+                collect_profile=collect_profile,
+            )
+            result = _enrich_route_result(route_specs[0], result)
         else:
             result = _run_concurrent(
-                route_video_ids,
+                route_specs,
                 frame_interval_sec,
                 collect_profile=collect_profile,
             )
@@ -292,20 +375,31 @@ def run_benchmark(
         for item in measured_results
     ]
     realtime_values = [
-        value / video_duration
+        value / benchmark_duration
         for value in processing_values
-        if video_duration and video_duration > 0.0
+        if benchmark_duration and benchmark_duration > 0.0
+    ]
+    route_realtime_values = [
+        float(route["route_realtime_factor"])
+        for item in measured_results
+        for route in (item.get("routes") or [item])
+        if isinstance(route, dict)
+        and route.get("route_realtime_factor") is not None
+        and not route.get("error")
     ]
     report = {
-        "schema_version": "c1_api_processing_benchmark_v1",
+        "schema_version": "c1_api_processing_benchmark_v2",
         "generated_at": _utc_now(),
         "source": "clean_temp_db_index_video",
         "temp_data_dir": str(bench_root),
         "video_id": video_id,
+        "video_ids": source_video_ids,
         "filename": video.get("filename"),
         "camera_id": video.get("camera_id"),
         "video_path": video.get("path"),
         "video_duration_sec": round(video_duration, 6) if video_duration else None,
+        "benchmark_duration_sec": round(benchmark_duration, 6) if benchmark_duration else None,
+        "source_videos": source_summaries,
         "frame_interval_sec": frame_interval_sec,
         "collect_profile": collect_profile,
         "concurrent_routes": max(1, int(concurrent_routes)),
@@ -315,6 +409,20 @@ def run_benchmark(
         "max_processing_sec": round(max(processing_values), 6) if processing_values else None,
         "mean_realtime_factor": round(mean(realtime_values), 6) if realtime_values else None,
         "max_realtime_factor": round(max(realtime_values), 6) if realtime_values else None,
+        "mean_wall_realtime_factor": round(mean(realtime_values), 6) if realtime_values else None,
+        "max_wall_realtime_factor": round(max(realtime_values), 6) if realtime_values else None,
+        "mean_route_realtime_factor": round(mean(route_realtime_values), 6)
+        if route_realtime_values
+        else None,
+        "max_route_realtime_factor": round(max(route_realtime_values), 6)
+        if route_realtime_values
+        else None,
+        "passes_realtime_all_routes": (
+            bool(route_realtime_values)
+            and len(route_realtime_values)
+            == max(1, int(concurrent_routes)) * len(measured_results)
+            and max(route_realtime_values) <= 1.0
+        ),
         "mean_effective_realtime_streams": (
             round((max(1, int(concurrent_routes)) / mean(realtime_values)), 6)
             if realtime_values
@@ -329,6 +437,11 @@ def run_benchmark(
 def main() -> int:
     parser = argparse.ArgumentParser(description="Benchmark current C1 video API processing on a clean temp DB.")
     parser.add_argument("--video-id", default=DEFAULT_VIDEO_ID)
+    parser.add_argument(
+        "--video-ids",
+        default=None,
+        help="Comma-separated source video IDs. When set, routes use these sources in order and cycle if needed.",
+    )
     parser.add_argument("--frame-interval-sec", type=float, default=1.0)
     parser.add_argument("--warmup-runs", type=int, default=1)
     parser.add_argument("--runs", type=int, default=1)
@@ -336,8 +449,10 @@ def main() -> int:
     parser.add_argument("--collect-profile", action="store_true")
     parser.add_argument("--concurrent-routes", type=int, default=1)
     args = parser.parse_args()
+    video_ids = _parse_video_ids(args.video_ids, args.video_id) if args.video_ids else None
     report = run_benchmark(
         video_id=args.video_id,
+        video_ids=video_ids,
         frame_interval_sec=args.frame_interval_sec,
         warmup_runs=args.warmup_runs,
         runs=args.runs,
