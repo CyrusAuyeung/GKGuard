@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sqlite3
+import subprocess
 import sys
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -43,6 +45,76 @@ def _video_duration_sec(path: str | None) -> float | None:
     if fps <= 0.0 or frames <= 0.0:
         return None
     return frames / fps
+
+
+def _rss_mb(pid: int | None = None) -> float | None:
+    pid = os.getpid() if pid is None else int(pid)
+    status_path = Path(f"/proc/{pid}/status")
+    try:
+        for line in status_path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("VmRSS:"):
+                parts = line.split()
+                return round(float(parts[1]) / 1024.0, 3)
+    except OSError:
+        return None
+    return None
+
+
+def _gpu_compute_apps() -> list[dict[str, Any]]:
+    cmd = [
+        "nvidia-smi",
+        "--query-compute-apps=pid,process_name,used_memory",
+        "--format=csv,noheader,nounits",
+    ]
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=10)
+    except Exception:
+        return []
+
+    apps = []
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        parts = [part.strip() for part in line.split(",")]
+        if len(parts) < 3:
+            continue
+        try:
+            pid = int(parts[0])
+        except ValueError:
+            continue
+        try:
+            used_memory_mb = int(parts[2])
+        except ValueError:
+            used_memory_mb = None
+        apps.append(
+            {
+                "pid": pid,
+                "process_name": parts[1],
+                "used_memory_mb": used_memory_mb,
+            }
+        )
+    return apps
+
+
+def _gpu_memory_for_pid(apps: list[dict[str, Any]], pid: int | None = None) -> int | None:
+    pid = os.getpid() if pid is None else int(pid)
+    values = [
+        int(app["used_memory_mb"])
+        for app in apps
+        if app.get("pid") == pid and app.get("used_memory_mb") is not None
+    ]
+    return sum(values) if values else None
+
+
+def _process_metrics() -> dict[str, Any]:
+    gpu_apps = _gpu_compute_apps()
+    return {
+        "pid": os.getpid(),
+        "rss_mb": _rss_mb(),
+        "this_process_gpu_mb": _gpu_memory_for_pid(gpu_apps),
+        "gpu_compute_apps": gpu_apps,
+    }
 
 
 def _fetch_video(db_path: Path, video_id: str) -> dict[str, Any]:
@@ -367,6 +439,10 @@ def run_benchmark(
         warmup_results = []
         measured_results = []
         for index in range(max(0, warmup_runs) + max(1, runs)):
+            run_type = "warmup" if index < warmup_runs else "measured"
+            run_index = index if run_type == "warmup" else index - warmup_runs
+            run_started_at = _utc_now()
+            run_metrics_before = _process_metrics()
             shutil.copyfile(source_copy, settings.db_path)
             route_specs = _prepare_route_videos(settings.db_path, source_videos, concurrent_routes)
             for route_spec in route_specs:
@@ -388,6 +464,16 @@ def run_benchmark(
                 from app.services import event_build_queue
 
                 event_build_queue.wait_for_idle(timeout=600.0)
+            result.update(
+                {
+                    "run_index": run_index,
+                    "run_type": run_type,
+                    "started_at": run_started_at,
+                    "finished_at": _utc_now(),
+                    "process_metrics_before": run_metrics_before,
+                    "process_metrics_after": _process_metrics(),
+                }
+            )
             if index < warmup_runs:
                 warmup_results.append(result)
             else:
@@ -412,6 +498,34 @@ def run_benchmark(
         and route.get("route_realtime_factor") is not None
         and not route.get("error")
     ]
+    measured_rss_values = [
+        float(metrics["rss_mb"])
+        for item in measured_results
+        for metrics in (
+            item.get("process_metrics_before") or {},
+            item.get("process_metrics_after") or {},
+        )
+        if metrics.get("rss_mb") is not None
+    ]
+    measured_gpu_values = [
+        int(metrics["this_process_gpu_mb"])
+        for item in measured_results
+        for metrics in (
+            item.get("process_metrics_before") or {},
+            item.get("process_metrics_after") or {},
+        )
+        if metrics.get("this_process_gpu_mb") is not None
+    ]
+    measured_rss_start = (
+        measured_results[0].get("process_metrics_before", {}).get("rss_mb")
+        if measured_results
+        else None
+    )
+    measured_rss_end = (
+        measured_results[-1].get("process_metrics_after", {}).get("rss_mb")
+        if measured_results
+        else None
+    )
     report = {
         "schema_version": "c1_api_processing_benchmark_v2",
         "generated_at": _utc_now(),
@@ -453,6 +567,21 @@ def run_benchmark(
             if realtime_values
             else None
         ),
+        "measured_rss_start_mb": measured_rss_start,
+        "measured_rss_end_mb": measured_rss_end,
+        "measured_rss_min_mb": round(min(measured_rss_values), 3)
+        if measured_rss_values
+        else None,
+        "measured_rss_max_mb": round(max(measured_rss_values), 3)
+        if measured_rss_values
+        else None,
+        "measured_rss_delta_mb": (
+            round(float(measured_rss_end) - float(measured_rss_start), 3)
+            if measured_rss_start is not None and measured_rss_end is not None
+            else None
+        ),
+        "measured_gpu_min_mb": min(measured_gpu_values) if measured_gpu_values else None,
+        "measured_gpu_max_mb": max(measured_gpu_values) if measured_gpu_values else None,
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

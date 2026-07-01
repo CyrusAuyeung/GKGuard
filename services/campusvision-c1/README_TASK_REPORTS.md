@@ -478,3 +478,15 @@
 - 5 轮 interval=1 清理复核：`c1_realtime_mixed6_stability_5cycles_trim1_release.json`，5 cycles、0 failed routes、`max_processing_sec=16.799693s`、`max_wall_realtime_factor=0.625299`、`max_route_realtime_factor=0.665304`、GPU 显存稳定 `1210MB`，RSS 从 `2201.129MB` 增至 `2618.449MB`，增长 `417.320MB`。
 - 当前判断：吞吐和 GPU 稳定性继续满足 6 路实时热路径；RSS 增长有所缓解但未完全消除，推测主要来自底层库/allocator arena 保留而不是 Python 工作集引用。该保护可降低风险，但还不能替代 2-4 小时真实长跑；若真实长跑仍线性增长，下一步应做进程级 worker recycle 或服务级 max-requests 策略。
 - 影响范围：仅改动 CampusVision C1；未上传或删除 `testdata` 下视频；未改动 GKGuard C2、A/B 相关代码；人工 check 数据没有进入训练或线上逻辑。
+
+## 2026-07-01 13:57:27 CST - C1 6 路压测补充进程指标
+
+- 版本号：`main@d855154`
+- 任务目标：回答“只能缩短处理时间、不能并行处理吗”的工程落点，继续把 6 路实时优化从单纯耗时压缩推进到“受控并行 + 可观测稳定性”。
+- 工具改动：`scripts/benchmark_api_processing.py` 新增每轮 `process_metrics_before/after`，记录当前进程 RSS、当前进程 GPU 显存和 `nvidia-smi` compute apps；报告顶层新增 `measured_rss_start/end/min/max/delta_mb` 与 `measured_gpu_min/max_mb`，用于区分冷启动模型加载和稳态运行漂移。
+- 并行判断：C1 当前不是只能缩短单路处理时间，已经支持 6 路视频同时进入分析；并行方式是多路解码/抽帧/入库并行，GPU 推理通过 bounded semaphore 受控调度，避免每路重复加载模型或无界抢占 3090。
+- 验证测试：`python -m py_compile scripts/benchmark_api_processing.py` 通过；`pytest tests/test_video_service.py tests/test_live_service.py tests/test_observation_service.py tests/test_event_service.py tests/test_security_config.py -q` 通过，44 passed；C1 8000 `/health` 正常。
+- 冷启动 6 路结果：`c1_api_processing_benchmark_v2_mixed6_metrics_3runs.json`，3 次 measured、6 路总失败 `0`，`max_processing_sec=15.929375s`，`max_wall_realtime_factor=0.592905`，`max_route_realtime_factor=0.629149`，`passes_realtime_all_routes=true`，`mean_effective_realtime_streams=10.319428`；首次模型加载导致 RSS 从 `116.781MB` 到 `2387.113MB`，GPU 显存稳定 `1204MB`。
+- warmup 后 6 路结果：`c1_api_processing_benchmark_v2_mixed6_metrics_warm1_3runs.json`，warmup 1 次后 measured 3 次、6 路总失败 `0`，`max_processing_sec=17.568375s`，`max_wall_realtime_factor=0.653910`，`max_route_realtime_factor=0.693337`，`passes_realtime_all_routes=true`，`mean_effective_realtime_streams=9.395434`；稳态 RSS 从 `1938.637MB` 到 `2433.734MB`，增长 `495.097MB`，GPU 显存稳定 `1216MB`。
+- 当前判断：6 路并行吞吐和显存已经具备较强本地证据；RSS 仍存在稳态上涨，下一步优化重点不是继续盲目压缩单路耗时，而是增加进程级 worker recycle / max-requests 这类隔离策略，防止底层 ONNXRuntime/OpenCV allocator 长期保留导致服务 RSS 持续上涨。
+- 影响范围：本次只增强 C1 压测观测工具并追加报告；未改动生产分析热路径、生产数据库、`testdata` 视频、GKGuard C2 或 A/B 代码；人工 check 数据没有进入训练或线上逻辑。
