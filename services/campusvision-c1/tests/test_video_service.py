@@ -105,3 +105,39 @@ def test_event_persistence_mode_rejects_unknown_value(monkeypatch):
 
     with pytest.raises(ValueError, match="EVENT_PERSISTENCE_MODE"):
         video_service._event_persistence_mode()
+
+
+def test_post_index_memory_cleanup_respects_interval(monkeypatch):
+    settings = video_service._settings()
+    monkeypatch.setattr(settings, "enable_post_index_memory_cleanup", True)
+    monkeypatch.setattr(settings, "post_index_memory_cleanup_interval", 2)
+    monkeypatch.setattr(video_service, "_INDEX_COMPLETION_COUNT", 0)
+    monkeypatch.setattr(video_service.sys, "platform", "linux")
+
+    calls = []
+    monkeypatch.setattr(video_service.gc, "collect", lambda: calls.append("gc") or 3)
+
+    class LibC:
+        def malloc_trim(self, value):
+            calls.append(("trim", value))
+            return 1
+
+    monkeypatch.setattr(video_service.ctypes, "CDLL", lambda _name: LibC())
+
+    first = video_service._cleanup_process_memory_after_index()
+    second = video_service._cleanup_process_memory_after_index()
+
+    assert first["triggered"] is False
+    assert first["completion_count"] == 1
+    assert second["triggered"] is True
+    assert second["completion_count"] == 2
+    assert second["gc_collected"] == 3
+    assert second["malloc_trim"] is True
+    assert calls == ["gc", ("trim", 0)]
+
+
+def test_post_index_memory_cleanup_is_opt_in(monkeypatch):
+    settings = video_service._settings()
+    monkeypatch.setattr(settings, "enable_post_index_memory_cleanup", False)
+
+    assert video_service._cleanup_process_memory_after_index() == {"enabled": False, "triggered": False}

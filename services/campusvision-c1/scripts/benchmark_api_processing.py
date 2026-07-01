@@ -185,6 +185,26 @@ def _set_temp_data_dir(data_dir: Path) -> None:
     settings.db_path = data_dir / "campusvision.sqlite3"
 
 
+def _capture_data_dir_settings() -> dict[str, Path]:
+    return {
+        "data_dir": settings.data_dir,
+        "uploads_dir": settings.uploads_dir,
+        "video_uploads_dir": settings.video_uploads_dir,
+        "query_uploads_dir": settings.query_uploads_dir,
+        "frames_dir": settings.frames_dir,
+        "db_path": settings.db_path,
+    }
+
+
+def _restore_data_dir_settings(snapshot: dict[str, Path]) -> None:
+    settings.data_dir = snapshot["data_dir"]
+    settings.uploads_dir = snapshot["uploads_dir"]
+    settings.video_uploads_dir = snapshot["video_uploads_dir"]
+    settings.query_uploads_dir = snapshot["query_uploads_dir"]
+    settings.frames_dir = snapshot["frames_dir"]
+    settings.db_path = snapshot["db_path"]
+
+
 def _run_once(video_id: str, frame_interval_sec: float | None, *, collect_profile: bool) -> dict[str, Any]:
     from app.storage import db
     from app.services import video_service
@@ -210,6 +230,7 @@ def _run_once(video_id: str, frame_interval_sec: float | None, *, collect_profil
         "detected_bodies": result.get("detected_bodies"),
         "source_observations": (result.get("event_result") or {}).get("source_observations"),
         "events": (result.get("event_result") or {}).get("events"),
+        "memory_cleanup": result.get("memory_cleanup"),
         "performance_profile": result.get("performance_profile"),
     }
 
@@ -314,6 +335,7 @@ def run_benchmark(
     collect_profile: bool,
     concurrent_routes: int,
 ) -> dict[str, Any]:
+    data_settings_snapshot = _capture_data_dir_settings()
     source_db = settings.db_path
     source_data_dir = settings.data_dir
     source_video_ids = video_ids or [video_id]
@@ -338,37 +360,40 @@ def run_benchmark(
     source_copy = bench_root / "source.sqlite3"
     shutil.copyfile(source_db, source_copy)
 
-    _set_temp_data_dir(bench_root)
-    settings.ensure_dirs()
+    try:
+        _set_temp_data_dir(bench_root)
+        settings.ensure_dirs()
 
-    warmup_results = []
-    measured_results = []
-    for index in range(max(0, warmup_runs) + max(1, runs)):
-        shutil.copyfile(source_copy, settings.db_path)
-        route_specs = _prepare_route_videos(settings.db_path, source_videos, concurrent_routes)
-        for route_spec in route_specs:
-            _clean_video_records(settings.db_path, str(route_spec["video_id"]))
-        if concurrent_routes <= 1:
-            result = _run_once(
-                str(route_specs[0]["video_id"]),
-                frame_interval_sec,
-                collect_profile=collect_profile,
-            )
-            result = _enrich_route_result(route_specs[0], result)
-        else:
-            result = _run_concurrent(
-                route_specs,
-                frame_interval_sec,
-                collect_profile=collect_profile,
-            )
-        if (settings.event_persistence_mode or "sync").strip().lower() == "async":
-            from app.services import event_build_queue
+        warmup_results = []
+        measured_results = []
+        for index in range(max(0, warmup_runs) + max(1, runs)):
+            shutil.copyfile(source_copy, settings.db_path)
+            route_specs = _prepare_route_videos(settings.db_path, source_videos, concurrent_routes)
+            for route_spec in route_specs:
+                _clean_video_records(settings.db_path, str(route_spec["video_id"]))
+            if concurrent_routes <= 1:
+                result = _run_once(
+                    str(route_specs[0]["video_id"]),
+                    frame_interval_sec,
+                    collect_profile=collect_profile,
+                )
+                result = _enrich_route_result(route_specs[0], result)
+            else:
+                result = _run_concurrent(
+                    route_specs,
+                    frame_interval_sec,
+                    collect_profile=collect_profile,
+                )
+            if (settings.event_persistence_mode or "sync").strip().lower() == "async":
+                from app.services import event_build_queue
 
-            event_build_queue.wait_for_idle(timeout=600.0)
-        if index < warmup_runs:
-            warmup_results.append(result)
-        else:
-            measured_results.append(result)
+                event_build_queue.wait_for_idle(timeout=600.0)
+            if index < warmup_runs:
+                warmup_results.append(result)
+            else:
+                measured_results.append(result)
+    finally:
+        _restore_data_dir_settings(data_settings_snapshot)
 
     processing_values = [
         float(item["elapsed_sec"] if concurrent_routes > 1 else item.get("processing_duration_sec") or item["elapsed_sec"])

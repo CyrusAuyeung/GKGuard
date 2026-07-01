@@ -202,6 +202,8 @@ class Settings:
     event_persistence_mode: str = os.getenv("EVENT_PERSISTENCE_MODE", "sync").strip().lower()
     event_build_worker_count: int = _env_int("EVENT_BUILD_WORKER_COUNT", 1)
     serialize_live_analysis: bool = _bool_from_env("SERIALIZE_LIVE_ANALYSIS", False)
+    enable_post_index_memory_cleanup: bool = _bool_from_env("ENABLE_POST_INDEX_MEMORY_CLEANUP", False)
+    post_index_memory_cleanup_interval: int = _env_int("POST_INDEX_MEMORY_CLEANUP_INTERVAL", 6)
     clothing_model_version: str = os.getenv("CLOTHING_MODEL_VERSION", "hsv_roi_v6_upper_lab_guard_striped")
     body_model_version: str = os.getenv("BODY_MODEL_VERSION", "opencv_hog_v1")
     appearance_session_max_gap_sec: float = float(os.getenv("APPEARANCE_SESSION_MAX_GAP_SEC", "14400"))

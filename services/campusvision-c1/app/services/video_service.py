@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import ctypes
+import gc
 import shutil
+import sys
+import threading
 import time
 import uuid
 from contextlib import contextmanager
@@ -17,6 +21,10 @@ from app.storage import db
 from app.vision.body_detector import get_body_detector
 from app.vision.face_engine import get_face_engine
 from app.vision.frame_sampler import iter_video_frames
+
+
+_MEMORY_CLEANUP_LOCK = threading.Lock()
+_INDEX_COMPLETION_COUNT = 0
 
 
 class _IndexPerformanceProfile:
@@ -150,6 +158,42 @@ def _event_persistence_mode() -> str:
     if mode not in {"sync", "async", "disabled"}:
         raise ValueError("EVENT_PERSISTENCE_MODE must be one of: sync, async, disabled")
     return mode
+
+
+def _cleanup_process_memory_after_index() -> dict:
+    global _INDEX_COMPLETION_COUNT
+    settings = _settings()
+    if not settings.enable_post_index_memory_cleanup:
+        return {"enabled": False, "triggered": False}
+
+    interval = max(1, int(settings.post_index_memory_cleanup_interval or 1))
+    with _MEMORY_CLEANUP_LOCK:
+        _INDEX_COMPLETION_COUNT += 1
+        completion_count = _INDEX_COMPLETION_COUNT
+        if completion_count % interval != 0:
+            return {
+                "enabled": True,
+                "triggered": False,
+                "completion_count": completion_count,
+                "interval": interval,
+            }
+
+        collected = gc.collect()
+        trimmed = False
+        if sys.platform.startswith("linux"):
+            try:
+                libc = ctypes.CDLL("libc.so.6")
+                trimmed = bool(libc.malloc_trim(0))
+            except Exception:
+                trimmed = False
+        return {
+            "enabled": True,
+            "triggered": True,
+            "completion_count": completion_count,
+            "interval": interval,
+            "gc_collected": collected,
+            "malloc_trim": trimmed,
+        }
 
 
 def _clear_previous_video_index(video_id: str, frame_dir: Path) -> None:
@@ -435,6 +479,22 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
         with profile.stage("event_rebuild_queue"):
             event_result = event_build_queue.enqueue_video_event_rebuild(video_id)
 
+    with profile.stage("release_working_sets"):
+        sampled_items.clear()
+        created_frame_files.clear()
+        upper_color_cache = None
+        sampled_item = None
+        frame = None
+        boxes = None
+        embeddings = None
+        bodies = None
+        face_items = None
+        face_records = None
+        observation_payloads = None
+
+    with profile.stage("post_index_memory_cleanup"):
+        memory_cleanup = _cleanup_process_memory_after_index()
+
     processing_duration = time.perf_counter() - processing_started
     performance_profile = profile.summary(processing_duration_sec=processing_duration)
 
@@ -444,6 +504,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
         "indexed_observations": observed,
         "detected_bodies": detected_bodies,
         "event_result": event_result,
+        "memory_cleanup": memory_cleanup,
         "status": "indexed",
     }
     if performance_profile is not None:
