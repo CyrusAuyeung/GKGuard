@@ -289,3 +289,116 @@ def test_upper_color_temporal_cache_does_not_reuse_one_entry_for_two_bodies(monk
     assert len(calls[0]) == 1
     assert len(calls[1]) == 1
     assert [item["upper_color"] for item in observations] == ["black", "black", "black"]
+
+
+def test_upper_color_temporal_cache_reuses_large_motion_by_face_embedding(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 220, 3), dtype=np.uint8)
+    cache = observation_service.UpperColorTemporalCache(
+        max_age_sec=2.5,
+        iou_threshold=0.50,
+        center_threshold=0.20,
+        face_max_age_sec=30.0,
+        face_similarity_threshold=0.90,
+    )
+    calls = []
+
+    def classify_upper_colors(_frame, body_boxes):
+        calls.append(list(body_boxes))
+        return [
+            observation_service.person_analysis.RegionResult("black", 0.8, True, 1.0)
+            for _body in body_boxes
+        ]
+
+    monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_temporal_cache", True)
+    monkeypatch.setattr(
+        observation_service.person_analysis,
+        "_classify_upper_colors_with_backend",
+        classify_upper_colors,
+    )
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame1.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[{"face_id": "face_1", "x1": 30, "y1": 20, "x2": 50, "y2": 40, "score": 0.9, "embedding": [1.0, 0.0]}],
+        bodies=[{"x1": 10, "y1": 10, "x2": 70, "y2": 190, "score": 0.9, "detector": "opencv_hog"}],
+        upper_color_cache=cache,
+    )
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame2.jpg",
+        video_timestamp_sec=12.0,
+        captured_at=None,
+        frame_index=2,
+        faces=[{"face_id": "face_2", "x1": 130, "y1": 20, "x2": 150, "y2": 40, "score": 0.9, "embedding": [0.98, 0.02]}],
+        bodies=[{"x1": 110, "y1": 10, "x2": 170, "y2": 190, "score": 0.9, "detector": "opencv_hog"}],
+        upper_color_cache=cache,
+    )
+
+    assert len(calls) == 1
+    assert [item["upper_color"] for item in observations] == ["black", "black"]
+
+
+def test_upper_color_temporal_cache_does_not_reuse_large_motion_for_different_face(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 220, 3), dtype=np.uint8)
+    cache = observation_service.UpperColorTemporalCache(
+        max_age_sec=2.5,
+        iou_threshold=0.50,
+        center_threshold=0.20,
+        face_max_age_sec=30.0,
+        face_similarity_threshold=0.90,
+    )
+    calls = []
+
+    def classify_upper_colors(_frame, body_boxes):
+        calls.append(list(body_boxes))
+        color = "black" if len(calls) == 1 else "white"
+        return [
+            observation_service.person_analysis.RegionResult(color, 0.8, True, 1.0)
+            for _body in body_boxes
+        ]
+
+    monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_temporal_cache", True)
+    monkeypatch.setattr(
+        observation_service.person_analysis,
+        "_classify_upper_colors_with_backend",
+        classify_upper_colors,
+    )
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame1.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[{"face_id": "face_1", "x1": 30, "y1": 20, "x2": 50, "y2": 40, "score": 0.9, "embedding": [1.0, 0.0]}],
+        bodies=[{"x1": 10, "y1": 10, "x2": 70, "y2": 190, "score": 0.9, "detector": "opencv_hog"}],
+        upper_color_cache=cache,
+    )
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame2.jpg",
+        video_timestamp_sec=12.0,
+        captured_at=None,
+        frame_index=2,
+        faces=[{"face_id": "face_2", "x1": 130, "y1": 20, "x2": 150, "y2": 40, "score": 0.9, "embedding": [0.0, 1.0]}],
+        bodies=[{"x1": 110, "y1": 10, "x2": 170, "y2": 190, "score": 0.9, "detector": "opencv_hog"}],
+        upper_color_cache=cache,
+    )
+
+    assert len(calls) == 2
+    assert [item["upper_color"] for item in observations] == ["black", "white"]

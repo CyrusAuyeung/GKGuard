@@ -20,6 +20,7 @@ class _UpperColorCacheEntry:
     body: dict
     timestamp_sec: float
     prediction: person_analysis.RegionResult
+    face_embedding: list[float] | None = None
 
 
 def _bbox_iou(left: dict, right: dict) -> float:
@@ -75,6 +76,19 @@ def _same_body_source(left: dict, right: dict) -> bool:
     ) == str(right.get("detector") or "")
 
 
+def _embedding_similarity(left: list[float] | None, right: list[float] | None) -> float | None:
+    if left is None or right is None:
+        return None
+    left_arr = np.asarray(left, dtype=np.float32).reshape(-1)
+    right_arr = np.asarray(right, dtype=np.float32).reshape(-1)
+    if left_arr.size == 0 or left_arr.size != right_arr.size:
+        return None
+    denominator = float(np.linalg.norm(left_arr) * np.linalg.norm(right_arr))
+    if denominator < 1e-8:
+        return None
+    return float(np.dot(left_arr, right_arr) / denominator)
+
+
 class UpperColorTemporalCache:
     def __init__(
         self,
@@ -82,6 +96,8 @@ class UpperColorTemporalCache:
         max_age_sec: float | None = None,
         iou_threshold: float | None = None,
         center_threshold: float | None = None,
+        face_max_age_sec: float | None = None,
+        face_similarity_threshold: float | None = None,
     ) -> None:
         self.max_age_sec = (
             float(settings.upper_color_temporal_cache_max_age_sec)
@@ -98,13 +114,24 @@ class UpperColorTemporalCache:
             if center_threshold is None
             else float(center_threshold)
         )
+        self.face_max_age_sec = (
+            float(settings.upper_color_temporal_cache_face_max_age_sec)
+            if face_max_age_sec is None
+            else float(face_max_age_sec)
+        )
+        self.face_similarity_threshold = (
+            float(settings.upper_color_temporal_cache_face_similarity_threshold)
+            if face_similarity_threshold is None
+            else float(face_similarity_threshold)
+        )
         self._entries: list[_UpperColorCacheEntry] = []
 
     def _prune(self, timestamp_sec: float) -> None:
+        max_age = max(self.max_age_sec, self.face_max_age_sec)
         self._entries = [
             entry
             for entry in self._entries
-            if 0.0 <= timestamp_sec - entry.timestamp_sec <= self.max_age_sec
+            if 0.0 <= timestamp_sec - entry.timestamp_sec <= max_age
         ]
 
     def get(
@@ -113,16 +140,25 @@ class UpperColorTemporalCache:
         *,
         timestamp_sec: float,
         used_entry_indexes: set[int],
+        face_embedding: list[float] | None = None,
     ) -> person_analysis.RegionResult | None:
         self._prune(timestamp_sec)
         best: tuple[float, int, _UpperColorCacheEntry] | None = None
         for index, entry in enumerate(self._entries):
             if index in used_entry_indexes:
                 continue
-            if not _same_body_source(body, entry.body):
-                continue
             age = timestamp_sec - entry.timestamp_sec
-            if age < 0.0 or age > self.max_age_sec:
+            if age < 0.0:
+                continue
+
+            similarity = _embedding_similarity(face_embedding, entry.face_embedding)
+            if similarity is not None and age <= self.face_max_age_sec:
+                if similarity >= self.face_similarity_threshold:
+                    score = 2.0 + similarity - min(0.25, age / max(1.0, self.face_max_age_sec) * 0.25)
+                    if best is None or score > best[0]:
+                        best = (score, index, entry)
+
+            if age > self.max_age_sec or not _same_body_source(body, entry.body):
                 continue
             iou = _bbox_iou(body, entry.body)
             center_ratio = _center_distance_ratio(body, entry.body)
@@ -138,13 +174,21 @@ class UpperColorTemporalCache:
         used_entry_indexes.add(best[1])
         return best[2].prediction
 
-    def put(self, body: dict, *, timestamp_sec: float, prediction: person_analysis.RegionResult) -> None:
+    def put(
+        self,
+        body: dict,
+        *,
+        timestamp_sec: float,
+        prediction: person_analysis.RegionResult,
+        face_embedding: list[float] | None = None,
+    ) -> None:
         self._prune(timestamp_sec)
         self._entries.append(
             _UpperColorCacheEntry(
                 body=dict(body),
                 timestamp_sec=timestamp_sec,
                 prediction=prediction,
+                face_embedding=list(face_embedding) if face_embedding is not None else None,
             )
         )
 
@@ -207,6 +251,7 @@ def _batch_upper_predictions(
     *,
     timestamp_sec: float | None = None,
     cache: UpperColorTemporalCache | None = None,
+    face_embedding_by_body_id: dict[int, list[float]] | None = None,
 ) -> dict[int, person_analysis.RegionResult]:
     if not bodies or not settings.enable_clothing_detection or not settings.enable_upper_clothing_detection:
         return {}
@@ -231,6 +276,7 @@ def _batch_upper_predictions(
                 body,
                 timestamp_sec=float(timestamp_sec),
                 used_entry_indexes=used_cache_entries,
+                face_embedding=(face_embedding_by_body_id or {}).get(id(body)),
             )
             if prediction is None:
                 uncached_bodies.append(body)
@@ -252,7 +298,12 @@ def _batch_upper_predictions(
             continue
         results[id(body)] = prediction
         if cache is not None and timestamp_sec is not None and settings.enable_upper_color_temporal_cache:
-            cache.put(body, timestamp_sec=float(timestamp_sec), prediction=prediction)
+            cache.put(
+                body,
+                timestamp_sec=float(timestamp_sec),
+                prediction=prediction,
+                face_embedding=(face_embedding_by_body_id or {}).get(id(body)),
+            )
     return results
 
 
@@ -276,11 +327,21 @@ def create_frame_observations(
         bodies[pair["body_index"]]
         for pair in match_result["pairs"]
     ]
+    face_embedding_by_body_id: dict[int, list[float]] = {}
+    for pair in match_result["pairs"]:
+        face = faces[pair["face_index"]]
+        embedding = face.get("embedding")
+        if embedding is not None:
+            face_embedding_by_body_id[id(bodies[pair["body_index"]])] = embedding
+
     for face_index in match_result["unmatched_face_indices"]:
         estimated_body = _estimated_body_from_face_if_visible(frame, faces[face_index])
         if estimated_body is not None:
             estimated_body_by_face_index[face_index] = estimated_body
             upper_prediction_bodies.append(estimated_body)
+            embedding = faces[face_index].get("embedding")
+            if embedding is not None:
+                face_embedding_by_body_id[id(estimated_body)] = embedding
     for body_index in match_result["unmatched_body_indices"]:
         upper_prediction_bodies.append(bodies[body_index])
     upper_predictions = _batch_upper_predictions(
@@ -288,6 +349,7 @@ def create_frame_observations(
         upper_prediction_bodies,
         timestamp_sec=video_timestamp_sec,
         cache=upper_color_cache,
+        face_embedding_by_body_id=face_embedding_by_body_id,
     )
     observations = []
 

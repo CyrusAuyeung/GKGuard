@@ -314,7 +314,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
                                     "embedding": embedding,
                                 }
                             )
-                        face_items.append({"face_id": face_id, **box})
+                        face_items.append({"face_id": face_id, "embedding": embedding, **box})
                         indexed += 1
                         profile.count("face_records_written")
 
