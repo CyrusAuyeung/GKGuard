@@ -206,6 +206,13 @@ def _unknown_clothing() -> dict[str, Any]:
     }
 
 
+def _should_use_upper_backend_for_body(body: dict) -> bool:
+    return not (
+        body.get("estimated_from_face")
+        and not settings.enable_upper_color_backend_for_face_estimated_body
+    )
+
+
 def _estimated_body_from_face_if_visible(frame: np.ndarray, face: dict) -> dict | None:
     height, width = frame.shape[:2]
     face_h = max(1.0, float(face.get("y2", 0) - face.get("y1", 0)))
@@ -261,6 +268,8 @@ def _batch_upper_predictions(
     unique_bodies = []
     seen: set[int] = set()
     for body in bodies:
+        if not _should_use_upper_backend_for_body(body):
+            continue
         body_key = id(body)
         if body_key in seen:
             continue

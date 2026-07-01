@@ -89,6 +89,43 @@ def test_unmatched_close_face_remains_face_only_unknown(monkeypatch):
     assert observation["upper_color"] == "unknown"
 
 
+def test_face_estimated_body_can_skip_expensive_upper_backend(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 120, 3), dtype=np.uint8)
+    face = {"face_id": "face_1", "x1": 45, "y1": 16, "x2": 75, "y2": 46, "score": 0.92}
+
+    def classify_upper_colors(_frame, _body_boxes):
+        raise AssertionError("face-estimated body should use the lightweight rule path")
+
+    monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(
+        observation_service.settings,
+        "enable_upper_color_backend_for_face_estimated_body",
+        False,
+    )
+    monkeypatch.setattr(
+        observation_service.person_analysis,
+        "_classify_upper_colors_with_backend",
+        classify_upper_colors,
+    )
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[face],
+        bodies=[],
+    )
+
+    assert len(observations) == 1
+    assert observations[0]["body_model_version"] == observation_service.ESTIMATED_BODY_MODEL_VERSION
+    assert observations[0]["upper_color"] == "black"
+
+
 def test_frame_observations_batch_upper_color_for_multiple_bodies(monkeypatch):
     observations = _capture_observations(monkeypatch)
     image = np.zeros((220, 180, 3), dtype=np.uint8)

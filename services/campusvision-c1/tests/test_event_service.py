@@ -27,3 +27,59 @@ def test_body_only_event_bucket_is_mergeable_for_adjacent_observations():
     }
 
     assert event_service._event_bucket_key(first) == event_service._event_bucket_key(second)
+
+
+def test_face_estimated_upper_color_conflict_still_blocks_event_merge(monkeypatch):
+    monkeypatch.setattr(
+        event_service.settings,
+        "enable_upper_color_backend_for_face_estimated_body",
+        False,
+    )
+    first = {
+        "camera_id": "cam_1",
+        "video_id": "video_1",
+        "video_timestamp_sec": 1.0,
+        "person_bbox": {"x1": 100, "y1": 100, "x2": 180, "y2": 260},
+        "body_model_version": "face_estimated_body_v1",
+        "upper_visible": True,
+        "upper_color": "black",
+    }
+    second = {
+        "camera_id": "cam_1",
+        "video_id": "video_1",
+        "video_timestamp_sec": 2.0,
+        "person_bbox": {"x1": 104, "y1": 102, "x2": 184, "y2": 262},
+        "body_model_version": "face_estimated_body_v1",
+        "upper_visible": True,
+        "upper_color": "white",
+    }
+
+    assert event_service._can_merge(first, second) is False
+
+
+def test_detector_upper_color_conflict_blocks_event_merge(monkeypatch):
+    monkeypatch.setattr(
+        event_service.settings,
+        "enable_upper_color_backend_for_face_estimated_body",
+        False,
+    )
+    first = {
+        "camera_id": "cam_1",
+        "video_id": "video_1",
+        "video_timestamp_sec": 1.0,
+        "person_bbox": {"x1": 100, "y1": 100, "x2": 180, "y2": 260},
+        "body_model_version": "opencv_hog_v1",
+        "upper_visible": True,
+        "upper_color": "black",
+    }
+    second = {
+        "camera_id": "cam_1",
+        "video_id": "video_1",
+        "video_timestamp_sec": 2.0,
+        "person_bbox": {"x1": 104, "y1": 102, "x2": 184, "y2": 262},
+        "body_model_version": "opencv_hog_v1",
+        "upper_visible": True,
+        "upper_color": "white",
+    }
+
+    assert event_service._can_merge(first, second) is False

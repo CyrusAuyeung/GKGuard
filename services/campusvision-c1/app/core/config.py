@@ -160,6 +160,10 @@ class Settings:
     upper_color_clip_temperature: float = float(os.getenv("UPPER_COLOR_CLIP_TEMPERATURE", "10.0"))
     upper_color_clip_min_confidence: float = float(os.getenv("UPPER_COLOR_CLIP_MIN_CONFIDENCE", "0.0"))
     upper_color_clip_fail_open: bool = _bool_from_env("UPPER_COLOR_CLIP_FAIL_OPEN", True)
+    enable_upper_color_backend_for_face_estimated_body: bool = _bool_from_env(
+        "ENABLE_UPPER_COLOR_BACKEND_FOR_FACE_ESTIMATED_BODY",
+        False,
+    )
     upper_color_schp_root: Path = _path_from_env(
         "UPPER_COLOR_SCHP_ROOT",
         "data/models/schp/Self-Correction-Human-Parsing",

@@ -578,7 +578,13 @@ def analyze_clothing(
     lower = RegionResult("unknown", None, False, None)
 
     if settings.enable_clothing_detection and settings.enable_upper_clothing_detection:
-        upper = upper_prediction or _classify_upper_color_with_backend(image_bgr, body_box) or upper
+        use_upper_backend = not (
+            body_box.get("estimated_from_face")
+            and not settings.enable_upper_color_backend_for_face_estimated_body
+        )
+        upper = upper_prediction or upper
+        if use_upper_backend and upper_prediction is None:
+            upper = _classify_upper_color_with_backend(image_bgr, body_box) or upper
         if upper.color == "unknown" and upper.confidence is None:
             upper_roi = _roi_from_ratio(
                 image_bgr,
