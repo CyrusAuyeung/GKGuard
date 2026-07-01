@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import threading
+
 import numpy as np
 
 from app.core.config import settings
@@ -60,13 +62,16 @@ class InsightFaceEngine:
 
         ctx_id = 0 if "CUDAExecutionProvider" in providers else -1
         det_size = max(640, int(settings.insightface_det_size or 1280))
+        max_concurrent = max(1, int(settings.insightface_max_concurrent_inferences or 1))
+        self._inference_semaphore = threading.BoundedSemaphore(max_concurrent)
         self.app = FaceAnalysis(name="buffalo_l", providers=providers)
         self.app.prepare(ctx_id=ctx_id, det_size=(det_size, det_size))
 
     def _faces(self, image_bgr: np.ndarray):
         if image_bgr is None:
             return []
-        return self.app.get(image_bgr)
+        with self._inference_semaphore:
+            return self.app.get(image_bgr)
 
     def _face_box_and_embedding(self, face) -> tuple[dict, list[float] | None]:
         x1, y1, x2, y2 = [int(v) for v in face.bbox.tolist()]

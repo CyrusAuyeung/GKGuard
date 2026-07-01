@@ -206,11 +206,12 @@ def _unknown_clothing() -> dict[str, Any]:
     }
 
 
-def _should_use_upper_backend_for_body(body: dict) -> bool:
-    return not (
-        body.get("estimated_from_face")
-        and not settings.enable_upper_color_backend_for_face_estimated_body
-    )
+def _should_use_upper_backend_for_body(body: dict, *, has_face_context: bool = False) -> bool:
+    if body.get("estimated_from_face") and not settings.enable_upper_color_backend_for_face_estimated_body:
+        return False
+    if not has_face_context and not settings.enable_upper_color_backend_for_body_only:
+        return False
+    return True
 
 
 def _estimated_body_from_face_if_visible(frame: np.ndarray, face: dict) -> dict | None:
@@ -233,6 +234,7 @@ def _body_observation_payload(
     body: dict,
     face: dict | None,
     upper_prediction: person_analysis.RegionResult | None = None,
+    allow_upper_backend: bool = True,
 ) -> dict[str, Any]:
     visibility = person_analysis.classify_body_visibility(frame, body, face)
     try:
@@ -241,6 +243,7 @@ def _body_observation_payload(
             body,
             visibility,
             upper_prediction=upper_prediction,
+            allow_upper_backend=allow_upper_backend,
         )
     except Exception:
         clothing = _unknown_clothing()
@@ -267,10 +270,14 @@ def _batch_upper_predictions(
 
     unique_bodies = []
     seen: set[int] = set()
+    face_embedding_by_body_id = face_embedding_by_body_id or {}
     for body in bodies:
-        if not _should_use_upper_backend_for_body(body):
-            continue
         body_key = id(body)
+        if not _should_use_upper_backend_for_body(
+            body,
+            has_face_context=body_key in face_embedding_by_body_id,
+        ):
+            continue
         if body_key in seen:
             continue
         seen.add(body_key)
@@ -285,7 +292,7 @@ def _batch_upper_predictions(
                 body,
                 timestamp_sec=float(timestamp_sec),
                 used_entry_indexes=used_cache_entries,
-                face_embedding=(face_embedding_by_body_id or {}).get(id(body)),
+                face_embedding=face_embedding_by_body_id.get(id(body)),
             )
             if prediction is None:
                 uncached_bodies.append(body)
@@ -311,7 +318,7 @@ def _batch_upper_predictions(
                 body,
                 timestamp_sec=float(timestamp_sec),
                 prediction=prediction,
-                face_embedding=(face_embedding_by_body_id or {}).get(id(body)),
+                face_embedding=face_embedding_by_body_id.get(id(body)),
             )
     return results
 
@@ -370,6 +377,7 @@ def build_frame_observation_payloads(
             body=body,
             face=face,
             upper_prediction=upper_predictions.get(id(body)),
+            allow_upper_backend=_should_use_upper_backend_for_body(body, has_face_context=True),
         )
         observation = {
             "observation_id": "obs_" + uuid.uuid4().hex,
@@ -402,6 +410,10 @@ def build_frame_observation_payloads(
                 body=estimated_body,
                 face=face,
                 upper_prediction=upper_predictions.get(id(estimated_body)),
+                allow_upper_backend=_should_use_upper_backend_for_body(
+                    estimated_body,
+                    has_face_context=True,
+                ),
             )
             body_model_version = ESTIMATED_BODY_MODEL_VERSION
             observation_type = "face_and_body"
@@ -441,6 +453,7 @@ def build_frame_observation_payloads(
             body=body,
             face=None,
             upper_prediction=upper_predictions.get(id(body)),
+            allow_upper_backend=_should_use_upper_backend_for_body(body, has_face_context=False),
         )
         observation = {
             "observation_id": "obs_" + uuid.uuid4().hex,

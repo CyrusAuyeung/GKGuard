@@ -224,6 +224,7 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
         if settings.enable_upper_color_temporal_cache
         else None
     )
+    body_detection_frame_stride = max(1, int(settings.body_detection_frame_stride or 1))
 
     try:
         staging_frame_dir.mkdir(parents=True, exist_ok=True)
@@ -246,11 +247,15 @@ def index_video(video_id: str, frame_interval_sec: float | None = None, *, colle
             usable_face_count = len(boxes) if embeddings and len(embeddings) == len(boxes) else 0
             profile.count("usable_faces", usable_face_count)
 
-            try:
-                with profile.stage("body_detect"):
-                    bodies = body_detector.detect_people(frame)
-            except Exception:
+            if frame_index % body_detection_frame_stride == 0:
+                try:
+                    with profile.stage("body_detect"):
+                        bodies = body_detector.detect_people(frame)
+                except Exception:
+                    bodies = []
+            else:
                 bodies = []
+                profile.count("body_detection_skipped_by_stride")
             detected_bodies += len(bodies)
             profile.count("detected_bodies", len(bodies))
 

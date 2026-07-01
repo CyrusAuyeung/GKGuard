@@ -568,6 +568,7 @@ def analyze_clothing(
     body_visibility: str,
     *,
     upper_prediction: RegionResult | None = None,
+    allow_upper_backend: bool = True,
 ) -> dict:
     if body_box is None or body_visibility in {"face_only", "unknown_body", "partial_body"}:
         return RegionResult("unknown", None, False, None).as_prefix("upper") | RegionResult(
@@ -583,7 +584,7 @@ def analyze_clothing(
             and not settings.enable_upper_color_backend_for_face_estimated_body
         )
         upper = upper_prediction or upper
-        if use_upper_backend and upper_prediction is None:
+        if allow_upper_backend and use_upper_backend and upper_prediction is None:
             upper = _classify_upper_color_with_backend(image_bgr, body_box) or upper
         if upper.color == "unknown" and upper.confidence is None:
             upper_roi = _roi_from_ratio(

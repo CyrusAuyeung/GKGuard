@@ -148,6 +148,7 @@ def test_frame_observations_batch_upper_color_for_multiple_bodies(monkeypatch):
         ]
 
     monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_backend_for_body_only", True)
     monkeypatch.setattr(
         observation_service.person_analysis,
         "_classify_upper_colors_with_backend",
@@ -171,6 +172,38 @@ def test_frame_observations_batch_upper_color_for_multiple_bodies(monkeypatch):
     assert [item["upper_color"] for item in observations] == ["black", "white"]
 
 
+def test_body_only_observations_skip_expensive_upper_backend_by_default(monkeypatch):
+    observations = _capture_observations(monkeypatch)
+    image = np.zeros((220, 180, 3), dtype=np.uint8)
+
+    def classify_upper_colors(_frame, _body_boxes):
+        raise AssertionError("body-only observations should use the lightweight rule path by default")
+
+    monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_backend_for_body_only", False)
+    monkeypatch.setattr(
+        observation_service.person_analysis,
+        "_classify_upper_colors_with_backend",
+        classify_upper_colors,
+    )
+
+    observation_service.create_frame_observations(
+        frame=image,
+        video_id="video_1",
+        camera_id="camera_1",
+        frame_path="/tmp/frame.jpg",
+        video_timestamp_sec=1.0,
+        captured_at=None,
+        frame_index=1,
+        faces=[],
+        bodies=[{"x1": 10, "y1": 10, "x2": 70, "y2": 190, "score": 0.9}],
+    )
+
+    assert len(observations) == 1
+    assert observations[0]["observation_type"] == "body_only"
+    assert observations[0].get("upper_color_probs") is None
+
+
 def test_upper_color_temporal_cache_reuses_overlapping_body(monkeypatch):
     observations = _capture_observations(monkeypatch)
     image = np.zeros((220, 180, 3), dtype=np.uint8)
@@ -185,6 +218,7 @@ def test_upper_color_temporal_cache_reuses_overlapping_body(monkeypatch):
         ]
 
     monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_backend_for_body_only", True)
     monkeypatch.setattr(observation_service.settings, "enable_upper_color_temporal_cache", True)
     monkeypatch.setattr(
         observation_service.person_analysis,
@@ -240,6 +274,7 @@ def test_upper_color_temporal_cache_reuses_moving_body_by_center(monkeypatch):
         ]
 
     monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_backend_for_body_only", True)
     monkeypatch.setattr(observation_service.settings, "enable_upper_color_temporal_cache", True)
     monkeypatch.setattr(
         observation_service.person_analysis,
@@ -292,6 +327,7 @@ def test_upper_color_temporal_cache_does_not_reuse_one_entry_for_two_bodies(monk
         ]
 
     monkeypatch.setattr(observation_service.settings, "upper_color_backend", "clip_schp")
+    monkeypatch.setattr(observation_service.settings, "enable_upper_color_backend_for_body_only", True)
     monkeypatch.setattr(observation_service.settings, "enable_upper_color_temporal_cache", True)
     monkeypatch.setattr(
         observation_service.person_analysis,

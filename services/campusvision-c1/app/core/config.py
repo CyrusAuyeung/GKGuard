@@ -78,6 +78,8 @@ class Settings:
 
     face_engine: str = os.getenv("FACE_ENGINE", "insightface").strip().lower()
     insightface_det_size: int = _env_int("INSIGHTFACE_DET_SIZE", 1280)
+    insightface_engine_pool_size: int = _env_int("INSIGHTFACE_ENGINE_POOL_SIZE", 1)
+    insightface_max_concurrent_inferences: int = _env_int("INSIGHTFACE_MAX_CONCURRENT_INFERENCES", 1)
     default_frame_interval_sec: float = _env_float("DEFAULT_FRAME_INTERVAL_SEC", 1.0)
     max_video_upload_bytes: int = _env_int("CAMPUSVISION_MAX_VIDEO_UPLOAD_BYTES", 512 * 1024 * 1024)
     max_query_image_upload_bytes: int = _env_int("CAMPUSVISION_MAX_QUERY_IMAGE_UPLOAD_BYTES", 16 * 1024 * 1024)
@@ -92,6 +94,7 @@ class Settings:
     event_time_window_sec: float = float(os.getenv("EVENT_TIME_WINDOW_SEC", "10.0"))
 
     enable_body_detection: bool = _bool_from_env("ENABLE_BODY_DETECTION", True)
+    body_detection_frame_stride: int = _env_int("BODY_DETECTION_FRAME_STRIDE", 1)
     body_detection_backend: str = os.getenv("BODY_DETECTION_BACKEND", "opencv_hog").strip().lower()
     person_detection_confidence_threshold: float = float(
         os.getenv("PERSON_DETECTION_CONFIDENCE_THRESHOLD", "0.35")
@@ -104,6 +107,7 @@ class Settings:
     ultralytics_device: str = os.getenv("ULTRALYTICS_DEVICE", "cuda:0")
     ultralytics_imgsz: int = int(os.getenv("ULTRALYTICS_IMGSZ", "960"))
     ultralytics_max_detections: int = int(os.getenv("ULTRALYTICS_MAX_DETECTIONS", "50"))
+    ultralytics_max_concurrent_inferences: int = _env_int("ULTRALYTICS_MAX_CONCURRENT_INFERENCES", 1)
     min_person_box_width: int = int(os.getenv("MIN_PERSON_BOX_WIDTH", "28"))
     min_person_box_height: int = int(os.getenv("MIN_PERSON_BOX_HEIGHT", "56"))
     max_bbox_edge_truncation_ratio: float = float(os.getenv("MAX_BBOX_EDGE_TRUNCATION_RATIO", "0.35"))
@@ -162,6 +166,10 @@ class Settings:
     upper_color_clip_fail_open: bool = _bool_from_env("UPPER_COLOR_CLIP_FAIL_OPEN", True)
     enable_upper_color_backend_for_face_estimated_body: bool = _bool_from_env(
         "ENABLE_UPPER_COLOR_BACKEND_FOR_FACE_ESTIMATED_BODY",
+        False,
+    )
+    enable_upper_color_backend_for_body_only: bool = _bool_from_env(
+        "ENABLE_UPPER_COLOR_BACKEND_FOR_BODY_ONLY",
         False,
     )
     upper_color_schp_root: Path = _path_from_env(

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import threading
 
 import cv2
 import numpy as np
 
 from app.core.config import settings
 from app.vision import person_analysis
+
+
+_BODY_DETECTOR_INIT_LOCK = threading.Lock()
 
 
 class BodyDetector:
@@ -100,21 +104,24 @@ class UltralyticsPersonDetector(BodyDetector):
         if not model_path.exists():
             raise FileNotFoundError(f"Ultralytics model not found: {model_path}")
         self.model = YOLO(str(model_path))
+        max_concurrent = max(1, int(settings.ultralytics_max_concurrent_inferences or 1))
+        self._inference_semaphore = threading.BoundedSemaphore(max_concurrent)
 
     def detect_people(self, image_bgr: np.ndarray) -> list[dict]:
         if image_bgr is None or image_bgr.size == 0:
             return []
 
-        results = self.model.predict(
-            source=image_bgr,
-            classes=[0],
-            conf=settings.person_detection_confidence_threshold,
-            iou=settings.person_detection_nms_threshold,
-            imgsz=settings.ultralytics_imgsz,
-            max_det=settings.ultralytics_max_detections,
-            device=settings.ultralytics_device,
-            verbose=False,
-        )
+        with self._inference_semaphore:
+            results = self.model.predict(
+                source=image_bgr,
+                classes=[0],
+                conf=settings.person_detection_confidence_threshold,
+                iou=settings.person_detection_nms_threshold,
+                imgsz=settings.ultralytics_imgsz,
+                max_det=settings.ultralytics_max_detections,
+                device=settings.ultralytics_device,
+                verbose=False,
+            )
         if not results:
             return []
 
@@ -150,7 +157,7 @@ class UltralyticsPersonDetector(BodyDetector):
 
 
 @lru_cache(maxsize=1)
-def get_body_detector() -> BodyDetector:
+def _get_body_detector_cached() -> BodyDetector:
     if not settings.enable_body_detection:
         return BodyDetector()
     if settings.body_detection_backend == "opencv_hog":
@@ -160,3 +167,8 @@ def get_body_detector() -> BodyDetector:
     if settings.body_detection_backend in {"none", "disabled"}:
         return BodyDetector()
     raise ValueError(f"Unsupported BODY_DETECTION_BACKEND={settings.body_detection_backend}")
+
+
+def get_body_detector() -> BodyDetector:
+    with _BODY_DETECTOR_INIT_LOCK:
+        return _get_body_detector_cached()
