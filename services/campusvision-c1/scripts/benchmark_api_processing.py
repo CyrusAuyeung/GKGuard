@@ -97,13 +97,17 @@ def _set_temp_data_dir(data_dir: Path) -> None:
     settings.db_path = data_dir / "campusvision.sqlite3"
 
 
-def _run_once(video_id: str, frame_interval_sec: float | None) -> dict[str, Any]:
+def _run_once(video_id: str, frame_interval_sec: float | None, *, collect_profile: bool) -> dict[str, Any]:
     from app.storage import db
     from app.services import video_service
 
     db.init_db()
     started = time.perf_counter()
-    result = video_service.index_video(video_id, frame_interval_sec=frame_interval_sec)
+    result = video_service.index_video(
+        video_id,
+        frame_interval_sec=frame_interval_sec,
+        collect_profile=collect_profile,
+    )
     elapsed = time.perf_counter() - started
     video = db.get_video(video_id) or {}
     return {
@@ -118,6 +122,7 @@ def _run_once(video_id: str, frame_interval_sec: float | None) -> dict[str, Any]
         "detected_bodies": result.get("detected_bodies"),
         "source_observations": (result.get("event_result") or {}).get("source_observations"),
         "events": (result.get("event_result") or {}).get("events"),
+        "performance_profile": result.get("performance_profile"),
     }
 
 
@@ -128,6 +133,7 @@ def run_benchmark(
     warmup_runs: int,
     runs: int,
     output: Path,
+    collect_profile: bool,
 ) -> dict[str, Any]:
     source_db = settings.db_path
     source_data_dir = settings.data_dir
@@ -152,7 +158,7 @@ def run_benchmark(
     for index in range(max(0, warmup_runs) + max(1, runs)):
         shutil.copyfile(source_copy, settings.db_path)
         _clean_video_records(settings.db_path, video_id)
-        result = _run_once(video_id, frame_interval_sec)
+        result = _run_once(video_id, frame_interval_sec, collect_profile=collect_profile)
         if index < warmup_runs:
             warmup_results.append(result)
         else:
@@ -178,6 +184,7 @@ def run_benchmark(
         "video_path": video.get("path"),
         "video_duration_sec": round(video_duration, 6) if video_duration else None,
         "frame_interval_sec": frame_interval_sec,
+        "collect_profile": collect_profile,
         "warmup_runs": warmup_results,
         "measured_runs": measured_results,
         "mean_processing_sec": round(mean(processing_values), 6) if processing_values else None,
@@ -197,6 +204,7 @@ def main() -> int:
     parser.add_argument("--warmup-runs", type=int, default=1)
     parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--collect-profile", action="store_true")
     args = parser.parse_args()
     report = run_benchmark(
         video_id=args.video_id,
@@ -204,6 +212,7 @@ def main() -> int:
         warmup_runs=args.warmup_runs,
         runs=args.runs,
         output=args.output,
+        collect_profile=args.collect_profile,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0

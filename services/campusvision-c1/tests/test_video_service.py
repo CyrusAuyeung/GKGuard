@@ -64,3 +64,21 @@ def test_detect_faces_and_embeddings_falls_back_to_two_step_backend():
     assert embeddings == [[1.0, 0.0]]
     assert engine.detect_calls == 1
     assert engine.embed_calls == 1
+
+
+def test_index_performance_profile_is_opt_in():
+    disabled = video_service._IndexPerformanceProfile(enabled=False)
+    with disabled.stage("hidden"):
+        disabled.count("items")
+    assert disabled.summary(processing_duration_sec=1.0) is None
+
+    enabled = video_service._IndexPerformanceProfile(enabled=True)
+    with enabled.stage("visible"):
+        enabled.count("items", 2)
+    summary = enabled.summary(processing_duration_sec=1.0)
+
+    assert summary is not None
+    assert summary["schema_version"] == "c1_index_performance_profile_v1"
+    assert summary["counts"]["items"] == 2
+    assert summary["stages"]["visible"]["calls"] == 1
+    assert summary["stages"]["visible"]["elapsed_sec"] >= 0.0
