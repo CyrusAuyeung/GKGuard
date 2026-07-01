@@ -6,6 +6,7 @@ import shutil
 import sqlite3
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from statistics import mean
@@ -88,6 +89,57 @@ def _clean_video_records(db_path: Path, video_id: str) -> None:
         conn.close()
 
 
+def _prepare_route_videos(db_path: Path, source_video: dict[str, Any], route_count: int) -> list[str]:
+    route_count = max(1, int(route_count))
+    if route_count == 1:
+        return [str(source_video["video_id"])]
+
+    route_ids = []
+    conn = sqlite3.connect(db_path)
+    try:
+        ts = _utc_now()
+        for index in range(route_count):
+            video_id = (
+                str(source_video["video_id"])
+                if index == 0
+                else f"{source_video['video_id']}_bench_route_{index + 1:02d}"
+            )
+            camera_id = f"{source_video.get('camera_id') or 'camera'}_bench_route_{index + 1:02d}"
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO cameras(camera_id, name, location, lat, lng, created_at, updated_at)
+                VALUES (?, ?, NULL, NULL, NULL, ?, ?)
+                """,
+                (camera_id, camera_id, ts, ts),
+            )
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO videos(
+                    video_id, filename, camera_id, recorded_at, path, status,
+                    frame_interval_sec, created_at, updated_at,
+                    processing_started_at, processing_finished_at,
+                    processing_duration_sec, processing_error
+                )
+                VALUES (?, ?, ?, ?, ?, 'uploaded', ?, ?, ?, NULL, NULL, NULL, NULL)
+                """,
+                (
+                    video_id,
+                    source_video.get("filename") or f"route_{index + 1}.mp4",
+                    camera_id,
+                    source_video.get("recorded_at"),
+                    source_video["path"],
+                    source_video.get("frame_interval_sec"),
+                    ts,
+                    ts,
+                ),
+            )
+            route_ids.append(video_id)
+        conn.commit()
+    finally:
+        conn.close()
+    return route_ids
+
+
 def _set_temp_data_dir(data_dir: Path) -> None:
     settings.data_dir = data_dir
     settings.uploads_dir = data_dir / "uploads"
@@ -126,6 +178,63 @@ def _run_once(video_id: str, frame_interval_sec: float | None, *, collect_profil
     }
 
 
+def _run_concurrent(
+    video_ids: list[str],
+    frame_interval_sec: float | None,
+    *,
+    collect_profile: bool,
+) -> dict[str, Any]:
+    # Prewarm shared model singletons before worker threads start, otherwise
+    # first-touch concurrent runs can race and duplicate expensive model init.
+    from app.vision.body_detector import get_body_detector
+    from app.vision.face_engine import get_face_engine
+
+    get_face_engine()
+    get_body_detector()
+
+    started = time.perf_counter()
+    route_results: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=len(video_ids)) as executor:
+        futures = {
+            executor.submit(
+                _run_once,
+                video_id,
+                frame_interval_sec,
+                collect_profile=collect_profile,
+            ): video_id
+            for video_id in video_ids
+        }
+        for future in as_completed(futures):
+            video_id = futures[future]
+            try:
+                route_results.append({"video_id": video_id, **future.result()})
+            except Exception as exc:
+                route_results.append(
+                    {
+                        "video_id": video_id,
+                        "error": f"{type(exc).__name__}: {exc}",
+                    }
+                )
+    elapsed = time.perf_counter() - started
+    route_results.sort(key=lambda item: item["video_id"])
+    return {
+        "elapsed_sec": round(elapsed, 6),
+        "route_count": len(video_ids),
+        "routes": route_results,
+        "failed_routes": sum(1 for item in route_results if item.get("error")),
+        "mean_route_processing_sec": round(
+            mean(
+                float(item.get("processing_duration_sec") or item.get("elapsed_sec") or 0.0)
+                for item in route_results
+                if not item.get("error")
+            ),
+            6,
+        )
+        if any(not item.get("error") for item in route_results)
+        else None,
+    }
+
+
 def run_benchmark(
     *,
     video_id: str,
@@ -134,6 +243,7 @@ def run_benchmark(
     runs: int,
     output: Path,
     collect_profile: bool,
+    concurrent_routes: int,
 ) -> dict[str, Any]:
     source_db = settings.db_path
     source_data_dir = settings.data_dir
@@ -157,15 +267,24 @@ def run_benchmark(
     measured_results = []
     for index in range(max(0, warmup_runs) + max(1, runs)):
         shutil.copyfile(source_copy, settings.db_path)
-        _clean_video_records(settings.db_path, video_id)
-        result = _run_once(video_id, frame_interval_sec, collect_profile=collect_profile)
+        route_video_ids = _prepare_route_videos(settings.db_path, video, concurrent_routes)
+        for route_video_id in route_video_ids:
+            _clean_video_records(settings.db_path, route_video_id)
+        if concurrent_routes <= 1:
+            result = _run_once(video_id, frame_interval_sec, collect_profile=collect_profile)
+        else:
+            result = _run_concurrent(
+                route_video_ids,
+                frame_interval_sec,
+                collect_profile=collect_profile,
+            )
         if index < warmup_runs:
             warmup_results.append(result)
         else:
             measured_results.append(result)
 
     processing_values = [
-        float(item.get("processing_duration_sec") or item["elapsed_sec"])
+        float(item["elapsed_sec"] if concurrent_routes > 1 else item.get("processing_duration_sec") or item["elapsed_sec"])
         for item in measured_results
     ]
     realtime_values = [
@@ -185,12 +304,18 @@ def run_benchmark(
         "video_duration_sec": round(video_duration, 6) if video_duration else None,
         "frame_interval_sec": frame_interval_sec,
         "collect_profile": collect_profile,
+        "concurrent_routes": max(1, int(concurrent_routes)),
         "warmup_runs": warmup_results,
         "measured_runs": measured_results,
         "mean_processing_sec": round(mean(processing_values), 6) if processing_values else None,
         "max_processing_sec": round(max(processing_values), 6) if processing_values else None,
         "mean_realtime_factor": round(mean(realtime_values), 6) if realtime_values else None,
         "max_realtime_factor": round(max(realtime_values), 6) if realtime_values else None,
+        "mean_effective_realtime_streams": (
+            round((max(1, int(concurrent_routes)) / mean(realtime_values)), 6)
+            if realtime_values
+            else None
+        ),
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -205,6 +330,7 @@ def main() -> int:
     parser.add_argument("--runs", type=int, default=1)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
     parser.add_argument("--collect-profile", action="store_true")
+    parser.add_argument("--concurrent-routes", type=int, default=1)
     args = parser.parse_args()
     report = run_benchmark(
         video_id=args.video_id,
@@ -213,6 +339,7 @@ def main() -> int:
         runs=args.runs,
         output=args.output,
         collect_profile=args.collect_profile,
+        concurrent_routes=args.concurrent_routes,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0
