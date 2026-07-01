@@ -288,3 +288,152 @@
 - 风险说明：文档明确上装颜色、外观倾向、眼镜状态来自模型/profile，GKGuard C2 不应当作绝对事实；装束分组当前未完全达到最终指标，但不影响两个查询大接口使用。
 - 验证结果：文档已创建并检查，未改动 GKGuard C2；当前文件仍未提交，PR 前需要将该文档加入 commit。
 - 涉及文件：`services/campusvision-c1/README_C2_INTEGRATION.md`、`services/campusvision-c1/README_TASK_REPORTS.md`
+
+## 2026-06-27 10:11:26 CST - 拉取 v0.3.2 并重启 C1
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：按用户确认的 GitHub 最新版本 `v0.3.2` 更新本地仓库，并重新启动 CampusVision C1 服务。
+- 仓库操作：执行 `git fetch origin --prune --tags` 后确认 `v0.3.2` 指向 `origin/main@9d6323b`；本地 `main` 从 `02424c8` 快进到 `9d6323b`。
+- 本地修改处理：切换前将上一轮未提交的本地任务报告修改暂存到 `stash@{0}`，避免被切换分支覆盖。
+- 服务操作：停止旧 PID `16700`，使用 `/home/speng/miniforge3/envs/campusvision-c1/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` 启动新服务。
+- 运行状态：新 PID `17139` 正在监听 `127.0.0.1:8000`。
+- 健康检查：`GET /health` 返回 `200 OK`，`status=ok`，`face_engine=insightface`，数据库路径为 `services/campusvision-c1/data/campusvision.sqlite3`。
+- 日志位置：`services/campusvision-c1/data/logs/c1_uvicorn.log`
+- 影响范围：更新仓库到 `v0.3.2` 并重启 CampusVision C1；未改动数据库、模型文件、测试数据或 GKGuard C2 代码。
+
+## 2026-06-29 10:11:45 CST - C1 当前进度总结
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：总结 CampusVision C1 当前完成进度、已有结果、主要问题和下一步计划。
+- 当前运行状态：C1 8000 服务健康检查正常，`GET /health` 返回 `status=ok`，人脸引擎为 `insightface`，数据库为 `services/campusvision-c1/data/campusvision.sqlite3`。
+- 当前数据规模：数据库包含 videos `15`、camera count `15`、persons `44`、稳定人物 `24`、候选人物 `20`、events `1345`、identified events `382`、person observations `1616`、face records `1096`、person faces `653`、appearance sessions `44`。
+- 已完成能力：视频/API 入库、抽帧、人脸检测与 embedding、人物聚合、事件构建、人物库、appearance sessions/装束库、上装颜色识别、外观倾向、眼镜状态、人工评估页面、可重映射评估、C2 查询接口和对接文档均已具备。
+- 查询接口结果：`POST /api/v1/query/face-image` 支持多图以图搜人并返回候选人物、事件和媒体 URL；`POST /api/v1/query/person-attributes` 支持时间、摄像头、外观倾向、眼镜状态、上装颜色等条件检索，并返回 exact/partial 与 failed conditions。
+- 当前模型链路：人脸为 InsightFace buffalo_l / ArcFace；人物合并为 `person_merge_logreg_v1`；人体检测当前有效后端为 `opencv_hog`，YOLO11x 模型路径已配置但未启用；上装颜色为 CLIP ViT-H/14 + SCHP-LIP `profile_realtime_balanced_prompt_v2`；装束分组为 `source_visual_outfit_group_v2`；外观倾向和眼镜状态均为 CLIP H/14 zero-shot。
+- 已有指标：人脸聚合 pairwise precision `1.0`、F1 `0.971429`，达到目标；上装颜色选定装束级准确率 `0.85`，达到 `>=0.8` 目标；生产装束 summary 人工集为 `58/72 = 80.56%`，刚过通过线；API benchmark 处理 `25.166667s` 视频耗时 `13.760847s`，实时系数 `0.546789`；30 分钟内存监测 RSS 增长 `20.734MB`，通过稳定性阈值。
+- 未达标问题：事件装束分组 pairwise F1 `0.888287`，低于目标 `0.90`；purity `0.916667`，低于目标 `0.98`；当前评估只覆盖 remap 后 `264/324 = 81.48%` 人工事件装束标注，状态为 `partial_evaluated`。
+- 其他风险：部分早期人工评估集不能直接按旧数据库 ID replay，需要依赖可重映射导出；当前人体检测主链路仍是 OpenCV HOG，不是 YOLO11x；真实学校海康 H.265/海康格式数据尚未正式接入验证；C1 仍是学生项目/原型级闭环，不应按生产级大规模部署承诺。
+- 下一步计划：第一，优先把人体检测主链路切到 YOLO11x 并重跑评估，改善人体框和上装 ROI；第二，优化事件装束分组，目标 pairwise F1 `>=0.90`、purity `>=0.98`，同时不牺牲人脸聚合 precision；第三，把全量清库重跑、remap 人工评估、输出目标指标脚本化；第四，做 2-4 小时以上本地实时/API 长跑；第五，等学校数据到位后做 H.265/海康格式适配和真实摄像头/NVR 接入验证。
+- 影响范围：本次仅追加总结报告，未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 10:25:10 CST - 中期检查英文单页 PPT 图片
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：为 2-3 分钟中期检查生成一张英文 16:9 PPT 图片，概括 CampusVision C1 当前进度、数据规模、评估结果、已知问题和下一步计划。
+- 生成文件：`services/campusvision-c1/data/reports/c1_midterm_summary_slide.png`
+- 页面内容：标题为 `CampusVision C1: Video-to-Person Intelligence Pipeline`；包含 Completed Pipeline、Current Data Scale、Evaluation Results、Known Gaps & Next Steps 四块。
+- 用户补充后已更新：页头增加 `Current data: ChokePoint open surveillance dataset`，并说明正在 `Preparing workstation for campus monitoring API`，用于表达当前使用开源监控数据集，下一阶段准备接入学校监控 API 数据。
+- 用户要求样例图后已更新：左侧 Completed Pipeline 区域加入 ChokePoint 真实监控帧样例，选用可见全身的人体框和人脸框，展示从普通监控画面到 body/face observation 的实际输入效果。
+- 关键数据：展示 videos/cameras `15`、persons `44`、stable identities `24`、events `1,345`、identified events `382`、face records `1,096`；展示 face clustering precision `1.00`、F1 `0.971`、upper-color outfit accuracy `85%`、outfit grouping F1 `0.888`、purity `0.917`、API `25.2s video -> 13.8s processing`。
+- 设计处理：使用本地 Pillow 直接绘制 `1920x1080` PNG，避免 AI 图片生成导致文字失真；最终人工检查确认没有明显文字截断或重叠。
+- 影响范围：仅新增/覆盖汇报图片并追加本报告，未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 12:38:19 CST - 中期检查报告项目基本信息
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：按整体项目大局补充中期检查报告模板中的第 1 节“项目基本信息”，不从 C1 单模块视角填写。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 备份文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.bak`
+- 填写内容：项目名称为 `GKGuard 校园智能巡检与监控联动系统（CyberLUBAN CampusCar 项目）`；项目定位为校园场景学生项目 / MVP 原型，强调普通校园监控视频智能感知、数据检索平台和后续移动机器人联动；目标应用场景覆盖校园楼宇、走廊、出入口和重点区域巡检辅助与事件检索。
+- 边界说明：总体沿用开题方向；中期阶段将验收边界收敛为可验证的软件与算法闭环，以及学校监控 API / 工作站接入准备；当前使用 ChokePoint 开源监控数据集验证闭环，真实校园监控 API 和更完整机器人联动待资源到位后推进。
+- 影响范围：仅修改报告文档第 1 节项目基本信息；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 12:44:18 CST - 中期报告填写分工规则
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：明确后续填写中期检查报告时的模块边界，避免代写非本人负责范围。
+- 填写规则：若内容属于 CampusVision C1 或项目总体大局，则直接填写；若内容属于 A 组机械、B 组电控、C2 前端/平台展示，则只标注占位符，后续由对应同学补充。
+- 占位格式：A 组内容标 `【A】`，B 组内容标 `【B】`，C2 内容标 `【C2】`。
+- C 组边界：C 组算法分为 C1 和 C2；C1 指当前本地后端算法/数据库/API 服务，C2 指前端展示、平台交互和界面集成。后续报告中 C1 可直接填写，C2 不代写。
+- 补充边界：安全漏洞补丁、安全加固、前端路由保护、平台鉴权和用户侧访问控制也归 C2 负责；报告中相关内容标 `【C2】`，不代写。
+- 影响范围：仅记录后续报告填写规则，未改动业务代码、数据库、模型文件、测试数据或报告正文。
+
+## 2026-06-29 12:50:31 CST - 修正项目基本信息中的巡检小车参与感
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：修正中期检查报告第 1 节，避免把项目写成纯监控软件，明确 A/B 机械电控开发的巡检小车是系统中的移动感知与执行终端。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 新增备份：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_vehicle_context_20260629_1248.bak`
+- 修正内容：项目名称改为 `GKGuard 校园智能巡检与监控联动系统（CyberLUBAN CampusCar 巡检小车项目）`；项目定位改为巡检小车硬件端、摄像头/监控接入端、后端智能分析服务和前端平台共同组成；明确小车搭载或接入摄像头后可作为移动监控点，把视频流接入 GKGuard。
+- 边界说明：第 1 节属于总体大局，因此直接填写；A/B 的具体机械、电控实现细节仍不代写，后续对应章节按 `【A】` / `【B】` 占位。
+- 影响范围：仅修改报告文档第 1 节项目基本信息并追加本报告；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 12:59:21 CST - 清理误传开题报告与第 2 节草稿
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：按要求删除基于误传开题报告写入的内容，并删除误传开题报告文件。
+- 清理文件：已删除 `services/campusvision-c1/data/reports/CyberLUBAN_Topic_Selection_ZH_EN(1).docx`。
+- 恢复内容：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx` 已恢复到第 2 节填写前状态，第 2 节表格和小结保持空白，等待正确开题报告。
+- 保留内容：第 1 节项目基本信息仍保留，因为其后续已按整体项目大局和巡检小车参与感修正，不依赖误传开题报告。
+- 影响范围：仅清理误传开题报告、第 2 节草稿和对应错误任务记录；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 13:06:43 CST - 完整填写中期检查报告
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：不再参考误传开题报告，按当前 GKGuard / CampusCar 项目的合理 MVP 边界完整填写中期检查报告模板。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 新增备份：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_full_fill_20260629_130256.bak`
+- 填写内容：补齐第 2-10 节，包括开题目标回顾、阶段性成果、A/B/C 技术组进展、核心测试记录、安全合规、当前风险、下一阶段计划、附件清单和导师/队长确认区。
+- 分工边界：总体项目和 C1 内容直接填写；A 组机械、B 组电控、C2 平台展示/安全/交互相关内容保留 `【A】`、`【B】`、`【C2】` 占位，后续由对应同学补充。
+- C1 证据：写入当前 v0.3.2 数据规模和指标，包括 15 路 ChokePoint 普通监控视频、1345 个事件、382 个已识别事件、44 个人物、1096 条人脸记录、人脸聚合 F1 `0.9714`、上装装束级准确率 `0.85`、25.17s 视频处理耗时 `13.76s`。
+- 验证结果：已用 `unzip -t` 校验 docx 压缩结构正常；抽取 `word/document.xml` 复核后，报告 8 张表无空白单元格。
+- 影响范围：仅修改本地报告文档并追加本任务报告；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 13:10:25 CST - 中期检查报告待补内容标红
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：将中期检查报告中待其他同学填写的占位符和相关提示词标红，方便后续人工补全。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 新增备份：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_red_placeholders_20260629_131000.bak`
+- 标红范围：实际文档中存在的 `【A】`、`【B】`、`【C2】`、`【A/B】` 已全部标红；同时标红 `请补充`、`待补充`、`待补`、`待填写`、`待提交前确认`、`待录制`、`待导师填写`、`待队长最终核对`、`待外场前确认` 等提示词。文档中当前没有 `【C1】` 占位符，已保留已完成的 C1 正文为正常颜色。
+- 验证结果：`unzip -t` 校验 docx 结构正常；XML 复核显示 `【A】21/21`、`【B】28/28`、`【C2】19/19`、`【A/B】1/1` 均在红色 run 中，相关提示词也全部匹配为红色。
+- 影响范围：仅修改本地报告文档并追加本任务报告；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 13:19:12 CST - 中期检查报告待填项落实到负责人
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：把中期检查报告中泛化的 A/B/C2 待填占位改成逐项负责人字段，避免只写一句“由某组补充”。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 新增备份：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_owner_assignment_20260629_132000.bak`、`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_owner_cleanup_20260629_132600.bak`、`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_owner_final_tidy_20260629_133000.bak`
+- 变更内容：所有原 `【A】`、`【B】`、`【C2】`、`【A/B】` 占位已替换为具体负责人字段；C1 责任人写为 `pengshihan538 / speng`；C2 责任人根据 git 历史可确认信息写为 `Hao OUYANG / Cyrus Auyeung（需本人确认）`；A/B 因仓库没有成员姓名，改为红色 `【A组机械负责人姓名】`、`【B组电控负责人姓名】`，后续可直接替换为真实姓名。
+- 补充负责人：导师意见写入负责人 `阚林戈`；队长确认、队长姓名、联系方式写入红色 `【队长姓名】`；演示视频和监控数据/合规对接也分别增加红色负责人姓名槽位。
+- 验证结果：`unzip -t` 校验 docx 结构正常；报告表格无空白单元格；XML 复核显示裸 `【A】/【B】/【C1】/【C2】/【A/B】` 数量均为 `0`，负责人姓名槽位和待补提示词均在红色 run 中。
+- 影响范围：仅修改本地报告文档并追加本任务报告；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-06-29 13:38:34 CST - 中期检查报告待填项改回简洁组别标注
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：按用户要求撤回复杂姓名槽位，改为直接使用 `【A】`、`【B】`、`【C2】` 等组别标注，并保证每个红色待填位置都有 `【】` 标注。
+- 更新文件：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx`
+- 新增备份：`services/campusvision-c1/data/reports/CyberLUBAN_Midterm_Check_Template(1).docx.before_simple_bracket_labels_20260629_134000.bak`
+- 变更内容：移除 `负责人：【A组机械负责人姓名】`、`负责人：【B组电控负责人姓名】`、`Hao OUYANG / Cyrus Auyeung` 等复杂负责人写法；改回 `【A】`、`【B】`、`【C2】` 展示。少数非 A/B/C2 待填项保留简洁 `【队长】`、`【导师】`、`【全组】` 标注。
+- 验证结果：`unzip -t` 校验 docx 结构正常；报告表格无空白单元格；XML 复核显示复杂负责人字段数量为 `0`，红色 run 中无缺少 `【】` 标注的片段，`【A】27/27`、`【B】34/34`、`【C2】21/21` 均为红色。
+- 影响范围：仅修改本地报告文档并追加本任务报告；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-07-01 10:58:34 CST - 确认最新版本并重启 C1 服务
+
+- 版本号：`main@9d6323b`，tag `v0.3.2`
+- 任务目标：按要求更新到最新版本，并确认本地 CampusVision C1 服务运行在当前版本。
+- 仓库状态：执行 `git fetch origin --prune --tags` 后确认 `origin/main` 仍为 `9d6323b`，最新 tag 仍为 `v0.3.2`；本地 `main` 与 `origin/main` 差异为 `0/0`，无需快进拉取。
+- 本地改动保护：保留当前本地报告文档和 `README_TASK_REPORTS.md` 修改，未执行 reset、checkout 或覆盖操作。
+- 服务操作：停止旧 C1 进程 `17139`，使用 `/home/speng/miniforge3/envs/campusvision-c1/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` 重新启动服务。
+- 运行状态：新服务 PID 为 `70318`，监听 `127.0.0.1:8000`；`GET /health` 返回 `status=ok`，`face_engine=insightface`，数据库路径为 `services/campusvision-c1/data/campusvision.sqlite3`。
+- 日志位置：`services/campusvision-c1/data/logs/c1_uvicorn_20260701_105830_setsid.log`
+- 影响范围：仅同步远端元数据并重启 CampusVision C1 服务；未改动业务代码、数据库、模型文件、测试数据或 GKGuard C2。
+
+## 2026-07-01 13:06:53 CST - C1 单卡 6 路实时候选热路径优化
+
+- 版本号：`main@7e795e9`
+- 任务目标：将 CampusVision C1 从当前约 1-2 路能力推进到单张 RTX 3090 可稳定支持 6 路实时分析；人工 check 数据仍仅用于评估；重大改动前已创建并推送备份分支。
+- 备份分支：已推送 `backup/c1-before-async-event-build-20260701-124719`，用于保存异步事件构建改造前的基线。
+- 核心改动：新增后台事件构建队列 `event_build_queue.py`；`EVENT_PERSISTENCE_MODE=sync|async|disabled` 支持实时热路径先返回 indexed，再后台重建 events/appearance sessions；benchmark 在 async 模式下每轮结束后 drain 队列，避免临时 DB 被后台任务干扰。
+- 并行策略：取消 live capture 默认全局串行 `index_video()`，改由 InsightFace/YOLO 的 bounded semaphore 和 SQLite 写锁控制并发；全库人物索引重建仍保留锁，避免与实时入库互相污染。
+- 实时候选配置：本地 `.env` 已切到 `INSIGHTFACE_DET_SIZE=960`、`INSIGHTFACE_ENGINE_POOL_SIZE=1`、`INSIGHTFACE_MAX_CONCURRENT_INFERENCES=1`、`EVENT_PERSISTENCE_MODE=async`、`BODY_DETECTION_FRAME_STRIDE=2`、`CLOTHING_ANALYSIS_FRAME_STRIDE=2`、`UPPER_COLOR_BACKEND=hsv`、`SERIALIZE_LIVE_ANALYSIS=false`。`.env.example` 已同步新增这些配置项。
+- 质量取舍：不降低人脸采样频率，6 路候选仍保持每路 128 条 face records；人体检测从每帧变为隔帧，样例视频 body detections 从约 58/路降到 30/路；衣着颜色分析也隔帧执行，事件/装束层面依赖后续聚合补齐。
+- 验证测试：`python -m py_compile app/services/event_build_queue.py app/services/video_service.py app/services/observation_service.py app/services/live_service.py app/core/config.py scripts/benchmark_api_processing.py` 通过；`pytest tests/test_video_service.py tests/test_live_service.py tests/test_observation_service.py tests/test_event_service.py tests/test_security_config.py -q` 通过，42 passed。
+- 6 路基准：使用 `P2L_S5_C2_30fps.mp4`，视频时长 `25.166667s`，`frame_interval_sec=1.0`，并发 6 路，warmup 1 次、measured 3 次；结果 `mean_processing_sec=18.299367s`、`max_processing_sec=18.635613s`、`max_realtime_factor=0.740488`、`mean_effective_realtime_streams=8.251651`，3 次 measured 均低于视频时长。
+- 对照结果：仅 async + HSV + body stride 2 时，3 次 measured 的 `max_processing_sec=26.765671s`，仍未稳定达标；加入 `CLOTHING_ANALYSIS_FRAME_STRIDE=2` 后稳定过线。
+- 产物文件：`data/evals/runtime/c1_api_processing_benchmark_async6_stride2_clothing2_3runs.json`、`data/evals/runtime/c1_api_processing_benchmark_async1_stride2_clothing2_profile.json`。
+- 服务状态：已用 `/home/speng/miniforge3/envs/campusvision-c1/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` 启动 C1，PID `98074`；`GET /health` 返回 `status=ok`；日志为 `data/logs/c1_uvicorn_20260701_130746_realtime6.log`。
+- 当前限制：这是基于 ChokePoint 单个 25s 样例视频的 6 路并发验证，尚未完成多视频混合、2-4 小时长跑、真实学校摄像头 API/H.265 数据验证；因此暂不宣称最终商业化容量，只作为 C1 v1 实时候选热路径。
+- 影响范围：仅改动 CampusVision C1；未上传或删除 `testdata` 下视频；未改动 GKGuard C2、A/B 相关代码；人工 check 数据没有进入训练或线上逻辑。
